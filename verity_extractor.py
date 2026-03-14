@@ -4,10 +4,17 @@ Verity source extraction and scraping module.
 
 import asyncio
 import json
+import logging
 import os
 import re
 import time
 from urllib.parse import urlparse
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [%(levelname)s] %(message)s",
+    datefmt="%H:%M:%S",
+)
 
 import httpx
 from bs4 import BeautifulSoup
@@ -1073,6 +1080,12 @@ async def healthcheck() -> dict:
 async def extract(request: ExtractRequest) -> ExtractResponse:
     start = time.perf_counter()
 
+    logging.info("─" * 60)
+    logging.info("Extract request: %d source(s)", len(request.sources))
+    logging.info("Prompt: %s", request.original_prompt[:120] or "(none)")
+    for i, s in enumerate(request.sources, 1):
+        logging.info("  [%d] %s  |  label: %s", i, s.url, s.label[:60])
+
     scraped_sources = await asyncio.gather(
         *(scrape_source(source) for source in request.sources)
     )
@@ -1080,6 +1093,17 @@ async def extract(request: ExtractRequest) -> ExtractResponse:
     extraction_time_ms = int((time.perf_counter() - start) * 1000)
     live_count = sum(1 for source in scraped_sources if source.live)
     dead_count = len(scraped_sources) - live_count
+
+    logging.info("Results (%dms): %d live, %d dead", extraction_time_ms, live_count, dead_count)
+    for s in scraped_sources:
+        status = "✓ live" if s.live else "✗ dead"
+        method = s.scrape_method or "-"
+        note   = s.scrape_note or ""
+        logging.info(
+            "  %s  %-40s  method=%-14s  words=%-5s  note=%s",
+            status, s.domain, method, s.word_count or 0, note,
+        )
+    logging.info("─" * 60)
 
     return ExtractResponse(
         scraped_sources=scraped_sources,

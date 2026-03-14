@@ -1,0 +1,13 @@
+venv/
+__pycache__/
+*.py[cod]
+
+.vscode/
+.claude/
+
+.DS_Store
+Thumbs.db
+
+node_modules/
+dist/
+build/
