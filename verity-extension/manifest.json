@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Verity",
+  "version": "1.0.0",
+  "description": "Score the sources behind AI responses.",
+  "permissions": ["activeTab"],
+  "host_permissions": [
+    "http://localhost:8001/*"
+  ],
+  "content_scripts": [
+    {
+      "matches": [
+        "https://chat.openai.com/*",
+        "https://chatgpt.com/*"
+      ],
+      "js": [
+        "content/api.js",
+        "content/extractor.js",
+        "content/ui.js",
+        "content/observer.js",
+        "content/content.js"
+      ],
+      "css": ["styles/cards.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js"
+  }
+}

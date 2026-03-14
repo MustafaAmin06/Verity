@@ -1,0 +1,341 @@
+/* ============================================
+   Verity — Source Scorecard Styles
+   All classes prefixed verity- to avoid collision
+   ============================================ */
+
+/* ---------- Trigger button ---------- */
+.verity-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  color: #e0e0e0;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.verity-trigger-btn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.verity-trigger-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ---------- Panel container ---------- */
+.verity-panel {
+  margin: 12px 0 16px;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* ---------- Skeleton loading ---------- */
+.verity-panel.verity-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.verity-skeleton {
+  height: 44px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  animation: verity-pulse 1.2s ease-in-out infinite;
+}
+
+.verity-skeleton:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.verity-skeleton:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes verity-pulse {
+  0%, 100% { opacity: 0.4; }
+  50%      { opacity: 0.8; }
+}
+
+/* ---------- Card (compact state) ---------- */
+.verity-card {
+  position: relative;
+  margin-bottom: 6px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.verity-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.15);
+}
+
+.verity-card-summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1;
+}
+
+/* ---------- Verdict dot ---------- */
+.verity-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+[data-verdict="reliable"] .verity-dot   { background: #3B6D11; }
+[data-verdict="caution"] .verity-dot    { background: #854F0B; }
+[data-verdict="skeptical"] .verity-dot  { background: #A32D2D; }
+[data-verdict="unverified"] .verity-dot { background: #888780; }
+
+.dot-green { background: #3B6D11; }
+
+/* ---------- Card text elements ---------- */
+.verity-domain {
+  font-weight: 600;
+  color: #e0e0e0;
+}
+
+.verity-date {
+  color: #999;
+  font-size: 12px;
+}
+
+.verity-verdict-label {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+[data-verdict="reliable"] .verity-verdict-label   { color: #6DBF3B; }
+[data-verdict="caution"] .verity-verdict-label    { color: #D4A017; }
+[data-verdict="skeptical"] .verity-verdict-label  { color: #D44040; }
+[data-verdict="unverified"] .verity-verdict-label { color: #999; }
+
+/* ---------- Hover detail ---------- */
+.verity-card-hover-detail {
+  display: none;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.verity-card--hover .verity-card-hover-detail {
+  display: block;
+}
+
+.verity-card-hover-detail p {
+  margin: 0 0 8px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: #ccc;
+}
+
+.verity-summary {
+  font-weight: 500;
+  color: #e0e0e0 !important;
+}
+
+.verity-reason {
+  color: #bbb !important;
+}
+
+.verity-implication {
+  font-style: italic;
+  color: #999 !important;
+  font-size: 12px !important;
+}
+
+/* ---------- Flags ---------- */
+.verity-flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.verity-flag {
+  display: inline-block;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #D4A017;
+  background: rgba(212, 160, 23, 0.12);
+  border-radius: 4px;
+}
+
+/* ---------- Expand button ---------- */
+.verity-expand-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+  font-family: inherit;
+  color: #aaa;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.verity-expand-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #e0e0e0;
+}
+
+/* ---------- Full detail (expanded state) ---------- */
+.verity-card-full-detail {
+  display: none;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.verity-card--expanded .verity-card-full-detail {
+  display: block;
+}
+
+.verity-signal-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 0;
+  font-size: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.verity-signal-label {
+  flex: 0 0 130px;
+  color: #999;
+}
+
+.verity-signal-value {
+  flex: 1;
+  color: #ccc;
+}
+
+.verity-signal-score {
+  flex: 0 0 50px;
+  text-align: right;
+  font-weight: 600;
+  color: #e0e0e0;
+}
+
+.verity-source-link {
+  display: inline-block;
+  margin-top: 10px;
+  padding: 5px 12px;
+  font-size: 12px;
+  color: #7ab3ff;
+  background: rgba(122, 179, 255, 0.08);
+  border: 1px solid rgba(122, 179, 255, 0.2);
+  border-radius: 6px;
+  text-decoration: none;
+  transition: background 0.15s;
+}
+
+.verity-source-link:hover {
+  background: rgba(122, 179, 255, 0.15);
+}
+
+.verity-methodology-note {
+  margin-top: 10px;
+  font-size: 11px;
+  color: #777;
+  line-height: 1.4;
+}
+
+/* ---------- Further reading ---------- */
+.verity-further-reading {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.verity-fr-header {
+  font-size: 13px;
+  font-weight: 600;
+  color: #ccc;
+  margin-bottom: 8px;
+}
+
+.verity-fr-card {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.verity-fr-domain {
+  font-weight: 500;
+  color: #ccc;
+}
+
+.verity-fr-title {
+  flex: 1;
+  color: #999;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.verity-fr-date {
+  color: #777;
+  flex-shrink: 0;
+}
+
+.verity-fr-link {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  font-size: 11px;
+  color: #7ab3ff;
+  background: rgba(122, 179, 255, 0.08);
+  border-radius: 4px;
+  text-decoration: none;
+}
+
+.verity-fr-link:hover {
+  background: rgba(122, 179, 255, 0.15);
+}
+
+.verity-disclaimer {
+  margin-top: 8px;
+  font-size: 11px;
+  color: #666;
+  line-height: 1.4;
+}
+
+/* ---------- Error state ---------- */
+.verity-error {
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: rgba(163, 45, 45, 0.1);
+  border: 1px solid rgba(163, 45, 45, 0.2);
+}
+
+.verity-error p {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #D44040;
+}
+
+.verity-empty {
+  padding: 12px 0;
+  font-size: 13px;
+  color: #999;
+}

@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(find /home/mustafaamin/Verity -type f -name *.md -o -name *.json -o -name *.js -o -name *.html -o -name manifest*)"
+    ]
+  }
+}
