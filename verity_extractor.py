@@ -36,6 +36,10 @@ try:
 except ImportError:
     pass
 
+OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3.5:9b")
+GEMINI_AVAILABLE = False  # replaced by local Ollama
+
 
 REQUEST_TIMEOUT_SECONDS = int(os.getenv("REQUEST_TIMEOUT_SECONDS", "5"))
 MAX_BODY_TEXT_CHARS = int(os.getenv("MAX_BODY_TEXT_CHARS", "2000"))
@@ -323,6 +327,312 @@ class ExtractResponse(BaseModel):
     live_count: int
     dead_count: int
     extraction_time_ms: int
+
+
+# ── Scored response models (returned by /extract when Gemini is available) ──
+
+class SourceSignals(BaseModel):
+    domain_tier: str
+    domain_score: int
+    recency_score: int
+    author_score: int
+    relevance_score: int
+    alignment_score: int
+    is_peer_reviewed: bool
+    claim_aligned: bool | None
+    matched_terms: list[str]
+
+
+class ScoredSource(BaseModel):
+    url: str
+    domain: str
+    title: str | None
+    verdict: str
+    verdict_label: str
+    color: str
+    composite_score: int
+    reason: str
+    implication: str
+    flags: list[str]
+    date: str | None
+    author: str | None
+    paywalled: bool
+    signals: SourceSignals
+
+
+class FurtherReadingItem(BaseModel):
+    url: str
+    domain: str
+    title: str
+    date: str | None
+    tier: str
+    verdict: str
+
+
+class ScoredResponse(BaseModel):
+    sources: list[ScoredSource]
+    further_reading: list[FurtherReadingItem]
+    topic_detected: str
+    source_count: int
+    reliable_count: int
+    flagged_count: int
+
+
+# ── Scoring helpers ──
+
+DOMAIN_TIER_SCORES: dict[str, int] = {
+    "academic_journal": 100,
+    "official_body":    95,
+    "established_news": 80,
+    "independent_blog": 50,
+    "flagged":          10,
+    "unknown":          30,
+}
+
+TIER_PEER_REVIEWED: set[str] = {"academic_journal"}
+
+VERDICT_MAP = [
+    (75, "reliable",   "Looks reliable",     "green"),
+    (50, "caution",    "Treat with caution", "amber"),
+    (25, "skeptical",  "Be skeptical",       "red"),
+    (0,  "unverified", "Couldn't verify",    "gray"),
+]
+
+
+def _compute_domain_score(domain_info: dict) -> int:
+    return DOMAIN_TIER_SCORES.get(domain_info.get("tier", "unknown"), 30)
+
+
+def _compute_recency_score(year: str | None) -> int:
+    if not year:
+        return 40
+    try:
+        age = 2025 - int(year)
+        if age <= 1:  return 100
+        if age <= 3:  return 90
+        if age <= 5:  return 75
+        if age <= 10: return 60
+        if age <= 20: return 45
+        return 30
+    except (ValueError, TypeError):
+        return 40
+
+
+def _compute_author_score(author: str | None) -> int:
+    return 80 if author else 40
+
+
+def _verdict_from_score(score: int) -> tuple[str, str, str]:
+    for threshold, verdict, label, color in VERDICT_MAP:
+        if score >= threshold:
+            return verdict, label, color
+    return "unverified", "Couldn't verify", "gray"
+
+
+def _composite_score(domain: int, recency: int, author: int, relevance: int, alignment: int) -> int:
+    return int(
+        domain    * 0.25 +
+        recency   * 0.15 +
+        author    * 0.10 +
+        relevance * 0.20 +
+        alignment * 0.30
+    )
+
+
+def _build_flags(scraped: ScrapedSource) -> list[str]:
+    flags: list[str] = []
+    if not scraped.live:
+        flags.append("url_dead")
+    if scraped.scrape_note == "blocked_403":
+        flags.append("access_blocked")
+    if scraped.paywalled:
+        flags.append("paywalled")
+    domain_info = get_domain_info(scraped.domain)
+    if domain_info.get("tier") == "flagged":
+        flags.append("low_credibility_domain")
+    return flags
+
+
+def _detect_topic(text: str) -> str:
+    lower = text.lower()
+    best_topic, best_count = "general", 0
+    for topic, keywords in TOPIC_KEYWORDS.items():
+        count = sum(1 for kw in keywords if kw in lower)
+        if count > best_count:
+            best_count, best_topic = count, topic
+    return best_topic
+
+
+# ── Gemini scoring ──
+
+_SCORE_PROMPT = """\
+You are a source credibility analyst. Given a scraped web page and the claim an AI made when citing it, \
+score the source and explain your assessment.
+
+CLAIM (what the AI said when citing this source):
+{context}
+
+ORIGINAL QUESTION:
+{prompt}
+
+SOURCE CONTENT (truncated):
+{body}
+
+Respond with ONLY valid JSON matching this exact schema:
+{{
+  "relevance_score": <0-100, how relevant is this source to the original question>,
+  "alignment_score": <0-100, how well does the source content support the specific claim above>,
+  "claim_aligned": <true if source supports claim, false if it contradicts, null if can't verify>,
+  "reason": "<1-2 sentence plain-English explanation of the score>",
+  "implication": "<1 sentence telling the user what to do with this source>",
+  "matched_terms": [<up to 5 key terms found in both the claim and the source content>]
+}}"""
+
+_FURTHER_READING_PROMPT = """\
+Suggest exactly 3 high-quality, authoritative sources a reader should consult on this topic.
+Prefer academic journals, official bodies, or established news outlets. Use only real URLs.
+
+Topic: {topic}
+Original question: {prompt}
+
+Respond with ONLY valid JSON as a list:
+[
+  {{"url": "...", "title": "...", "domain": "...", "date": "<year or null>", "tier": "<academic_journal|official_body|established_news|independent_blog>", "verdict": "reliable"}},
+  ...
+]"""
+
+
+async def _call_llm(prompt: str) -> str | None:
+    """Call local Ollama model and return the response text."""
+    try:
+        async with httpx.AsyncClient(timeout=60) as client:
+            response = await client.post(
+                f"{OLLAMA_URL}/api/generate",
+                json={
+                    "model": OLLAMA_MODEL,
+                    "prompt": prompt,
+                    "stream": False,
+                    "format": "json",
+                    "options": {"temperature": 0.1},
+                },
+            )
+            response.raise_for_status()
+            return response.json().get("response")
+    except Exception as exc:
+        logging.warning("Ollama call failed: %s", str(exc)[:120])
+        return None
+
+
+async def _check_ollama_available() -> bool:
+    try:
+        async with httpx.AsyncClient(timeout=3) as client:
+            r = await client.get(f"{OLLAMA_URL}/api/tags")
+            models = [m["name"] for m in r.json().get("models", [])]
+            return OLLAMA_MODEL in models
+    except Exception:
+        return False
+
+
+def _parse_json_response(text: str | None, fallback):
+    if not text:
+        return fallback
+    try:
+        # Strip markdown code fences if present
+        cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip())
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        return fallback
+
+
+async def score_source_with_llm(scraped: ScrapedSource, prompt: str) -> dict:
+    """Call local LLM to get relevance, alignment and reasoning for one source."""
+    body_snippet = (scraped.body_text or scraped.description or "")[:800]
+    llm_prompt = _SCORE_PROMPT.format(
+        context=scraped.context[:400],
+        prompt=prompt[:300],
+        body=body_snippet or "(no content retrieved)",
+    )
+    raw = await _call_llm(llm_prompt)
+    fallback = {
+        "relevance_score": 50,
+        "alignment_score": 50,
+        "claim_aligned": None,
+        "reason": "Could not assess — LLM unavailable or content restricted.",
+        "implication": "Verify this source manually before citing.",
+        "matched_terms": [],
+    }
+    return _parse_json_response(raw, fallback)
+
+
+async def get_further_reading(topic: str, prompt: str) -> list[FurtherReadingItem]:
+    """Ask local LLM for 3 further reading suggestions on the topic."""
+    llm_prompt = _FURTHER_READING_PROMPT.format(topic=topic, prompt=prompt[:300])
+    raw = await _call_llm(llm_prompt)
+    items = _parse_json_response(raw, [])
+    result = []
+    for item in items[:3]:
+        try:
+            result.append(FurtherReadingItem(
+                url=item.get("url", ""),
+                domain=item.get("domain", "") or extract_domain(item.get("url", "")),
+                title=item.get("title", ""),
+                date=item.get("date"),
+                tier=item.get("tier", "unknown"),
+                verdict=item.get("verdict", "reliable"),
+            ))
+        except Exception:
+            continue
+    return result
+
+
+def build_scored_source(scraped: ScrapedSource, llm: dict) -> ScoredSource:
+    """Combine scraped metadata + Gemini LLM output into a ScoredSource."""
+    domain_info = get_domain_info(scraped.domain)
+
+    domain_score  = _compute_domain_score(domain_info)
+    recency_score = _compute_recency_score(scraped.date)
+    author_score  = _compute_author_score(scraped.author)
+    relevance_score  = int(llm.get("relevance_score", 50))
+    alignment_score  = int(llm.get("alignment_score", 50))
+
+    if not scraped.live:
+        composite = 0
+        verdict, verdict_label, color = "unverified", "Couldn't verify", "gray"
+    else:
+        composite = _composite_score(domain_score, recency_score, author_score, relevance_score, alignment_score)
+        # Flagged domains are capped at skeptical
+        if domain_info.get("tier") == "flagged":
+            composite = min(composite, 24)
+        verdict, verdict_label, color = _verdict_from_score(composite)
+
+    signals = SourceSignals(
+        domain_tier=domain_info.get("tier", "unknown"),
+        domain_score=domain_score,
+        recency_score=recency_score,
+        author_score=author_score,
+        relevance_score=relevance_score,
+        alignment_score=alignment_score,
+        is_peer_reviewed=domain_info.get("tier") in TIER_PEER_REVIEWED,
+        claim_aligned=llm.get("claim_aligned"),
+        matched_terms=llm.get("matched_terms", [])[:5],
+    )
+
+    return ScoredSource(
+        url=scraped.url,
+        domain=scraped.domain,
+        title=scraped.title,
+        verdict=verdict,
+        verdict_label=verdict_label,
+        color=color,
+        composite_score=composite,
+        reason=llm.get("reason", ""),
+        implication=llm.get("implication", ""),
+        flags=_build_flags(scraped),
+        date=scraped.date,
+        author=scraped.author,
+        paywalled=scraped.paywalled,
+        signals=signals,
+    )
 
 
 def extract_domain(url: str) -> str:
@@ -1070,43 +1380,85 @@ app.add_middleware(
 
 @app.get("/health")
 async def healthcheck() -> dict:
+    ollama_ok = await _check_ollama_available()
     return {
         "status": "ok",
         "playwright_enabled": ENABLE_PLAYWRIGHT_FALLBACK and PLAYWRIGHT_AVAILABLE,
+        "llm_enabled": ollama_ok,
+        "llm_model": OLLAMA_MODEL,
+        "llm_backend": "ollama",
     }
 
 
-@app.post("/extract", response_model=ExtractResponse)
-async def extract(request: ExtractRequest) -> ExtractResponse:
+@app.post("/extract")
+async def extract(request: ExtractRequest):
     start = time.perf_counter()
 
     logging.info("─" * 60)
-    logging.info("Extract request: %d source(s)", len(request.sources))
+    ollama_ok = await _check_ollama_available()
+    logging.info("Extract request: %d source(s)  |  Ollama: %s", len(request.sources), "on" if ollama_ok else "off")
     logging.info("Prompt: %s", request.original_prompt[:120] or "(none)")
     for i, s in enumerate(request.sources, 1):
         logging.info("  [%d] %s  |  label: %s", i, s.url, s.label[:60])
 
+    # Step 1: scrape all sources concurrently
     scraped_sources = await asyncio.gather(
         *(scrape_source(source) for source in request.sources)
     )
 
-    extraction_time_ms = int((time.perf_counter() - start) * 1000)
-    live_count = sum(1 for source in scraped_sources if source.live)
+    scrape_ms = int((time.perf_counter() - start) * 1000)
+    live_count = sum(1 for s in scraped_sources if s.live)
     dead_count = len(scraped_sources) - live_count
+    logging.info("Scrape done (%dms): %d live, %d dead", scrape_ms, live_count, dead_count)
 
-    logging.info("Results (%dms): %d live, %d dead", extraction_time_ms, live_count, dead_count)
+    # Step 2: if Ollama is available, score all sources + get further reading
+    if ollama_ok:
+        topic = _detect_topic(request.full_ai_response + " " + request.original_prompt)
+        logging.info("Scoring with Gemini (topic: %s)...", topic)
+
+        llm_results = []
+        for i, s in enumerate(scraped_sources, 1):
+            logging.info("  Scoring %d/%d: %s", i, len(scraped_sources), s.domain)
+            result = await score_source_with_llm(s, request.original_prompt)
+            llm_results.append(result)
+        further_reading = await get_further_reading(topic, request.original_prompt)
+
+        scored = [build_scored_source(s, llm) for s, llm in zip(scraped_sources, llm_results)]
+
+        # Sort: reliable first, unverified last
+        order = {"reliable": 0, "caution": 1, "skeptical": 2, "unverified": 3}
+        scored.sort(key=lambda s: order.get(s.verdict, 4))
+
+        reliable_count = sum(1 for s in scored if s.verdict == "reliable")
+        flagged_count  = sum(1 for s in scored if s.verdict in ("skeptical", "unverified"))
+
+        total_ms = int((time.perf_counter() - start) * 1000)
+        logging.info("Scoring done (%dms total)", total_ms)
+        for s in scored:
+            logging.info(
+                "  %-12s  score=%-3s  %-40s  %s",
+                s.verdict, s.composite_score, s.domain, s.reason[:60],
+            )
+        logging.info("─" * 60)
+
+        return ScoredResponse(
+            sources=scored,
+            further_reading=further_reading,
+            topic_detected=topic,
+            source_count=len(scored),
+            reliable_count=reliable_count,
+            flagged_count=flagged_count,
+        )
+
+    # Fallback: return raw scraped data if Gemini is not configured
     for s in scraped_sources:
         status = "✓ live" if s.live else "✗ dead"
-        method = s.scrape_method or "-"
-        note   = s.scrape_note or ""
-        logging.info(
-            "  %s  %-40s  method=%-14s  words=%-5s  note=%s",
-            status, s.domain, method, s.word_count or 0, note,
-        )
+        logging.info("  %s  %-40s  method=%-14s  words=%s", status, s.domain, s.scrape_method or "-", s.word_count or 0)
     logging.info("─" * 60)
 
+    extraction_time_ms = int((time.perf_counter() - start) * 1000)
     return ExtractResponse(
-        scraped_sources=scraped_sources,
+        scraped_sources=list(scraped_sources),
         original_prompt=request.original_prompt,
         full_ai_response=request.full_ai_response,
         source_count=len(scraped_sources),
