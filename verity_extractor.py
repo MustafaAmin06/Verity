@@ -37,7 +37,7 @@ except ImportError:
     pass
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3.5:9b")
+OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3.5:2b")
 GEMINI_AVAILABLE = False  # replaced by local Ollama
 
 
@@ -505,7 +505,7 @@ Respond with ONLY valid JSON as a list:
 async def _call_llm(prompt: str) -> str | None:
     """Call local Ollama model and return the response text."""
     try:
-        async with httpx.AsyncClient(timeout=60) as client:
+        async with httpx.AsyncClient(timeout=120) as client:
             response = await client.post(
                 f"{OLLAMA_URL}/api/generate",
                 json={
@@ -517,7 +517,9 @@ async def _call_llm(prompt: str) -> str | None:
                 },
             )
             response.raise_for_status()
-            return response.json().get("response")
+            data = response.json()
+            # Thinking models (qwen3) put output in "thinking" when response is empty
+            return data.get("response") or data.get("thinking") or None
     except Exception as exc:
         logging.warning("Ollama call failed: %s", str(exc)[:120])
         return None
