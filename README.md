@@ -61,11 +61,11 @@ Scores are mapped directly into a trust level:
 - **< 50 — Be skeptical:** Multiple signals are poor; seek better sources.
 - **0 — Unverified:** Dead link or the source cannot be checked entirely.
 
-### Stage 4: Plain English Generation
-Scores and signals are converted into human-readable explanations using a transparent template system (not an LLM, to prevent hallucination). Each verdict receives a reason (why it scored the way it did) and an implication (what the user should do).
+### Stage 4: LLM-Based Scoring and Plain English Generation
+A local Ollama model (default: `qwen3.5:2b`) evaluates each source against the original claim. It scores relevance (how well the source addresses the user's question) and alignment (how well the source content supports the specific claim made). Scores are guided by explicit rubrics to prevent the model from defaulting to neutral mid-range values. Each source also receives a plain-English reason and a one-sentence implication for the user. If Ollama is unavailable, the pipeline falls back to neutral scores and a manual-check message.
 
 ### Stages 5 & 6: Topic Detection and Further Reading
-Once verdicts are established, the system uses keyword clusters from the prompt and AI response to detect the overarching topic. It then curates **3 pre-verified alternative sources** for further reading, automatically filtering out any URLs the LLM has already cited.
+Once verdicts are established, the system uses keyword clusters from the prompt and AI response to detect the overarching topic. The local LLM then suggests 3 authoritative sources for further reading by title, domain, and search query — without generating URLs directly (to avoid hallucination). The backend constructs real, working search URLs (Google Scholar for academic sources, site-search for known domains) from those suggestions.
 
 ### Stage 7: Assembly
 All verdicts are sorted reliably-first and packaged into a structured object alongside summary counts. This object is sent to the extension front end, which renders the results inline. 
@@ -99,11 +99,11 @@ Content extraction uses a two-step fallback chain, designed for maximum coverage
 
 ## 5. Design Principles
 
-- **The auditor must not hallucinate** — no generative models in the verification path.
+- **Local inference only** — scoring uses a local Ollama model; no data leaves the machine.
 - **Transparency over false confidence** — show limitations, flag unknowns, never silently pass.
 - **Speed through architecture, not shortcuts** — HTTP GET first, Playwright only when needed.
 - **Plain language over numbers** — verdicts communicate intent, not just scores.
-- **Pre-verified alternatives** — further reading is curated by humans before the hackathon, not generated at runtime.
+- **Real URLs only** — further reading links are constructed deterministically from LLM-suggested search queries, never passed through directly from the model.
 
 ---
 
@@ -113,7 +113,7 @@ Follow these steps to get VerifyAI running locally.
 
 ### Prerequisites
 - **Python 3.10+**
-- **Node.js (v18+)** or **Bun**
+- **[Ollama](https://ollama.com/)** (for local LLM scoring)
 
 ### Backend Setup (Python)
 The backend handles source extraction, scraping, and scoring.
@@ -128,33 +128,17 @@ The backend handles source extraction, scraping, and scoring.
    playwright install chromium
    ```
 
-3. **Install Ollama (for scoring):**
-   - Download from [ollama.com](https://ollama.com/).
-   - Pull the required model: `ollama pull qwen3.5:2b` (or your preferred model).
+3. **Pull the Ollama model:**
+   ```bash
+   ollama pull qwen3.5:2b
+   ```
+   You can use any Ollama model by setting `OLLAMA_MODEL` in `.env`. Larger models (e.g. `llama3.2:3b`, `phi4-mini`) will produce more accurate scores.
 
 4. **Run the extractor server:**
    ```bash
    python verity_extractor.py
    ```
-   *The server will start on `http://localhost:8001`.*
-
-### Frontend Setup (React/Vite)
-The frontend is a dashboard for viewing analysis results during development.
-
-1. **Install Node dependencies:**
-   ```bash
-   npm install
-   # or
-   bun install
-   ```
-
-2. **Run the development server:**
-   ```bash
-   npm run dev
-   # or
-   bun dev
-   ```
-   *The dashboard will be available at `http://localhost:8080` (or the port shown in your terminal).*
+   *The server will start on `http://localhost:8001`. Ollama must also be running (`ollama serve`) for LLM scoring to be active.*
 
 ### Extension Installation
 1. Open Chrome and navigate to `chrome://extensions/`.

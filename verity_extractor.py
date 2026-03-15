@@ -14,6 +14,7 @@ import re
 import socket
 import time
 import unicodedata
+import urllib.parse
 from urllib.parse import urlparse
 
 if not logging.root.handlers:
@@ -586,56 +587,84 @@ def _detect_topic(text: str) -> str:
 
 # ── Ollama scoring ──
 
-_SCORE_PROMPT = """\
-You are a source credibility analyst. Given a scraped web page and the claim an AI made when citing it, \
-score the source and explain your assessment.
+_SCORE_SYSTEM_PROMPT = """\
+You are a rigorous source credibility analyst. You read web content and score \
+how well it supports a specific AI-generated claim. You output ONLY valid JSON — \
+no explanations, no markdown, no preamble."""
 
-CLAIM (what the AI said when citing this source):
+_SCORE_PROMPT = """\
+CLAIM (the statement the AI made when citing this source):
 {context}
 
-ORIGINAL QUESTION:
+ORIGINAL QUESTION (what the user asked):
 {prompt}
 
-SOURCE CONTENT (truncated):
+SOURCE CONTENT (truncated to first 2000 chars):
 {body}
 
-Respond with ONLY valid JSON matching this exact schema:
+TASK: Score this source on two dimensions, then explain.
+
+SCORING RUBRICS — read these before assigning any number:
+
+relevance_score (0-100): Does the source address the same subject as the original question?
+  90-100  The source is entirely about this exact topic with significant depth.
+  70-89   The source covers this topic as a primary focus.
+  40-69   The source mentions the topic but is mainly about something else.
+  10-39   The source is only tangentially related.
+  0-9     The source is unrelated to the question.
+
+alignment_score (0-100): Does the source content support, contradict, or ignore the specific claim?
+  90-100  Source explicitly states or strongly confirms the claim with direct evidence.
+  70-89   Source broadly supports the claim; consistent but not a direct quote.
+  40-69   Source neither confirms nor denies; claim cannot be verified from this content.
+  10-39   Source content is inconsistent with or casts doubt on the claim.
+  0-9     Source directly contradicts the claim.
+
+Respond with ONLY valid JSON — no text before or after the JSON object:
 {{
-  "relevance_score": <0-100, how relevant is this source to the original question>,
-  "alignment_score": <0-100, how well does the source content support the specific claim above>,
-  "claim_aligned": <true if source supports claim, false if it contradicts, null if can't verify>,
-  "reason": "<1-2 sentence plain-English explanation of the score>",
-  "implication": "<1 sentence telling the user what to do with this source>",
-  "matched_terms": [<up to 5 key terms found in both the claim and the source content>]
+  "relevance_score": <integer 0-100>,
+  "alignment_score": <integer 0-100>,
+  "claim_aligned": <true if alignment_score >= 70, false if alignment_score < 40, null otherwise>,
+  "reason": "<1-2 sentences: cite specific evidence from the source content that drove your scores>",
+  "implication": "<1 sentence: what the user should do given this source's credibility>"
 }}"""
 
 _FURTHER_READING_PROMPT = """\
-Suggest exactly 3 high-quality, authoritative sources a reader should consult on this topic.
-Prefer academic journals, official bodies, or established news outlets. Use only real URLs.
+Suggest exactly 3 authoritative sources a reader should consult on this topic.
+Choose from: academic journals, official government/health bodies, established news organisations.
+Do NOT invent URLs. Instead, describe each source so a search engine can find it.
 
 Topic: {topic}
 Original question: {prompt}
 
-Respond with ONLY valid JSON as a list:
+Respond with ONLY valid JSON as a list of exactly 3 objects:
 [
-  {{"url": "...", "title": "...", "domain": "...", "date": "<year or null>", "tier": "<academic_journal|official_body|established_news|independent_blog>", "verdict": "reliable"}},
+  {{
+    "title": "<descriptive article or report title>",
+    "domain": "<e.g. pubmed.ncbi.nlm.nih.gov or who.int or bbc.com>",
+    "search_query": "<4-8 word search query that would find this source>",
+    "tier": "<academic_journal|official_body|established_news|independent_blog>"
+  }},
   ...
 ]"""
 
 
-async def _call_llm(prompt: str, timeout: int = 30) -> str | None:
+async def _call_llm(prompt: str, timeout: int = 30, system: str | None = None) -> str | None:
     """Call local Ollama model and return the response text."""
     try:
         async with httpx.AsyncClient(timeout=timeout) as client:
+            payload: dict = {
+                "model": OLLAMA_MODEL,
+                "prompt": prompt,
+                "stream": False,
+                "format": "json",
+                "options": {"temperature": 0.1, "num_ctx": 4096, "num_predict": 400},
+            }
+            if system:
+                payload["system"] = system
             response = await client.post(
                 f"{OLLAMA_URL}/api/generate",
-                json={
-                    "model": OLLAMA_MODEL,
-                    "prompt": prompt,
-                    "stream": False,
-                    "format": "json",
-                    "options": {"temperature": 0.1, "num_ctx": 4096, "num_predict": 256},
-                },
+                json=payload,
             )
             response.raise_for_status()
             data = response.json()
@@ -669,13 +698,13 @@ def _parse_json_response(text: str | None, fallback):
 
 async def score_source_with_llm(scraped: ScrapedSource, prompt: str) -> dict:
     """Call local LLM to get relevance, alignment and reasoning for one source."""
-    body_snippet = (scraped.body_text or scraped.description or "")[:3000]
+    body_snippet = (scraped.body_text or scraped.description or "")[:2000]
     llm_prompt = _SCORE_PROMPT.format(
-        context=scraped.context[:400],
-        prompt=prompt[:300],
+        context=scraped.context[:600],
+        prompt=prompt[:500],
         body=body_snippet or "(no content retrieved)",
     )
-    raw = await _call_llm(llm_prompt, timeout=60)
+    raw = await _call_llm(llm_prompt, timeout=60, system=_SCORE_SYSTEM_PROMPT)
     fallback = {
         "relevance_score": 50,
         "alignment_score": 50,
@@ -688,8 +717,8 @@ async def score_source_with_llm(scraped: ScrapedSource, prompt: str) -> dict:
 
 
 async def get_further_reading(topic: str, prompt: str) -> list[FurtherReadingItem]:
-    """Ask local LLM for 3 further reading suggestions on the topic."""
-    llm_prompt = _FURTHER_READING_PROMPT.format(topic=topic, prompt=prompt[:300])
+    """Ask local LLM for 3 further reading suggestions and build real search URLs."""
+    llm_prompt = _FURTHER_READING_PROMPT.format(topic=topic, prompt=prompt[:500])
     raw = await _call_llm(llm_prompt, timeout=10)
     items = _parse_json_response(raw, [])
     # Model sometimes returns {"sources": [...]} instead of a bare list
@@ -698,13 +727,23 @@ async def get_further_reading(topic: str, prompt: str) -> list[FurtherReadingIte
     result = []
     for item in items[:3]:
         try:
+            domain = item.get("domain", "").strip()
+            search_query = item.get("search_query", item.get("title", topic))
+            tier = item.get("tier", "unknown")
+            encoded = urllib.parse.quote_plus(search_query)
+            if tier == "academic_journal" or "pubmed" in domain or "arxiv" in domain:
+                url = f"https://scholar.google.com/scholar?q={encoded}"
+            elif domain:
+                url = f"https://{domain}/search?q={encoded}"
+            else:
+                url = f"https://www.google.com/search?q={encoded}"
             result.append(FurtherReadingItem(
-                url=item.get("url", ""),
-                domain=item.get("domain", "") or extract_domain(item.get("url", "")),
-                title=item.get("title", ""),
+                url=url,
+                domain=domain or extract_domain(url),
+                title=item.get("title", search_query),
                 date=item.get("date"),
-                tier=item.get("tier", "unknown"),
-                verdict=item.get("verdict", "reliable"),
+                tier=tier,
+                verdict="reliable",
             ))
         except Exception:
             continue
