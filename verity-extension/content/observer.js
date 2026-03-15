@@ -71,6 +71,11 @@ window.Verity.observer = {
     const sources = window.Verity.extractor.extractSources(latestResponse);
     console.log("[Verity] URLs found:", sources.length, sources.map(s => s.url));
 
+    // Expose for panel takeover module
+    window.Verity._latestSources = sources;
+    window.Verity._latestResponseEl = latestResponse;
+    window.Verity._latestPlatformConfig = this._platformConfig;
+
     if (sources.length >= VERITY_CONFIG.minUrlsToShowButton) {
       window.Verity.ui.injectButton(latestResponse, sources, this._platformConfig);
     } else {

@@ -5,7 +5,6 @@ window.Verity.ui = {
    * Inject the "Check sources" button below a response element.
    */
   injectButton(responseEl, sources, platformConfig) {
-    // Guard against duplicate injection
     const container = responseEl.closest("[data-message-id]") || responseEl.parentElement;
     if (container.hasAttribute("data-verity-processed")) return;
     container.setAttribute("data-verity-processed", "true");
@@ -17,7 +16,6 @@ window.Verity.ui = {
       this._handleCheck(responseEl, sources, btn, platformConfig, container);
     });
 
-    // Insert after the response container
     container.after(btn);
   },
 
@@ -25,13 +23,11 @@ window.Verity.ui = {
     btn.textContent = "Checking...";
     btn.disabled = true;
 
-    // Create panel container and show skeleton
     const panel = document.createElement("div");
     panel.className = "verity-panel";
     btn.after(panel);
     this._renderSkeleton(panel);
 
-    // Build payload
     const prompt = window.Verity.extractor.extractPrompt(platformConfig.selectors);
     const fullResponse = window.Verity.extractor.extractResponse(
       responseEl,
@@ -71,8 +67,35 @@ window.Verity.ui = {
     }
   },
 
+  // --- Score helpers ---
+
+  _toFiveScale(score100) {
+    if (score100 === undefined || score100 === null) return null;
+    return (score100 / 20).toFixed(1);
+  },
+
+  _scoreColor(score100) {
+    if (score100 === undefined || score100 === null) return '#9ca3af';
+    if (score100 >= 75) return '#4ade80';
+    if (score100 >= 50) return '#facc15';
+    if (score100 >= 25) return '#f87171';
+    return '#9ca3af';
+  },
+
+  _humanizeTier(tier) {
+    const map = {
+      academic_journal: 'Academic / Research',
+      official_body: 'Official / Government',
+      established_news: 'Established News',
+      independent_blog: 'Independent / Blog',
+      flagged: 'Flagged Source',
+    };
+    return map[tier] || 'Unknown';
+  },
+
+  // --- Main render ---
+
   _renderScorecard(data, panel) {
-    // Handle both spec format (data.sources) and extractor format (data.scraped_sources)
     const sources = data.sources || data.scraped_sources || [];
 
     if (sources.length === 0) {
@@ -83,10 +106,26 @@ window.Verity.ui = {
       return;
     }
 
-    sources.forEach((source) => {
-      const card = this._createCard(source);
-      panel.appendChild(card);
+    // Sort by composite_score descending
+    const sorted = [...sources].sort((a, b) =>
+      (b.composite_score || 0) - (a.composite_score || 0)
+    );
+
+    const topCards = sorted.slice(0, 3);
+    const rest = sorted.slice(3);
+
+    // Render top cards (full-size, expandable)
+    topCards.forEach((source) => {
+      panel.appendChild(this._createCard(source));
     });
+
+    // "More" divider + compact cards
+    if (rest.length > 0) {
+      panel.appendChild(this._createMoreDivider());
+      rest.forEach((source) => {
+        panel.appendChild(this._createCompactCard(source));
+      });
+    }
 
     // Further reading
     if (data.further_reading && data.further_reading.length > 0) {
@@ -94,168 +133,178 @@ window.Verity.ui = {
     }
   },
 
+  // --- Full-size card ---
+
   _createCard(source) {
-    const verdict = source.verdict || this._inferVerdict(source);
-    const verdictLabel = source.verdict_label || this._verdictLabel(verdict);
-    const color = source.color || this._verdictColor(verdict);
+    const score100 = source.composite_score;
+    const scoreFive = this._toFiveScale(score100);
+    const color = this._scoreColor(score100);
 
     const card = document.createElement("div");
-    card.className = `verity-card`;
-    card.setAttribute("data-verdict", verdict);
+    card.className = "verity-card";
 
-    // Compact row (always visible)
+    // Click to toggle expanded
+    card.addEventListener("click", () => {
+      card.classList.toggle("verity-card--expanded");
+    });
+
+    // Summary row: score circle + content
     const summary = document.createElement("div");
     summary.className = "verity-card-summary";
 
-    const dot = document.createElement("span");
-    dot.className = "verity-dot";
+    const circle = document.createElement("div");
+    circle.className = "verity-score-circle";
+    circle.style.setProperty('--verity-score-color', color);
+    circle.textContent = scoreFive || '—';
 
-    const domain = document.createElement("span");
-    domain.className = "verity-domain";
+    const content = document.createElement("div");
+    content.className = "verity-card-content";
+
+    const domain = document.createElement("div");
+    domain.className = "verity-card-domain";
     domain.textContent = source.domain || "";
 
-    const date = document.createElement("span");
-    date.className = "verity-date";
+    const title = document.createElement("div");
+    title.className = "verity-card-title";
+    title.textContent = source.title || source.label || source.url || "";
+
+    const date = document.createElement("div");
+    date.className = "verity-card-date";
     date.textContent = source.date || "";
 
-    const label = document.createElement("span");
-    label.className = "verity-verdict-label";
-    label.textContent = verdictLabel;
-
-    summary.append(dot, domain, date, label);
+    content.append(domain, title, date);
+    summary.append(circle, content);
     card.appendChild(summary);
 
-    // Hover detail panel (hidden by default)
-    const hoverDetail = document.createElement("div");
-    hoverDetail.className = "verity-card-hover-detail";
-
-    if (source.title) {
-      const titleP = document.createElement("p");
-      titleP.className = "verity-summary";
-      titleP.textContent = source.title;
-      hoverDetail.appendChild(titleP);
-    }
-
-    if (source.reason) {
-      const reasonP = document.createElement("p");
-      reasonP.className = "verity-reason";
-      reasonP.textContent = source.reason;
-      hoverDetail.appendChild(reasonP);
-    }
-
-    if (source.implication) {
-      const impP = document.createElement("p");
-      impP.className = "verity-implication";
-      impP.textContent = source.implication;
-      hoverDetail.appendChild(impP);
-    }
-
-    if (source.flags && source.flags.length > 0) {
-      const flagsDiv = document.createElement("div");
-      flagsDiv.className = "verity-flags";
-      source.flags.forEach((flag) => {
-        const span = document.createElement("span");
-        span.className = "verity-flag";
-        span.textContent = flag;
-        flagsDiv.appendChild(span);
-      });
-      hoverDetail.appendChild(flagsDiv);
-    }
-
-    const expandBtn = document.createElement("button");
-    expandBtn.className = "verity-expand-btn";
-    expandBtn.textContent = "Full details";
-    expandBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      card.classList.toggle("verity-card--expanded");
-    });
-    hoverDetail.appendChild(expandBtn);
-
-    card.appendChild(hoverDetail);
-
-    // Full detail panel (hidden by default)
-    const fullDetail = this._createFullDetail(source);
-    card.appendChild(fullDetail);
-
-    // Hover behavior with 300ms delay
-    let hoverTimeout = null;
-    card.addEventListener("mouseenter", () => {
-      hoverTimeout = setTimeout(() => {
-        card.classList.add("verity-card--hover");
-      }, VERITY_CONFIG.hoverDelayMs);
-    });
-    card.addEventListener("mouseleave", () => {
-      clearTimeout(hoverTimeout);
-      card.classList.remove("verity-card--hover");
-    });
+    // Expandable detail
+    card.appendChild(this._createDetail(source, scoreFive, color));
 
     return card;
   },
 
-  _createFullDetail(source) {
-    const container = document.createElement("div");
-    container.className = "verity-card-full-detail";
+  // --- Expanded detail (2-column grid) ---
+
+  _createDetail(source, scoreFive, color) {
+    const detail = document.createElement("div");
+    detail.className = "verity-card-detail";
 
     const signals = source.signals || {};
 
-    const rows = [
-      { label: "Domain", value: source.domain || "", score: signals.domain_score },
-      { label: "Relevance", value: this._relevanceLabel(signals.relevance_score), score: signals.relevance_score },
-      {
-        label: "Claim alignment",
-        value: signals.claim_aligned === true ? "Supported"
-             : signals.claim_aligned === false ? "Unsupported"
-             : "Unconfirmed",
-        score: signals.alignment_score,
-      },
-      { label: "Publication date", value: source.date || "Not found", score: signals.recency_score },
-      { label: "Author", value: source.author || "Not listed", score: signals.author_score },
-      { label: "Peer reviewed", value: signals.is_peer_reviewed ? "Yes" : "No" },
-      { label: "Paywalled", value: source.paywalled ? "Yes" : "No" },
-    ];
+    const grid = document.createElement("div");
+    grid.className = "verity-detail-grid";
 
-    rows.forEach((row) => {
-      const rowDiv = document.createElement("div");
-      rowDiv.className = "verity-signal-row";
+    // Row 1: Score | URL Status
+    grid.appendChild(this._detailCell("Score", scoreFive ? `${scoreFive} / 5.0` : '—'));
 
-      const labelSpan = document.createElement("span");
-      labelSpan.className = "verity-signal-label";
-      labelSpan.textContent = row.label;
+    const statusCell = this._detailCell("URL Status", "");
+    const statusVal = statusCell.querySelector('.verity-detail-value');
+    const indicator = document.createElement("span");
+    indicator.className = "verity-live-indicator";
+    const dot = document.createElement("span");
+    dot.className = "verity-live-dot " + (source.live !== false ? "verity-live-dot--live" : "verity-live-dot--dead");
+    const statusText = document.createTextNode(source.live !== false ? " Live" : " Dead");
+    indicator.append(dot, statusText);
+    statusVal.appendChild(indicator);
+    if (source.live !== false) {
+      statusVal.classList.add("verity-detail-value--green");
+    } else {
+      statusVal.classList.add("verity-detail-value--red");
+    }
+    grid.appendChild(statusCell);
 
-      const valueSpan = document.createElement("span");
-      valueSpan.className = "verity-signal-value";
-      valueSpan.textContent = row.value;
+    // Row 2: Source Tier | Relevance
+    grid.appendChild(this._detailCell("Source Tier", this._humanizeTier(signals.domain_tier)));
 
-      rowDiv.append(labelSpan, valueSpan);
+    const relevanceScore = signals.relevance_score;
+    const relevanceText = relevanceScore != null ? `${relevanceScore}% overlap` : 'Not assessed';
+    grid.appendChild(this._detailCell("Relevance", relevanceText));
 
-      if (row.score !== undefined && row.score !== null) {
-        const scoreSpan = document.createElement("span");
-        scoreSpan.className = "verity-signal-score";
-        scoreSpan.textContent = `${row.score}/100`;
-        rowDiv.appendChild(scoreSpan);
-      }
+    // Row 3: Author | Publication
+    grid.appendChild(this._detailCell("Author", source.author || "Unknown"));
+    grid.appendChild(this._detailCell("Publication", source.domain || ""));
 
-      container.appendChild(rowDiv);
-    });
+    detail.appendChild(grid);
 
-    // View source link
-    const link = document.createElement("a");
-    link.className = "verity-source-link";
-    link.href = source.url;
-    link.target = "_blank";
-    link.rel = "noopener noreferrer";
-    link.textContent = "View source";
-    container.appendChild(link);
+    // Summary paragraph
+    const reason = source.reason || source.description || "";
+    if (reason) {
+      const p = document.createElement("p");
+      p.className = "verity-card-reason";
+      p.textContent = reason;
+      detail.appendChild(p);
+    }
 
-    // Methodology note
-    const note = document.createElement("p");
-    note.className = "verity-methodology-note";
-    note.textContent =
-      "Scored by Verity using domain registry, publication metadata, keyword relevance, and AI-assisted claim alignment.";
-    container.appendChild(note);
-
-    return container;
+    return detail;
   },
+
+  _detailCell(label, value) {
+    const cell = document.createElement("div");
+    cell.className = "verity-detail-cell";
+
+    const labelEl = document.createElement("div");
+    labelEl.className = "verity-detail-label";
+    labelEl.textContent = label;
+
+    const valueEl = document.createElement("div");
+    valueEl.className = "verity-detail-value";
+    if (typeof value === "string") {
+      valueEl.textContent = value;
+    }
+
+    cell.append(labelEl, valueEl);
+    return cell;
+  },
+
+  // --- Compact card (below "More") ---
+
+  _createCompactCard(source) {
+    const score100 = source.composite_score;
+    const scoreFive = this._toFiveScale(score100);
+    const color = this._scoreColor(score100);
+    const signals = source.signals || {};
+
+    const card = document.createElement("div");
+    card.className = "verity-compact-card";
+
+    const circle = document.createElement("div");
+    circle.className = "verity-score-circle verity-score-circle--sm";
+    circle.style.setProperty('--verity-score-color', color);
+    circle.textContent = scoreFive || '—';
+
+    const domain = document.createElement("span");
+    domain.className = "verity-compact-domain";
+    domain.textContent = source.domain || "";
+
+    const title = document.createElement("span");
+    title.className = "verity-compact-title";
+    title.textContent = source.title || "";
+
+    const info = document.createElement("span");
+    info.className = "verity-compact-info";
+
+    const tier = document.createElement("span");
+    tier.className = "verity-tier-badge";
+    tier.textContent = this._humanizeTier(signals.domain_tier);
+
+    const liveDot = document.createElement("span");
+    liveDot.className = "verity-live-dot " + (source.live !== false ? "verity-live-dot--live" : "verity-live-dot--dead");
+
+    info.append(tier, liveDot);
+    card.append(circle, domain, title, info);
+
+    return card;
+  },
+
+  // --- "More" divider ---
+
+  _createMoreDivider() {
+    const div = document.createElement("div");
+    div.className = "verity-more-divider";
+    div.textContent = "More";
+    return div;
+  },
+
+  // --- Further reading ---
 
   _createFurtherReading(items) {
     const section = document.createElement("div");
@@ -269,9 +318,6 @@ window.Verity.ui = {
     items.forEach((item) => {
       const card = document.createElement("div");
       card.className = "verity-fr-card";
-
-      const dot = document.createElement("span");
-      dot.className = "verity-dot dot-green";
 
       const domain = document.createElement("span");
       domain.className = "verity-fr-domain";
@@ -292,7 +338,7 @@ window.Verity.ui = {
       link.rel = "noopener noreferrer";
       link.textContent = "View";
 
-      card.append(dot, domain, title, date, link);
+      card.append(domain, title, date, link);
       section.appendChild(card);
     });
 
@@ -304,6 +350,8 @@ window.Verity.ui = {
 
     return section;
   },
+
+  // --- Error / empty ---
 
   _renderError(err, panel, retryFn) {
     const errorDiv = document.createElement("div");
@@ -322,37 +370,61 @@ window.Verity.ui = {
     panel.appendChild(errorDiv);
   },
 
-  // Fallback verdict inference for extractor-only responses (no scorer)
   _inferVerdict(source) {
     if (!source.live && source.live !== undefined) return "unverified";
     return "reliable";
   },
 
-  _verdictLabel(verdict) {
-    const map = {
-      reliable: "Looks reliable",
-      caution: "Treat with caution",
-      skeptical: "Be skeptical",
-      unverified: "Couldn't verify",
-    };
-    return map[verdict] || verdict;
+  // --- Shadow DOM entry points (used by panel.js) ---
+
+  renderSkeletonInShadow(shadowRoot) {
+    const body = shadowRoot.querySelector('.verity-panel-body');
+    if (!body) return;
+    body.innerHTML = '';
+    body.classList.add('verity-loading');
+
+    // Skeleton rows with inline fallback style in case full CSS not yet loaded
+    for (let i = 0; i < 3; i++) {
+      const skel = document.createElement('div');
+      skel.className = 'verity-skeleton';
+      body.appendChild(skel);
+    }
+
+    // Loading label — always visible regardless of CSS load state
+    const label = document.createElement('p');
+    label.className = 'verity-loading-label';
+    label.textContent = 'Analyzing sources...';
+    body.appendChild(label);
   },
 
-  _verdictColor(verdict) {
-    const map = {
-      reliable: "green",
-      caution: "amber",
-      skeptical: "red",
-      unverified: "gray",
-    };
-    return map[verdict] || "gray";
+  renderInShadow(shadowRoot, data) {
+    const body = shadowRoot.querySelector('.verity-panel-body');
+    if (!body) {
+      console.warn('[Verity] renderInShadow: .verity-panel-body not found in shadow root');
+      return;
+    }
+    body.innerHTML = '';
+    body.classList.remove('verity-loading');
+    this._renderScorecard(data, body);
+
+    // Update header with average score
+    const sources = data.sources || data.scraped_sources || [];
+    const withScores = sources.filter(s => s.composite_score != null);
+    if (withScores.length > 0) {
+      const avg = withScores.reduce((sum, s) => sum + s.composite_score, 0) / withScores.length;
+      const avgFive = (avg / 20).toFixed(1);
+      const subtitle = shadowRoot.querySelector('.verity-panel-stats');
+      if (subtitle) {
+        subtitle.textContent = `${sources.length} sources \u00b7 Average score ${avgFive} / 5.0`;
+      }
+    }
   },
 
-  _relevanceLabel(score) {
-    if (score === undefined || score === null) return "Not assessed";
-    if (score >= 90) return "High";
-    if (score >= 60) return "Moderate";
-    if (score >= 30) return "Low";
-    return "Very low";
+  renderErrorInShadow(shadowRoot, err, retryFn) {
+    const body = shadowRoot.querySelector('.verity-panel-body');
+    if (!body) return;
+    body.innerHTML = '';
+    body.classList.remove('verity-loading');
+    this._renderError(err, body, retryFn);
   },
 };

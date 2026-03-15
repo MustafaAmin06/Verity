@@ -101,5 +101,6 @@ function resolveAllSelectors(config) {
     const resolved = resolveAllSelectors(matchedPlatform);
     console.log("[Verity] Resolved selectors:", resolved.selectors);
     window.Verity.observer.init(resolved);
+    window.Verity.panel.init();
   }, 2000);
 })();
