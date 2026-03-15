@@ -7,28 +7,46 @@
 .verity-trigger-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   margin: 12px 0;
-  padding: 8px 16px;
+  padding: 7px 16px 7px 12px;
   font-size: 13px;
-  font-weight: 500;
+  font-weight: 600;
   font-family: inherit;
-  color: #e0e0e0;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 8px;
+  color: #e8f4ff;
+  background: linear-gradient(135deg, rgba(56, 139, 253, 0.22) 0%, rgba(99, 91, 255, 0.18) 100%);
+  border: 1px solid rgba(99, 160, 255, 0.35);
+  border-radius: 999px;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background 0.18s, border-color 0.18s, box-shadow 0.18s, transform 0.1s;
+  box-shadow: 0 1px 8px rgba(56, 139, 253, 0.12);
+}
+
+/* Shield icon */
+.verity-trigger-btn::before {
+  content: "✦";
+  font-size: 11px;
+  opacity: 0.85;
+  color: #7ab8ff;
+  flex-shrink: 0;
 }
 
 .verity-trigger-btn:hover {
-  background: rgba(255, 255, 255, 0.14);
-  border-color: rgba(255, 255, 255, 0.25);
+  background: linear-gradient(135deg, rgba(56, 139, 253, 0.32) 0%, rgba(99, 91, 255, 0.28) 100%);
+  border-color: rgba(99, 160, 255, 0.6);
+  box-shadow: 0 2px 14px rgba(56, 139, 253, 0.22);
+  transform: translateY(-1px);
+}
+
+.verity-trigger-btn:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 6px rgba(56, 139, 253, 0.14);
 }
 
 .verity-trigger-btn:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
+  transform: none;
 }
 
 /* ---------- Panel container ---------- */
@@ -119,15 +137,15 @@
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  border: 3px solid var(--verity-score-color, #9ca3af);
+  border: 2.5px solid var(--verity-score-color, #9ca3af);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 15px;
   font-weight: 700;
-  color: #e0e0e0;
+  color: var(--verity-score-color, #e0e0e0);
   flex-shrink: 0;
-  background: rgba(255, 255, 255, 0.03);
+  background: color-mix(in srgb, var(--verity-score-color, rgba(255,255,255,0)) 12%, transparent);
 }
 
 .verity-score-circle--sm {
@@ -142,17 +160,28 @@
 .verity-card {
   position: relative;
   margin-bottom: 8px;
-  padding: 14px;
+  padding: 14px 14px 14px 17px;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.08);
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  /* Left accent bar driven by --verity-score-color */
+  box-shadow: inset 3px 0 0 var(--verity-score-color, rgba(255,255,255,0.12));
+  transition: background 0.18s, border-color 0.18s, box-shadow 0.18s;
 }
 
 .verity-card:hover {
   background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.15);
+  border-color: color-mix(in srgb, var(--verity-score-color, rgba(255,255,255,0.15)) 40%, rgba(255,255,255,0.1));
+  box-shadow: inset 3px 0 0 var(--verity-score-color, rgba(255,255,255,0.2)),
+              0 2px 12px rgba(0, 0, 0, 0.25);
+}
+
+/* Expanded: thicker bar + subtle score-tinted background */
+.verity-card--expanded {
+  background: color-mix(in srgb, var(--verity-score-color, rgba(255,255,255,0)) 7%, rgba(255,255,255,0.05));
+  border-color: color-mix(in srgb, var(--verity-score-color, rgba(255,255,255,0.15)) 50%, rgba(255,255,255,0.08));
+  box-shadow: inset 4px 0 0 var(--verity-score-color, rgba(255,255,255,0.2));
 }
 
 .verity-card-summary {
@@ -277,16 +306,18 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 12px;
+  padding: 10px 12px 10px 14px;
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.04);
   margin-bottom: 4px;
   cursor: pointer;
-  transition: background 0.15s;
+  box-shadow: inset 2px 0 0 var(--verity-score-color, rgba(255,255,255,0.08));
+  transition: background 0.15s, box-shadow 0.15s;
 }
 
 .verity-compact-card:hover {
   background: rgba(255, 255, 255, 0.08);
+  box-shadow: inset 2px 0 0 var(--verity-score-color, rgba(255,255,255,0.15));
 }
 
 .verity-compact-domain {

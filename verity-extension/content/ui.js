@@ -139,6 +139,7 @@ window.Verity.ui = {
 
     const card = document.createElement("div");
     card.className = "verity-card";
+    card.style.setProperty('--verity-score-color', color);
 
     // Click to toggle expanded
     card.addEventListener("click", () => {
@@ -268,6 +269,7 @@ window.Verity.ui = {
 
     const card = document.createElement("div");
     card.className = "verity-compact-card";
+    card.style.setProperty('--verity-score-color', color);
 
     const circle = document.createElement("div");
     circle.className = "verity-score-circle verity-score-circle--sm";
