@@ -11,3 +11,345 @@ INFO:     Waiting for application shutdown.
 INFO:     Application shutdown complete.
 INFO:     Finished server process [5419]
 INFO:     Stopping reloader process [5415]
+21:39:34 [INFO] ────────────────────────────────────────────────────────────
+21:39:34 [INFO] ────────────────────────────────────────────────────────────
+21:39:34 [INFO] HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+21:39:34 [INFO] HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+21:39:34 [INFO] Extract request: 5 source(s)  |  Ollama: on
+21:39:34 [INFO] Extract request: 5 source(s)  |  Ollama: on
+21:39:34 [INFO] Prompt: give me sources on why lung cancer is bad
+21:39:34 [INFO] Prompt: give me sources on why lung cancer is bad
+21:39:34 [INFO]   [1] https://www.cancer.org/cancer/types/lung-cancer.html  |  label: https://www.cancer.org/cancer/types/lung-cancer.html
+21:39:34 [INFO]   [1] https://www.cancer.org/cancer/types/lung-cancer.html  |  label: https://www.cancer.org/cancer/types/lung-cancer.html
+21:39:34 [INFO]   [2] https://www.who.int/news-room/fact-sheets/detail/cancer  |  label: https://www.who.int/news-room/fact-sheets/detail/cancer
+21:39:34 [INFO]   [2] https://www.who.int/news-room/fact-sheets/detail/cancer  |  label: https://www.who.int/news-room/fact-sheets/detail/cancer
+21:39:34 [INFO]   [3] https://www.cancer.gov/types/lung  |  label: https://www.cancer.gov/types/lung
+21:39:34 [INFO]   [3] https://www.cancer.gov/types/lung  |  label: https://www.cancer.gov/types/lung
+21:39:34 [INFO]   [4] https://my.clevelandclinic.org/health/diseases/4375-lung-cancer  |  label: https://my.clevelandclinic.org/health/diseases/4375-lung-can
+21:39:34 [INFO]   [4] https://my.clevelandclinic.org/health/diseases/4375-lung-cancer  |  label: https://my.clevelandclinic.org/health/diseases/4375-lung-can
+21:39:34 [INFO]   [5] https://www.mayoclinic.org/diseases-conditions/lung-cancer  |  label: mayoclinic.org
+21:39:34 [INFO]   [5] https://www.mayoclinic.org/diseases-conditions/lung-cancer  |  label: mayoclinic.org
+21:39:34 [INFO] HTTP Request: HEAD https://www.who.int/news-room/fact-sheets/detail/cancer "HTTP/1.1 200 OK"
+21:39:34 [INFO] HTTP Request: HEAD https://www.who.int/news-room/fact-sheets/detail/cancer "HTTP/1.1 200 OK"
+21:39:34 [INFO] HTTP Request: HEAD https://my.clevelandclinic.org/health/diseases/4375-lung-cancer "HTTP/1.1 405 Method Not Allowed"
+21:39:34 [INFO] HTTP Request: HEAD https://my.clevelandclinic.org/health/diseases/4375-lung-cancer "HTTP/1.1 405 Method Not Allowed"
+21:39:34 [INFO] HTTP Request: GET https://www.who.int/news-room/fact-sheets/detail/cancer "HTTP/1.1 200 OK"
+21:39:34 [INFO] HTTP Request: GET https://www.who.int/news-room/fact-sheets/detail/cancer "HTTP/1.1 200 OK"
+21:39:34 [INFO]   SCRAPED OK   who.int                                   status=200  words=322  method=beautifulsoup  note=ok
+21:39:34 [INFO]   SCRAPED OK   who.int                                   status=200  words=322  method=beautifulsoup  note=ok
+21:39:34 [INFO] HTTP Request: HEAD https://www.cancer.org/cancer/types/lung-cancer.html "HTTP/1.1 200 OK"
+21:39:34 [INFO] HTTP Request: HEAD https://www.cancer.org/cancer/types/lung-cancer.html "HTTP/1.1 200 OK"
+21:39:34 [INFO] HTTP Request: GET https://my.clevelandclinic.org/health/diseases/4375-lung-cancer "HTTP/1.1 200 OK"
+21:39:34 [INFO] HTTP Request: GET https://my.clevelandclinic.org/health/diseases/4375-lung-cancer "HTTP/1.1 200 OK"
+21:39:34 [INFO]   SCRAPED OK   my.clevelandclinic.org                    status=200  words=0  method=beautifulsoup  note=ok
+21:39:34 [INFO]   SCRAPED OK   my.clevelandclinic.org                    status=200  words=0  method=beautifulsoup  note=ok
+21:39:34 [INFO] HTTP Request: GET https://www.cancer.org/cancer/types/lung-cancer.html "HTTP/1.1 200 OK"
+21:39:34 [INFO] HTTP Request: GET https://www.cancer.org/cancer/types/lung-cancer.html "HTTP/1.1 200 OK"
+21:39:34 [INFO]   SCRAPED OK   cancer.org                                status=200  words=304  method=beautifulsoup  note=ok
+21:39:34 [INFO]   SCRAPED OK   cancer.org                                status=200  words=304  method=beautifulsoup  note=ok
+21:39:34 [INFO] HTTP Request: HEAD https://www.cancer.gov/types/lung "HTTP/1.1 200 OK"
+21:39:34 [INFO] HTTP Request: HEAD https://www.cancer.gov/types/lung "HTTP/1.1 200 OK"
+21:39:34 [INFO] HTTP Request: HEAD https://www.mayoclinic.org/diseases-conditions/lung-cancer "HTTP/1.1 200 OK"
+21:39:34 [INFO] HTTP Request: HEAD https://www.mayoclinic.org/diseases-conditions/lung-cancer "HTTP/1.1 200 OK"
+21:39:34 [INFO] HTTP Request: GET https://www.cancer.gov/types/lung "HTTP/1.1 200 OK"
+21:39:34 [INFO] HTTP Request: GET https://www.cancer.gov/types/lung "HTTP/1.1 200 OK"
+21:39:34 [INFO]   SCRAPED OK   cancer.gov                                status=200  words=266  method=beautifulsoup  note=ok
+21:39:34 [INFO]   SCRAPED OK   cancer.gov                                status=200  words=266  method=beautifulsoup  note=ok
+21:39:35 [INFO] HTTP Request: GET https://www.mayoclinic.org/diseases-conditions/lung-cancer "HTTP/1.1 200 OK"
+21:39:35 [INFO] HTTP Request: GET https://www.mayoclinic.org/diseases-conditions/lung-cancer "HTTP/1.1 200 OK"
+21:39:35 [INFO]   SCRAPED OK   mayoclinic.org                            status=200  words=0  method=beautifulsoup  note=ok
+21:39:35 [INFO]   SCRAPED OK   mayoclinic.org                            status=200  words=0  method=beautifulsoup  note=ok
+21:39:41 [INFO]   COOKIE_POPUP dismissed button with text: 'OK'
+21:39:41 [INFO]   COOKIE_POPUP dismissed button with text: 'OK'
+21:39:41 [INFO] Scrape done (7056ms): 5 live, 0 dead
+21:39:41 [INFO] Scrape done (7056ms): 5 live, 0 dead
+21:42:51 [INFO] ────────────────────────────────────────────────────────────
+21:42:51 [INFO] HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+21:42:51 [INFO] Extract request: 4 source(s)  |  Ollama: on
+21:42:51 [INFO] Prompt: give sources on why cancer is ba
+21:42:51 [INFO]   [1] https://www.who.int/news-room/fact-sheets/detail/cancer  |  label: https://www.who.int/news-room/fact-sheets/detail/cancer
+21:42:51 [INFO]   [2] https://www.cancer.gov/about-cancer/understanding/what-is-cancer  |  label: https://www.cancer.gov/about-cancer/understanding/what-is-ca
+21:42:51 [INFO]   [3] https://www.cdc.gov/cancer/  |  label: https://www.cdc.gov/cancer/
+21:42:51 [INFO]   [4] https://www.cancer.org/cancer/what-is-cancer.html  |  label: cancer.org
+21:42:51 [INFO] HTTP Request: HEAD https://www.who.int/news-room/fact-sheets/detail/cancer "HTTP/1.1 200 OK"
+21:42:51 [INFO] HTTP Request: HEAD https://www.cdc.gov/cancer/ "HTTP/1.1 200 OK"
+21:42:51 [INFO] HTTP Request: GET https://www.cdc.gov/cancer/ "HTTP/1.1 200 OK"
+21:42:51 [INFO]   SCRAPED OK   cdc.gov                                   status=200  words=161  method=beautifulsoup  note=ok
+21:42:51 [INFO] HTTP Request: HEAD https://www.cancer.gov/about-cancer/understanding/what-is-cancer "HTTP/1.1 200 OK"
+21:42:51 [INFO] HTTP Request: GET https://www.who.int/news-room/fact-sheets/detail/cancer "HTTP/1.1 200 OK"
+21:42:51 [INFO]   SCRAPED OK   who.int                                   status=200  words=322  method=beautifulsoup  note=ok
+21:42:51 [INFO] HTTP Request: GET https://www.cancer.gov/about-cancer/understanding/what-is-cancer "HTTP/1.1 200 OK"
+21:42:51 [INFO]   SCRAPED OK   cancer.gov                                status=200  words=338  method=beautifulsoup  note=ok
+21:42:52 [INFO] HTTP Request: HEAD https://www.cancer.org/cancer/what-is-cancer.html "HTTP/1.1 404 Not Found"
+21:42:52 [WARNING]   SCRAPE FAIL  cancer.org                                status=404   reason=url_dead
+21:42:52 [INFO] Scrape done (742ms): 3 live, 1 dead
+21:42:52 [INFO]   [1/4] EXTRACTED  https://www.who.int/news-room/fact-sheets/detail/cancer
+          title    : Cancer
+          date     : 2025
+          author   : (none)
+          words    : 322
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : Key facts Cancer is a leading cause of death worldwide, accounting for nearly 10 million deaths in 2020, or nearly one in six deaths. The most common cancers are breast, lung, colon and rectum and pro
+21:42:52 [INFO]   [2/4] EXTRACTED  https://www.cancer.gov/about-cancer/understanding/what-is-cancer
+          title    : What Is Cancer?
+          date     : 2021
+          author   : (none)
+          words    : 338
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : What Is Cancer? A dividing breast cancer cell. Credit: National Cancer Institute / Univ. of Pittsburgh Cancer Institute The Definition of Cancer Cancer is a disease in which some of the body’s cells g
+21:42:52 [INFO]   [3/4] EXTRACTED  
+          title    : Cancer
+          date     : 2026
+          author   : CDC
+          words    : 161
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : Cancer Español Colorectal Cancer Awareness Colorectal cancer screening saves lives. Learn More June 12, 2024 Prevention You can lower your risk of getting many common kinds of cancer. Jan. 16, 2025 Un
+21:42:52 [INFO]   [4/4] EXTRACTED  https://www.cancer.org/cancer/what-is-cancer.html
+          title    : (none)
+          date     : (none)
+          author   : (none)
+          words    : 0
+          paywalled: no
+          method   : -  note=url_dead
+          body     : (none)
+21:42:52 [INFO] Scoring with Gemini (topic: health)...
+21:42:52 [INFO]   Scoring 4 sources in parallel...
+21:42:54 [INFO] HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+21:42:56 [INFO] HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+21:42:58 [INFO] HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+21:43:00 [INFO] HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+21:43:02 [INFO] HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+21:43:02 [INFO] Scoring done (11000ms total)
+21:43:02 [INFO]   reliable      score=88   who.int                                   The WHO fact sheet directly addresses why cancer is a leadin
+21:43:02 [INFO]   reliable      score=87   cdc.gov                                   The source is a CDC cancer page that directly addresses canc
+21:43:02 [INFO]   caution       score=71   cancer.gov                                The source content directly defines cancer as a disease wher
+21:43:02 [INFO]   unverified    score=0    cancer.org                                The CDC page is highly relevant to the original question abo
+21:43:02 [INFO]   [1/4] SCORED    who.int  →  reliable (88/100)
+          domain   : official_body  95/100
+          recency  : 100/100  (date: 2025)
+          author   : 40/100  (author: none)
+          relevance: 95/100  alignment: 90/100
+          reason   : The WHO fact sheet directly addresses why cancer is a leading cause of death and provides statistics on cancer prevalence and risk factors, which aligns with the user's request for sources on why cancer is a leading cause of death.
+          terms    : cancer, leading cause of death, deaths, risk factor, cancer-causing infections
+21:43:02 [INFO]   [2/4] SCORED    cdc.gov  →  reliable (87/100)
+          domain   : official_body  95/100
+          recency  : 100/100  (date: 2026)
+          author   : 80/100  (author: CDC)
+          relevance: 85/100  alignment: 80/100
+          reason   : The source is a CDC cancer page that directly addresses cancer prevention and risk factors, which aligns with the question about why cancer is bad. The content mentions risk factors like alcohol, tobacco, family history, and obesity, supporting the claim that these are reasons cancer is bad.
+          terms    : cancer, risk, prevention, health, statistics
+21:43:02 [INFO]   [3/4] SCORED    cancer.gov  →  caution (71/100)
+          domain   : unknown  30/100
+          recency  : 75/100  (date: 2021)
+          author   : 40/100  (author: none)
+          relevance: 95/100  alignment: 98/100
+          reason   : The source content directly defines cancer as a disease where cells grow uncontrollably and spread, which aligns perfectly with the claim about why cancer is bad. The source is from the National Cancer Institute, a highly authoritative source.
+          terms    : cancer, cells grow uncontrollably, spread, abnormal or damaged cells, tumors
+21:43:02 [INFO]   [4/4] SCORED    cancer.org  →  unverified (0/100)
+          domain   : unknown  30/100
+          recency  : 40/100  (date: none)
+          author   : 40/100  (author: none)
+          relevance: 95/100  alignment: 90/100
+          reason   : The CDC page is highly relevant to the original question about cancer causes and prevention, and the claim accurately reflects the CDC's content on cancer risks and prevention.
+          terms    : cancer, healthy cells, tumors, vital organs, prevention
+21:43:02 [INFO] ────────────────────────────────────────────────────────────
+21:47:16 [INFO] ────────────────────────────────────────────────────────────
+21:47:16 [INFO] HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+21:47:16 [INFO] Extract request: 4 source(s)  |  Ollama: on
+21:47:16 [INFO] Prompt: give sources on my lung cancer is bad
+21:47:16 [INFO]   [1] https://www.who.int/news-room/fact-sheets/detail/cancer  |  label: https://www.who.int/news-room/fact-sheets/detail/cancer
+21:47:16 [INFO]   [2] https://www.cancer.org/cancer/types/lung-cancer.html  |  label: https://www.cancer.org/cancer/types/lung-cancer.html
+21:47:16 [INFO]   [3] https://cancer.ca/en/cancer-information/cancer-types/lung  |  label: https://cancer.ca/en/cancer-information/cancer-types/lung
+21:47:16 [INFO]   [4] https://www.cdc.gov/cancer/lung  |  label: cdc.gov
+21:47:16 [INFO] HTTP Request: HEAD https://www.who.int/news-room/fact-sheets/detail/cancer "HTTP/1.1 200 OK"
+21:47:16 [INFO] HTTP Request: HEAD https://www.cdc.gov/cancer/lung "HTTP/1.1 301 Moved Permanently"
+21:47:16 [INFO] HTTP Request: GET https://www.who.int/news-room/fact-sheets/detail/cancer "HTTP/1.1 200 OK"
+21:47:16 [INFO]   SCRAPED OK   who.int                                   status=200  words=1200  method=beautifulsoup  note=ok
+21:47:16 [INFO] HTTP Request: HEAD https://www.cancer.org/cancer/types/lung-cancer.html "HTTP/1.1 200 OK"
+21:47:16 [INFO] HTTP Request: HEAD https://cancer.ca/en/cancer-information/cancer-types/lung "HTTP/1.1 200 OK"
+21:47:16 [INFO] HTTP Request: GET https://www.cancer.org/cancer/types/lung-cancer.html "HTTP/1.1 200 OK"
+21:47:16 [INFO]   SCRAPED OK   cancer.org                                status=200  words=304  method=beautifulsoup  note=ok
+21:47:16 [INFO] HTTP Request: GET https://cancer.ca/en/cancer-information/cancer-types/lung "HTTP/1.1 200 OK"
+21:47:16 [INFO]   SCRAPED OK   cancer.ca                                 status=200  words=452  method=beautifulsoup  note=ok
+21:47:16 [INFO] HTTP Request: HEAD https://www.cdc.gov/lung-cancer/ "HTTP/1.1 200 OK"
+21:47:17 [INFO] HTTP Request: GET https://www.cdc.gov/cancer/lung "HTTP/1.1 301 Moved Permanently"
+21:47:17 [INFO] HTTP Request: GET https://www.cdc.gov/lung-cancer/ "HTTP/1.1 200 OK"
+21:47:17 [INFO]   SCRAPED OK   cdc.gov                                   status=200  words=115  method=beautifulsoup  note=ok
+21:47:17 [INFO] Scrape done (1755ms): 4 live, 0 dead
+21:47:17 [INFO]   [1/4] EXTRACTED  https://www.who.int/news-room/fact-sheets/detail/cancer
+          title    : Cancer
+          date     : 2025
+          author   : (none)
+          words    : 1200
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : Key facts Cancer is a leading cause of death worldwide, accounting for nearly 10 million deaths in 2020, or nearly one in six deaths. The most common cancers are breast, lung, colon and rectum and pro
+21:47:17 [INFO]   [2/4] EXTRACTED  https://www.cancer.org/cancer/types/lung-cancer.html
+          title    : Lung Cancer Guide | What You Need to Know
+          date     : (none)
+          author   : (none)
+          words    : 304
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : Lung Cancer There are different types of lung cancer. Knowing which type you have is important because it affects your treatment options and your outlook (prognosis). If you aren’t sure which type of
+21:47:17 [INFO]   [3/4] EXTRACTED  https://cancer.ca/en/cancer-information/cancer-types/lung
+          title    : Lung cancer
+          date     : (none)
+          author   : Canadian Cancer Society / Société canadienne du cancer
+          words    : 452
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : Home Cancer information Cancer types Lung Print Lung cancer Home Cancer information Cancer types Lung Print What is lung cancer? Primary lung cancer starts in the cells of the lung. Learn about sympto
+21:47:17 [INFO]   [4/4] EXTRACTED  https://www.cdc.gov/cancer/lung
+          title    : Lung Cancer
+          date     : 2024
+          author   : CDC
+          words    : 115
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : Español Lung Cancer Screening Screening is recommended only for adults who are at high risk. Learn More Oct. 15, 2024 Basics Learn about symptoms, risk factors, screening, and treatment. Oct. 15, 2024
+21:47:17 [INFO] Scoring with Gemini (topic: health)...
+21:47:17 [INFO]   Scoring 4 sources in parallel...
+21:47:20 [INFO] HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+21:47:22 [INFO] HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+21:47:24 [INFO] HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+21:47:25 [INFO] HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+21:47:27 [INFO] HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+21:47:27 [INFO] Scoring done (11214ms total)
+21:47:27 [INFO]   reliable      score=88   who.int                                   The WHO fact sheet directly addresses lung cancer as a leadi
+21:47:27 [INFO]   reliable      score=76   cancer.org                                The source is a direct, authoritative medical website about 
+21:47:27 [INFO]   reliable      score=90   cdc.gov                                   The source content is a Canadian Cancer Society page that di
+21:47:27 [INFO]   caution       score=67   cancer.ca                                 The source is a direct, authoritative health website from th
+21:47:27 [INFO]   [1/4] SCORED    who.int  →  reliable (88/100)
+          domain   : official_body  95/100
+          recency  : 100/100  (date: 2025)
+          author   : 40/100  (author: none)
+          relevance: 95/100  alignment: 90/100
+          reason   : The WHO fact sheet directly addresses lung cancer as a leading cause of cancer deaths, confirming the claim that lung cancer is bad. The source explicitly states lung cancer is among the most common cancers and links it to tobacco and air pollution, supporting the claim that it is bad.
+          terms    : lung cancer, cancer, death, tobacco, air pollution
+21:47:27 [INFO]   [2/4] SCORED    cancer.org  →  reliable (76/100)
+          domain   : established_news  80/100
+          recency  : 40/100  (date: none)
+          author   : 40/100  (author: none)
+          relevance: 95/100  alignment: 90/100
+          reason   : The source is a direct, authoritative medical website about lung cancer, which directly supports the claim that lung cancer is bad and discusses its types, prognosis, and treatment.
+          terms    : lung cancer, types, prognosis, treatment options, bad
+21:47:27 [INFO]   [3/4] SCORED    cdc.gov  →  reliable (90/100)
+          domain   : official_body  95/100
+          recency  : 100/100  (date: 2024)
+          author   : 80/100  (author: CDC)
+          relevance: 85/100  alignment: 90/100
+          reason   : The source content is a Canadian Cancer Society page that discusses lung cancer statistics and prevention, which directly supports the claim that lung cancer is a leading cause of cancer death for both men and women in the United States.
+          terms    : lung cancer, cancer, death, prevention, risk factors
+21:47:27 [INFO]   [4/4] SCORED    cancer.ca  →  caution (67/100)
+          domain   : unknown  30/100
+          recency  : 40/100  (date: none)
+          author   : 80/100  (author: Canadian Cancer Society / Société canadienne du cancer)
+          relevance: 95/100  alignment: 90/100
+          reason   : The source is a direct, authoritative health website from the Canadian Cancer Society that explicitly discusses lung cancer and its risks, making it highly relevant to the user's question about whether lung cancer is bad.
+          terms    : lung cancer, cancer types, smoking tobacco, risk factor, screening
+21:47:27 [INFO] ────────────────────────────────────────────────────────────
+21:55:17 [INFO] ────────────────────────────────────────────────────────────
+21:55:17 [INFO] HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+21:55:17 [INFO] Extract request: 4 source(s)  |  Ollama: on
+21:55:17 [INFO] Prompt: give sources for my lung cancer is bad
+21:55:17 [INFO]   [1] https://www.who.int/news-room/fact-sheets/detail/cancer  |  label: https://www.who.int/news-room/fact-sheets/detail/cancer
+21:55:17 [INFO]   [2] https://www.cancer.gov/types/lung  |  label: https://www.cancer.gov/types/lung
+21:55:17 [INFO]   [3] https://www.cdc.gov/cancer/lung/  |  label: cdc.gov
+21:55:17 [INFO]   [4] https://www.cancer.org/cancer/lung-cancer.html  |  label: cancer.org
+21:55:18 [INFO] HTTP Request: HEAD https://www.cancer.org/cancer/lung-cancer.html "HTTP/1.1 301 Moved Permanently"
+21:55:18 [INFO] HTTP Request: HEAD https://www.cancer.gov/types/lung "HTTP/1.1 200 OK"
+21:55:18 [INFO] HTTP Request: HEAD https://www.cdc.gov/cancer/lung/ "HTTP/1.1 301 Moved Permanently"
+21:55:18 [INFO] HTTP Request: HEAD https://www.cdc.gov/lung-cancer/ "HTTP/1.1 200 OK"
+21:55:18 [INFO] HTTP Request: GET https://www.cancer.gov/types/lung "HTTP/1.1 200 OK"
+21:55:18 [INFO] HTTP Request: HEAD https://www.cancer.org/cancer/types/lung-cancer.html "HTTP/1.1 200 OK"
+21:55:18 [INFO]   SCRAPED OK   cancer.gov                                status=200  words=266  method=beautifulsoup  note=ok
+21:55:18 [INFO]   PLAYWRIGHT   cancer.gov                                words=266 → trying JS render
+21:55:18 [INFO] HTTP Request: GET https://www.cancer.org/cancer/lung-cancer.html "HTTP/1.1 301 Moved Permanently"
+21:55:18 [INFO] HTTP Request: HEAD https://www.who.int/news-room/fact-sheets/detail/cancer "HTTP/1.1 200 OK"
+21:55:18 [INFO] HTTP Request: GET https://www.cdc.gov/cancer/lung/ "HTTP/1.1 301 Moved Permanently"
+21:55:18 [INFO] HTTP Request: GET https://www.cdc.gov/lung-cancer/ "HTTP/1.1 200 OK"
+21:55:18 [INFO]   SCRAPED OK   cdc.gov                                   status=200  words=115  method=beautifulsoup  note=ok
+21:55:18 [INFO]   PLAYWRIGHT   cdc.gov                                   words=115 → trying JS render
+21:55:18 [INFO] HTTP Request: GET https://www.cancer.org/cancer/types/lung-cancer.html "HTTP/1.1 200 OK"
+21:55:18 [INFO] HTTP Request: GET https://www.who.int/news-room/fact-sheets/detail/cancer "HTTP/1.1 200 OK"
+21:55:18 [INFO]   SCRAPED OK   who.int                                   status=200  words=1200  method=beautifulsoup  note=ok
+21:55:18 [INFO]   SCRAPED OK   cancer.org                                status=200  words=304  method=beautifulsoup  note=ok
+21:55:18 [INFO]   PLAYWRIGHT   cancer.org                                words=304 → trying JS render
+21:55:24 [INFO] Scrape done (6144ms): 4 live, 0 dead
+21:55:24 [INFO]   [1/4] EXTRACTED  https://www.who.int/news-room/fact-sheets/detail/cancer
+          title    : Cancer
+          date     : 2025
+          author   : (none)
+          words    : 1200
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : Key facts Cancer is a leading cause of death worldwide, accounting for nearly 10 million deaths in 2020, or nearly one in six deaths. The most common cancers are breast, lung, colon and rectum and pro
+21:55:24 [INFO]   [2/4] EXTRACTED  https://www.cancer.gov/types/lung
+          title    : Lung Cancer—Patient Version
+          date     : (none)
+          author   : (none)
+          words    : 275
+          paywalled: no
+          method   : playwright  note=js_rendered
+          body     : Lung Cancer—Patient Version Go to Health Professional Version Overview Lung cancer includes two main types: non-small cell lung cancer and small cell lung cancer. Smoking causes most lung cancers, but
+21:55:24 [INFO]   [3/4] EXTRACTED  https://www.cdc.gov/cancer/lung/
+          title    : Lung Cancer
+          date     : 2024
+          author   : CDC
+          words    : 118
+          paywalled: no
+          method   : playwright  note=js_rendered
+          body     : Español Lung Cancer Screening Screening is recommended only for adults who are at high risk. Learn More Oct. 15, 2024 Basics Learn about symptoms, risk factors, screening, and treatment. Oct. 15, 2024
+21:55:24 [INFO]   [4/4] EXTRACTED  https://www.cancer.org/cancer/lung-cancer.html
+          title    : Lung Cancer Guide | What You Need to Know
+          date     : (none)
+          author   : (none)
+          words    : 304
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : Lung Cancer There are different types of lung cancer. Knowing which type you have is important because it affects your treatment options and your outlook (prognosis). If you aren’t sure which type of
+21:55:24 [INFO] Scoring with Gemini (topic: health)...
+21:55:24 [INFO]   Scoring 4 sources in parallel...
+21:55:26 [INFO] HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+21:55:27 [INFO] HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+21:55:29 [INFO] HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+21:55:31 [INFO] HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+21:55:33 [INFO] HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+21:55:33 [INFO] Scoring done (16055ms total)
+21:55:33 [INFO]   reliable      score=88   who.int                                   The WHO fact sheet directly addresses lung cancer as a leadi
+21:55:33 [INFO]   reliable      score=79   cancer.gov                                The source is a direct health.gov page about lung cancer, wh
+21:55:33 [INFO]   reliable      score=90   cdc.gov                                   The American Cancer Society source directly addresses lung c
+21:55:33 [INFO]   caution       score=68   cancer.org                                The source discusses lung cancer and its impact on breathing
+21:55:33 [INFO]   [1/4] SCORED    who.int  →  reliable (88/100)
+          domain   : official_body  95/100
+          recency  : 100/100  (date: 2025)
+          author   : 40/100  (author: none)
+          relevance: 95/100  alignment: 90/100
+          reason   : The WHO fact sheet directly addresses lung cancer as a leading cause of cancer deaths, confirming the claim that lung cancer is bad. It provides authoritative medical data supporting the severity of the disease.
+          terms    : lung cancer, cancer, death, leading cause, risk factor
+21:55:33 [INFO]   [2/4] SCORED    cancer.gov  →  reliable (79/100)
+          domain   : official_body  95/100
+          recency  : 40/100  (date: none)
+          author   : 40/100  (author: none)
+          relevance: 95/100  alignment: 90/100
+          reason   : The source is a direct health.gov page about lung cancer, which directly supports the claim that lung cancer is bad. The content explicitly discusses the causes, types, and treatments of lung cancer, making it highly relevant to the user's question.
+          terms    : lung cancer, smoking, treatment, prevention, screening
+21:55:33 [INFO]   [3/4] SCORED    cdc.gov  →  reliable (90/100)
+          domain   : official_body  95/100
+          recency  : 100/100  (date: 2024)
+          author   : 80/100  (author: CDC)
+          relevance: 85/100  alignment: 90/100
+          reason   : The American Cancer Society source directly addresses lung cancer causes and explicitly states that non-smokers can develop the disease, supporting the claim that smoking is the leading cause but it can also occur in non-smokers.
+          terms    : lung cancer, causes, non-smokers, leading cause, cells grow uncontrollably
+21:55:33 [INFO]   [4/4] SCORED    cancer.org  →  caution (68/100)
+          domain   : established_news  80/100
+          recency  : 40/100  (date: none)
+          author   : 40/100  (author: none)
+          relevance: 85/100  alignment: 70/100
+          reason   : The source discusses lung cancer and its impact on breathing and organs, which aligns with the claim about forming tumors that interfere with breathing and spreading to organs like the brain, bones, or liver.
+          terms    : lung cancer, breathing, tumor, organs, spread
+21:55:33 [INFO] ────────────────────────────────────────────────────────────

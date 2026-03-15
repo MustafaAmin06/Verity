@@ -5,16 +5,23 @@ Verity source extraction and scraping module.
 import asyncio
 import json
 import logging
+import logging.handlers
 import os
 import re
 import time
 from urllib.parse import urlparse
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    datefmt="%H:%M:%S",
-)
+if not logging.root.handlers:
+    _log_formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", datefmt="%H:%M:%S")
+    _stream_handler = logging.StreamHandler()
+    _stream_handler.setFormatter(_log_formatter)
+    _file_handler = logging.handlers.RotatingFileHandler(
+        "verity.log", maxBytes=2_000_000, backupCount=3, encoding="utf-8"
+    )
+    _file_handler.setFormatter(_log_formatter)
+    logging.root.setLevel(logging.INFO)
+    logging.root.addHandler(_stream_handler)
+    logging.root.addHandler(_file_handler)
 
 import httpx
 from bs4 import BeautifulSoup
@@ -42,7 +49,7 @@ GEMINI_AVAILABLE = False  # replaced by local Ollama
 
 
 REQUEST_TIMEOUT_SECONDS = int(os.getenv("REQUEST_TIMEOUT_SECONDS", "5"))
-MAX_BODY_TEXT_CHARS = int(os.getenv("MAX_BODY_TEXT_CHARS", "2000"))
+MAX_BODY_TEXT_CHARS = int(os.getenv("MAX_BODY_TEXT_CHARS", "8000"))
 PLAYWRIGHT_TIMEOUT_SECONDS = int(os.getenv("PLAYWRIGHT_TIMEOUT_SECONDS", "10"))
 ENABLE_PLAYWRIGHT_FALLBACK = (
     os.getenv("ENABLE_PLAYWRIGHT_FALLBACK", "true").lower() == "true"
@@ -104,6 +111,7 @@ DOMAIN_REGISTRY = {
     "cdc.gov": {"tier": "official_body", "paywalled": False},
     "nih.gov": {"tier": "official_body", "paywalled": False},
     "fda.gov": {"tier": "official_body", "paywalled": False},
+    "cancer.gov": {"tier": "official_body", "paywalled": False},
     "nhs.uk": {"tier": "official_body", "paywalled": False},
     "gov.uk": {"tier": "official_body", "paywalled": False},
     "nasa.gov": {"tier": "official_body", "paywalled": False},
@@ -120,6 +128,8 @@ DOMAIN_REGISTRY = {
     "federalreserve.gov": {"tier": "official_body", "paywalled": False},
     "bis.org": {"tier": "official_body", "paywalled": False},
     "stats.oecd.org": {"tier": "official_body", "paywalled": False},
+    "mayoclinic.org": {"tier": "official_body", "paywalled": False},
+    "cancer.org": {"tier": "established_news", "paywalled": False},
     "bbc.com": {"tier": "established_news", "paywalled": False},
     "bbc.co.uk": {"tier": "established_news", "paywalled": False},
     "reuters.com": {"tier": "established_news", "paywalled": False},
@@ -926,6 +936,20 @@ def extract_body_text(soup: BeautifulSoup) -> str | None:
     ):
         tag.decompose()
 
+    _CONSENT_MARKERS = (
+        "cookie-consent", "cookie-banner", "cookie-notice", "cookie-popup",
+        "cookie-overlay", "cookie-modal", "cookie-bar", "cookie-wall",
+        "consent-banner", "consent-modal", "consent-overlay", "consent-popup",
+        "gdpr-banner", "gdpr-consent", "gdpr-overlay",
+        "cc-banner", "cc-window", "cc-overlay",
+        "onetrust-consent", "onetrust-banner", "cookiebot",
+        "CybotCookiebotDialog",
+    )
+    for el in working_soup.find_all(
+        lambda tag: _tag_has_marker(tag, _CONSENT_MARKERS)
+    ):
+        el.decompose()
+
     candidate = working_soup.find("article")
     if candidate is None:
         candidate = working_soup.find("main")
@@ -1068,7 +1092,7 @@ def extract_json_ld(soup: BeautifulSoup) -> dict | None:
 
 def detect_paywall(soup: BeautifulSoup, body_text: str | None, domain_info: dict) -> bool:
     if soup.find(
-        lambda tag: _tag_has_marker(tag, ("paywall", "subscribe", "premium-content", "locked"))
+        lambda tag: _tag_has_marker(tag, ("paywall", "premium-content", "locked"))
     ):
         return True
 
@@ -1295,6 +1319,34 @@ async def scrape_with_beautifulsoup(source: SourceInput) -> ScrapedSource:
         return build_failure_result(source, "scrape_failed", http_status=http_status)
 
 
+_COOKIE_CONSENT_BUTTON_TEXTS = [
+    "Accept all", "Accept All", "Accept cookies", "Accept Cookies",
+    "Accept all cookies", "Accept All Cookies",
+    "I accept", "I agree", "Agree",
+    "Allow all", "Allow All", "Allow all cookies", "Allow cookies",
+    "Got it", "OK", "Okay", "Continue", "Consent", "Close",
+]
+
+
+async def _dismiss_cookie_popup(page) -> bool:
+    """Best-effort attempt to dismiss cookie consent popups."""
+    for text in _COOKIE_CONSENT_BUTTON_TEXTS:
+        try:
+            button = page.locator(
+                f"button:has-text('{text}'), "
+                f"a:has-text('{text}'), "
+                f"[role='button']:has-text('{text}')"
+            ).first
+            if await button.is_visible(timeout=200):
+                await button.click(timeout=1000)
+                await page.wait_for_timeout(500)
+                logging.info("  COOKIE_POPUP dismissed button with text: %r", text)
+                return True
+        except Exception:
+            continue
+    return False
+
+
 async def scrape_with_playwright(
     source: SourceInput, baseline: ScrapedSource
 ) -> ScrapedSource:
@@ -1323,6 +1375,8 @@ async def scrape_with_playwright(
                 )
             except Exception:
                 pass
+
+            await _dismiss_cookie_popup(page)
 
             html = await page.content()
             http_status = response.status if response else baseline.http_status
@@ -1394,10 +1448,11 @@ async def scrape_source(source: SourceInput) -> ScrapedSource:
         ENABLE_PLAYWRIGHT_FALLBACK
         and result.live
         and not result.is_pdf
-        and (result.body_text is None or len(result.body_text) < 200)
+        and (result.body_text is None or result.word_count < 500)
     )
     if not should_use_playwright:
         return result
+    logging.info("  PLAYWRIGHT   %-40s  words=%s → trying JS render", result.domain, result.word_count)
     return await scrape_with_playwright(source, result)
 
 
@@ -1444,6 +1499,26 @@ async def extract(request: ExtractRequest):
     live_count = sum(1 for s in scraped_sources if s.live)
     dead_count = len(scraped_sources) - live_count
     logging.info("Scrape done (%dms): %d live, %d dead", scrape_ms, live_count, dead_count)
+    for i, s in enumerate(scraped_sources, 1):
+        body_preview = (s.body_text or "")[:200].replace("\n", " ").strip()
+        logging.info(
+            "  [%d/%d] EXTRACTED  %s\n"
+            "          title    : %s\n"
+            "          date     : %s\n"
+            "          author   : %s\n"
+            "          words    : %s\n"
+            "          paywalled: %s\n"
+            "          method   : %s  note=%s\n"
+            "          body     : %s",
+            i, len(scraped_sources), s.url,
+            s.title or "(none)",
+            s.date or "(none)",
+            s.author or "(none)",
+            s.word_count,
+            "yes" if s.paywalled else "no",
+            s.scrape_method or "-", s.scrape_note or "ok",
+            body_preview or "(none)",
+        )
 
     # Step 2: if Ollama is available, score all sources + get further reading
     if ollama_ok:
@@ -1474,6 +1549,23 @@ async def extract(request: ExtractRequest):
             logging.info(
                 "  %-12s  score=%-3s  %-40s  %s",
                 s.verdict, s.composite_score, s.domain, s.reason[:60],
+            )
+        for i, s in enumerate(scored, 1):
+            logging.info(
+                "  [%d/%d] SCORED    %s  →  %s (%d/100)\n"
+                "          domain   : %s  %d/100\n"
+                "          recency  : %d/100  (date: %s)\n"
+                "          author   : %d/100  (author: %s)\n"
+                "          relevance: %d/100  alignment: %d/100\n"
+                "          reason   : %s\n"
+                "          terms    : %s",
+                i, len(scored), s.domain, s.verdict, s.composite_score,
+                s.signals.domain_tier, s.signals.domain_score,
+                s.signals.recency_score, s.date or "none",
+                s.signals.author_score, s.author or "none",
+                s.signals.relevance_score, s.signals.alignment_score,
+                s.reason,
+                ", ".join(s.signals.matched_terms) or "(none)",
             )
         logging.info("─" * 60)
 
