@@ -3,12 +3,15 @@ Verity source extraction and scraping module.
 """
 
 import asyncio
+import csv
 import json
 import logging
 import logging.handlers
 import os
+import pathlib
 import re
 import time
+import unicodedata
 from urllib.parse import urlparse
 
 if not logging.root.handlers:
@@ -176,6 +179,84 @@ DOMAIN_REGISTRY = {
 def get_domain_info(domain: str) -> dict:
     clean = domain.lower().replace("www.", "").strip("/")
     return DOMAIN_REGISTRY.get(clean, {"tier": "unknown", "paywalled": False})
+
+
+# ── ScimagoJR journal lookup ──
+
+_SCIMAGO_BY_ISSN: dict[str, dict] = {}
+_SCIMAGO_BY_TITLE: dict[str, dict] = {}
+
+
+def _normalize_journal_title(title: str) -> str:
+    if not title:
+        return ""
+    title = title.lower().strip()
+    title = unicodedata.normalize("NFD", title)
+    title = "".join(c for c in title if unicodedata.category(c) != "Mn")
+    title = re.sub(r"[^\w\s]", " ", title)
+    title = re.sub(r"\s+", " ", title).strip()
+    return title
+
+
+def _load_scimago_data() -> None:
+    csv_path = pathlib.Path(__file__).parent / "scimagojr 2024.csv"
+    if not csv_path.exists():
+        return
+    try:
+        with open(csv_path, encoding="utf-8", newline="") as f:
+            reader = csv.DictReader(f, delimiter=";")
+            for row in reader:
+                if row.get("Type", "").lower() != "journal":
+                    continue
+                quartile = row.get("SJR Best Quartile", "").strip()
+                if quartile not in {"Q1", "Q2", "Q3", "Q4"}:
+                    quartile = None
+                try:
+                    sjr = float(row.get("SJR", "0").replace(",", "."))
+                except (ValueError, TypeError):
+                    sjr = 0.0
+                try:
+                    h_index = int(row.get("H index", "0"))
+                except (ValueError, TypeError):
+                    h_index = 0
+                open_access = row.get("Open Access", "").strip().lower() == "yes"
+                entry = {
+                    "quartile": quartile,
+                    "sjr": sjr,
+                    "h_index": h_index,
+                    "open_access": open_access,
+                    "journal_title": row.get("Title", "").strip(),
+                }
+                norm_title = _normalize_journal_title(row.get("Title", ""))
+                if norm_title:
+                    _SCIMAGO_BY_TITLE[norm_title] = entry
+                issn_raw = row.get("Issn", "").strip().strip('"')
+                for issn in issn_raw.split(","):
+                    issn = issn.strip().replace("-", "")
+                    if len(issn) == 8:
+                        _SCIMAGO_BY_ISSN[issn] = entry
+        logging.info(
+            "ScimagoJR loaded: %d ISSNs, %d titles",
+            len(_SCIMAGO_BY_ISSN), len(_SCIMAGO_BY_TITLE),
+        )
+    except Exception as exc:
+        logging.warning("ScimagoJR load failed: %s", exc)
+
+
+def lookup_journal_info(issn: str | None = None, title: str | None = None) -> dict | None:
+    """Return ScimagoJR entry for a journal, matched by ISSN then title."""
+    if issn:
+        clean_issn = issn.strip().replace("-", "")
+        if clean_issn in _SCIMAGO_BY_ISSN:
+            return _SCIMAGO_BY_ISSN[clean_issn]
+    if title:
+        norm = _normalize_journal_title(title)
+        if norm and norm in _SCIMAGO_BY_TITLE:
+            return _SCIMAGO_BY_TITLE[norm]
+    return None
+
+
+_load_scimago_data()
 
 
 TOPIC_KEYWORDS = {
@@ -421,7 +502,13 @@ VERDICT_MAP = [
 ]
 
 
+_QUARTILE_SCORES: dict[str, int] = {"Q1": 100, "Q2": 85, "Q3": 70, "Q4": 55}
+
+
 def _compute_domain_score(domain_info: dict) -> int:
+    quartile = domain_info.get("quartile")
+    if quartile and quartile in _QUARTILE_SCORES:
+        return _QUARTILE_SCORES[quartile]
     return DOMAIN_TIER_SCORES.get(domain_info.get("tier", "unknown"), 30)
 
 
@@ -616,6 +703,20 @@ def build_scored_source(scraped: ScrapedSource, llm: dict) -> ScoredSource:
     """Combine scraped metadata + Gemini LLM output into a ScoredSource."""
     domain_info = get_domain_info(scraped.domain)
 
+    # Enrich with ScimagoJR data when JSON-LD exposes journal metadata
+    _journal_meta = lookup_journal_info(
+        issn=scraped.json_ld.get("journal_issn") if scraped.json_ld else None,
+        title=scraped.json_ld.get("journal_name") if scraped.json_ld else None,
+    )
+    if _journal_meta:
+        domain_info = {**domain_info, **_journal_meta}
+        # Promote unknown domains that are indexed journals
+        if domain_info.get("tier") == "unknown":
+            domain_info = {**domain_info, "tier": "academic_journal"}
+        # Honour open-access flag from Scimago if not already set by registry
+        if _journal_meta.get("open_access") and domain_info.get("paywalled"):
+            domain_info = {**domain_info, "paywalled": False}
+
     domain_score  = _compute_domain_score(domain_info)
     recency_score = _compute_recency_score(scraped.date)
     author_score  = _compute_author_score(scraped.author)
@@ -639,7 +740,7 @@ def build_scored_source(scraped: ScrapedSource, llm: dict) -> ScoredSource:
         author_score=author_score,
         relevance_score=relevance_score,
         alignment_score=alignment_score,
-        is_peer_reviewed=domain_info.get("tier") in TIER_PEER_REVIEWED,
+        is_peer_reviewed=domain_info.get("tier") in TIER_PEER_REVIEWED or bool(domain_info.get("quartile")),
         claim_aligned=llm.get("claim_aligned"),
         matched_terms=llm.get("matched_terms", [])[:5],
     )
@@ -1130,6 +1231,19 @@ def extract_json_ld(soup: BeautifulSoup) -> dict | None:
                     simplified["isAccessibleForFree"] = value.strip().lower() == "true"
                 else:
                     simplified["isAccessibleForFree"] = bool(value)
+
+            # Extract journal name + ISSN from isPartOf (ScholarlyArticle)
+            is_part_of = node.get("isPartOf")
+            if is_part_of and isinstance(is_part_of, dict):
+                j_name = is_part_of.get("name") or is_part_of.get("alternateName")
+                if j_name and isinstance(j_name, str):
+                    simplified["journal_name"] = j_name.strip()
+                j_issn = is_part_of.get("issn")
+                if j_issn:
+                    if isinstance(j_issn, list):
+                        j_issn = j_issn[0] if j_issn else None
+                    if j_issn and isinstance(j_issn, str):
+                        simplified["journal_issn"] = j_issn.strip()
 
             return simplified
 

@@ -766,3 +766,172 @@ INFO:     Stopping reloader process [5415]
           reason   : The source discusses Stage IV breast cancer incidence and biological variables, directly supporting the claim that Stage IV cancers have higher proportions of aggressive types compared to early-stage cancers.
           terms    : Stage IV breast cancer, early-stage cancers, biological variables, incidence, aggressive
 22:36:59 [INFO] ────────────────────────────────────────────────────────────
+22:55:29 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+22:55:29 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+22:55:30 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+22:56:38 [INFO] ────────────────────────────────────────────────────────────
+22:56:38 [INFO] HTTP Request: GET http://localhost:11434/api/tags "HTTP/1.1 200 OK"
+22:56:38 [INFO] Extract request: 7 source(s)  |  Ollama: on
+22:56:38 [INFO] Prompt: give me sources on why portstate cancer is dangreous for men
+22:56:38 [INFO]   [1] https://www.mayoclinic.org/diseases-conditions/prostate-cancer/symptoms-causes/syc-20353087?utm_source=chatgpt.com  |  label: mayoclinic.org
+22:56:38 [INFO]   [2] https://www.mayoclinic.org/diseases-conditions/prostate-cancer/symptoms-causes/syc-20353087  |  label: https://www.mayoclinic.org/diseases-conditions/prostate-canc
+22:56:38 [INFO]   [3] https://www.cdc.gov/prostate-cancer/risk-factors/index.html?utm_source=chatgpt.com  |  label: CDC
+22:56:38 [INFO]   [4] https://www.pcf.org/patient-support/higher-risk/?utm_source=chatgpt.com  |  label: Prostate Cancer Foundation
+22:56:38 [INFO]   [5] https://www.pcf.org/patient-support/higher-risk/  |  label: https://www.pcf.org/patient-support/higher-risk/
+22:56:38 [INFO]   [6] https://www.cancer.org/cancer/types/prostate-cancer/causes-risks-prevention/risk-factors.html?utm_source=chatgpt.com  |  label: cancer.org
++1
+22:56:38 [INFO]   [7] https://www.cdc.gov/prostate-cancer/risk-factors/  |  label: cdc.gov
+22:56:38 [INFO] HTTP Request: HEAD https://www.cancer.org/cancer/types/prostate-cancer/causes-risks-prevention/risk-factors.html?utm_source=chatgpt.com "HTTP/1.1 200 OK"
+22:56:39 [INFO] HTTP Request: GET https://www.cancer.org/cancer/types/prostate-cancer/causes-risks-prevention/risk-factors.html?utm_source=chatgpt.com "HTTP/1.1 200 OK"
+22:56:39 [INFO]   SCRAPED OK   cancer.org                                status=200  words=1293  method=beautifulsoup  note=ok
+22:56:39 [INFO] HTTP Request: HEAD https://www.mayoclinic.org/diseases-conditions/prostate-cancer/symptoms-causes/syc-20353087?utm_source=chatgpt.com "HTTP/1.1 200 OK"
+22:56:39 [INFO] HTTP Request: HEAD https://www.mayoclinic.org/diseases-conditions/prostate-cancer/symptoms-causes/syc-20353087 "HTTP/1.1 200 OK"
+22:56:39 [INFO] HTTP Request: GET https://www.mayoclinic.org/diseases-conditions/prostate-cancer/symptoms-causes/syc-20353087?utm_source=chatgpt.com "HTTP/1.1 200 OK"
+22:56:39 [INFO] HTTP Request: HEAD https://www.cdc.gov/prostate-cancer/risk-factors/index.html?utm_source=chatgpt.com "HTTP/1.1 200 OK"
+22:56:39 [INFO]   SCRAPED OK   mayoclinic.org                            status=200  words=0  method=beautifulsoup  note=ok
+22:56:39 [INFO]   PLAYWRIGHT   mayoclinic.org                            words=0 → trying JS render
+22:56:39 [INFO] HTTP Request: GET https://www.mayoclinic.org/diseases-conditions/prostate-cancer/symptoms-causes/syc-20353087 "HTTP/1.1 200 OK"
+22:56:39 [INFO]   SCRAPED OK   mayoclinic.org                            status=200  words=0  method=beautifulsoup  note=ok
+22:56:39 [INFO]   PLAYWRIGHT   mayoclinic.org                            words=0 → trying JS render
+22:56:39 [INFO] HTTP Request: HEAD https://www.cdc.gov/prostate-cancer/risk-factors/ "HTTP/1.1 200 OK"
+22:56:39 [INFO] HTTP Request: HEAD https://www.pcf.org/patient-support/higher-risk/ "HTTP/1.1 200 OK"
+22:56:39 [INFO] HTTP Request: GET https://www.pcf.org/patient-support/higher-risk/ "HTTP/1.1 200 OK"
+22:56:39 [INFO]   SCRAPED OK   pcf.org                                   status=200  words=523  method=beautifulsoup  note=ok
+22:56:39 [INFO] HTTP Request: HEAD https://www.pcf.org/patient-support/higher-risk/?utm_source=chatgpt.com "HTTP/1.1 200 OK"
+22:56:40 [INFO] HTTP Request: GET https://www.cdc.gov/prostate-cancer/risk-factors/ "HTTP/1.1 200 OK"
+22:56:40 [INFO]   SCRAPED OK   cdc.gov                                   status=200  words=332  method=beautifulsoup  note=ok
+22:56:40 [INFO]   PLAYWRIGHT   cdc.gov                                   words=332 → trying JS render
+22:56:40 [INFO] HTTP Request: GET https://www.cdc.gov/prostate-cancer/risk-factors/index.html?utm_source=chatgpt.com "HTTP/1.1 200 OK"
+22:56:40 [INFO]   SCRAPED OK   cdc.gov                                   status=200  words=332  method=beautifulsoup  note=ok
+22:56:40 [INFO]   PLAYWRIGHT   cdc.gov                                   words=332 → trying JS render
+22:56:42 [INFO] HTTP Request: GET https://www.pcf.org/patient-support/higher-risk/?utm_source=chatgpt.com "HTTP/1.1 200 OK"
+22:56:42 [INFO]   SCRAPED OK   pcf.org                                   status=200  words=523  method=beautifulsoup  note=ok
+22:56:45 [INFO]   CONSENT_DOM  removed 8 consent element(s) via JS
+22:56:45 [INFO]   CONSENT_DOM  removed 8 consent element(s) via JS
+22:56:46 [INFO]   CONSENT_DOM  removed 1 consent element(s) via JS
+22:56:46 [INFO]   CONSENT_DOM  removed 1 consent element(s) via JS
+22:56:46 [INFO] Scrape done (7639ms): 7 live, 0 dead
+22:56:46 [INFO]   [1/7] EXTRACTED  https://www.mayoclinic.org/diseases-conditions/prostate-cancer/symptoms-causes/syc-20353087?utm_source=chatgpt.com
+          title    : Prostate cancer - Symptoms and causes
+          date     : 2026
+          author   : Print
+          words    : 1
+          paywalled: no
+          method   : playwright  note=partial_content
+          body     : Feedback
+22:56:46 [INFO]   [2/7] EXTRACTED  https://www.mayoclinic.org/diseases-conditions/prostate-cancer/symptoms-causes/syc-20353087
+          title    : Prostate cancer - Symptoms and causes
+          date     : 2026
+          author   : Print
+          words    : 1
+          paywalled: no
+          method   : playwright  note=partial_content
+          body     : Feedback
+22:56:46 [INFO]   [3/7] EXTRACTED  https://www.cdc.gov/prostate-cancer/risk-factors/index.html?utm_source=chatgpt.com
+          title    : Prostate Cancer Risk Factors
+          date     : 2025
+          author   : CDC
+          words    : 348
+          paywalled: no
+          method   : playwright  note=js_rendered
+          body     : Prostate Cancer Risk Factors Feb. 11, 2025 Español For Everyone Key points All men are at risk for prostate cancer. The most common risk factor is age. Conditions that can increase risk All men are at risk for prostate cancer. Out of every 100 American men, about 13 will get prostate cancer during their lifetime, and about 2 to 3 men will die from prostate cancer. The most common risk factor is age. The older a man is, the greater the chance of getting prostate cancer. Some men are at increased risk for prostate cancer. You are at increased risk for getting or dying from prostate cancer if you are African American or have a family history of prostate cancer. Resource Facts about Prostate Cancer provides an overview of symptoms, screening, and treatment. African American men Are more likely to get prostate cancer than other men. Are more than twice as likely to die from prostate cancer than other men. Get prostate cancer at a younger age and tend to have more advanced disease when it is found. Family history (genetic risk factors) For some men, genetic factors may put them at higher risk of prostate cancer. You may have an increased risk of getting a type of prostate cancer caused by genetic changes that are inherited if: You have a first-degree relative (father, son, or brother) who had prostate cancer, including relatives in three generations on your mother's or father's side of the family. You were diagnosed with prostate cancer when you were 55 years old or younger. You were diagnosed with prostate cancer, and other members of your family have been diagnosed with breast, ovarian, or pancreatic cancer. Talk to your doctor about your family's health history. For more information, visit the National Cancer Institute's Genetics of Prostate Cancer (PDQ ® )–Health Professional Version. Treatment Feb. 11, 2025 Sources Print Share Content Source: National Center for Chronic Disease Prevention and Health Promotion ; Division of Cancer Prevention and Control Related Pages Screening Diagnosing Treatment Statistics Prostate Cancer Health Tips View All Prostate Cancer Back to Top
+22:56:46 [INFO]   [4/7] EXTRACTED  https://www.pcf.org/patient-support/higher-risk/?utm_source=chatgpt.com
+          title    : Are You at Higher Risk?
+          date     : 2026
+          author   : (none)
+          words    : 523
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : > Prostate Cancer & Patient Support Are You at Higher Risk? Share This Page Copy Email Print X (Twitter) Facebook LinkedIn There are three well-established risk factors for prostate cancer: older age, African American race, and having a family history of prostate or certain other cancers. However, anyone who has a prostate gland can develop prostate cancer, which is why talking to your doctor about timely, regular screening is so important. When found early, prostate cancer is 99% curable, but early disease usually causes no symptoms, making timely, regular screening essential. Screening starts with a simple PSA blood test. Age The older you are, the more likely you are to develop prostate cancer. The average age at diagnosis is about 66 years. However, younger men also can develop prostate cancer, and their disease can be aggressive, requiring early, intensive treatment. This is why PCF recommends that all men talk to their doctor about regular PSA screening starting by age 45, or by age 40 if you are African American or if you have a family history of prostate or certain other cancers. African-American Race One in six African American men will be diagnosed with prostate cancer in his lifetime (compared with one in eight white men). African American men also are more likely to be diagnosed at a younger age, and to have more aggressive disease. They are more than twice as likely to die of prostate cancer compared to White men. Researchers are still working to understand the reasons for these disparities. Likely factors include environmental exposures, socioeconomic barriers, limited access to timely screening and medical care, and genetics. Learn more about prostate cancer in African American men, your risk, and actions you can take. Family History Prostate cancer can run in families. This is because certain inherited gene changes (mutations) raise your risk. Having a family history of prostate cancer does not mean you will definitely get the disease, but it does increase your risk. Some inherited gene changes that increase prostate cancer risk are also linked to certain other cancers, including breast, ovarian, pancreatic, and colon cancer diagnosed at a younger age. If any of these cancers are in your family, talk to your doctor about PSA screening for prostate cancer starting at about age 40. It’s a simple blood test—and early detection saves lives. Learn more about family history and how to protect yourself and your family . Other Factors Overweight, obesity, smoking, and exposure to certain toxins may increase prostate cancer risk and contribute to worse outcomes. Overweight and obesity are risk factors for aggressive prostate cancer. Obesity also can make recovery from prostate cancer treatments like surgery more complicated, which can increase risk of death. It’s not yet clear if smoking increases the risk of prostate cancer. However, patients who smoke are more likely to have their prostate cancer come back (recur) after treatment, and their prostate cancer is more likely to progress (spread through the body), increasing their risk of death. Exposure to certain toxins , such as Agent Orange during military service , also may increase the risk of aggressive prostate cancer. Last Reviewed: 01/2026
+22:56:46 [INFO]   [5/7] EXTRACTED  https://www.pcf.org/patient-support/higher-risk/
+          title    : Are You at Higher Risk?
+          date     : 2026
+          author   : (none)
+          words    : 523
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : > Prostate Cancer & Patient Support Are You at Higher Risk? Share This Page Copy Email Print X (Twitter) Facebook LinkedIn There are three well-established risk factors for prostate cancer: older age, African American race, and having a family history of prostate or certain other cancers. However, anyone who has a prostate gland can develop prostate cancer, which is why talking to your doctor about timely, regular screening is so important. When found early, prostate cancer is 99% curable, but early disease usually causes no symptoms, making timely, regular screening essential. Screening starts with a simple PSA blood test. Age The older you are, the more likely you are to develop prostate cancer. The average age at diagnosis is about 66 years. However, younger men also can develop prostate cancer, and their disease can be aggressive, requiring early, intensive treatment. This is why PCF recommends that all men talk to their doctor about regular PSA screening starting by age 45, or by age 40 if you are African American or if you have a family history of prostate or certain other cancers. African-American Race One in six African American men will be diagnosed with prostate cancer in his lifetime (compared with one in eight white men). African American men also are more likely to be diagnosed at a younger age, and to have more aggressive disease. They are more than twice as likely to die of prostate cancer compared to White men. Researchers are still working to understand the reasons for these disparities. Likely factors include environmental exposures, socioeconomic barriers, limited access to timely screening and medical care, and genetics. Learn more about prostate cancer in African American men, your risk, and actions you can take. Family History Prostate cancer can run in families. This is because certain inherited gene changes (mutations) raise your risk. Having a family history of prostate cancer does not mean you will definitely get the disease, but it does increase your risk. Some inherited gene changes that increase prostate cancer risk are also linked to certain other cancers, including breast, ovarian, pancreatic, and colon cancer diagnosed at a younger age. If any of these cancers are in your family, talk to your doctor about PSA screening for prostate cancer starting at about age 40. It’s a simple blood test—and early detection saves lives. Learn more about family history and how to protect yourself and your family . Other Factors Overweight, obesity, smoking, and exposure to certain toxins may increase prostate cancer risk and contribute to worse outcomes. Overweight and obesity are risk factors for aggressive prostate cancer. Obesity also can make recovery from prostate cancer treatments like surgery more complicated, which can increase risk of death. It’s not yet clear if smoking increases the risk of prostate cancer. However, patients who smoke are more likely to have their prostate cancer come back (recur) after treatment, and their prostate cancer is more likely to progress (spread through the body), increasing their risk of death. Exposure to certain toxins , such as Agent Orange during military service , also may increase the risk of aggressive prostate cancer. Last Reviewed: 01/2026
+22:56:46 [INFO]   [6/7] EXTRACTED  https://www.cancer.org/cancer/types/prostate-cancer/causes-risks-prevention/risk-factors.html?utm_source=chatgpt.com
+          title    : Prostate Cancer Risk Factors | Risk Factors for Prostate Cancer
+          date     : 2023
+          author   : (none)
+          words    : 1293
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : Prostate Cancer About Prostate Cancer What Is Prostate Cancer? What’s New in Prostate Cancer Research? Key Statistics for Prostate Cancer Causes, Risk Factors, and Prevention Prostate Cancer Risk Factors What Causes Prostate Cancer? Can Prostate Cancer Be Prevented? Genetic Counseling and Testing for Prostate Cancer Risk Early Detection, Diagnosis, and Staging Can Prostate Cancer Be Found Early? Screening Tests for Prostate Cancer American Cancer Society Recommendations for Prostate Cancer Early Detection Insurance Coverage for Prostate Cancer Screening Signs and Symptoms of Prostate Cancer Prostate Cancer Stages Risk Groups and Lab Tests to Help Determine Risk from Localized Prostate Cancer Survival Rates for Prostate Cancer Tests to Diagnose and Stage Prostate Cancer Questions to Ask About Prostate Cancer After Treatment: Living as a Prostate Cancer Survivor Prostate Cancer Videos Prostate Cancer Screening Quiz Prostate Cancer Quiz Treating Prostate Cancer Observation or Active Surveillance for Prostate Cancer Surgery for Prostate Cancer Radiation Therapy for Prostate Cancer Cryotherapy, HIFU, and Other Ablative Treatments for Prostate Cancer Hormone Therapy for Prostate Cancer Chemotherapy for Prostate Cancer Immunotherapy for Prostate Cancer Treatments for Prostate Cancer Spread to Bones Considering Treatment Options for Early Prostate Cancer Following PSA Levels During and After Prostate Cancer Treatment Treating Prostate Cancer That Doesn’t Go Away or Comes Back After Treatment Targeted Drug Therapy for Prostate Cancer Initial Treatment of Prostate Cancer, by Stage and Risk Group Back Download Section as PDF Prostate Cancer Risk Factors Any man, or person born with a prostate, is at risk for developing prostate cancer, but there are factors that can increase your risk. Understanding how these factors apply to you might help you make decisions about screening for prostate cancer. On this page [ show ] [ hide ] What is a risk factor? Older age Race/ethnicity Family history Inherited gene changes Factors with less clear effects on prostate cancer risk What is a risk factor? A risk factor is anything that raises your chances of getting a disease such as cancer. Different cancers have different risk factors. Some risk factors, like smoking, can be changed. Others, like a person’s age or family history, can’t be changed. But having a risk factor, or even several, does not mean that you will get the disease. Many people with one or more risk factors never get cancer, while others who get cancer may have had few or no known risk factors. Researchers have found some factors that can affect prostate cancer risk. Older age Prostate cancer is rare in men younger than 40, but the chance of having prostate cancer rises rapidly after age 50. About 6 in 10 prostate cancers are found in men older than 65. Race/ethnicity Prostate cancer develops more often in African American men and in Caribbean men of African ancestry than in men of other races. And when it does develop in these men, they tend to be younger. Prostate cancer occurs less often in Asian American, Hispanic, and Latino men than in non-Hispanic White men. The reasons for these racial and ethnic differences are not clear. Family history Prostate cancer seems to run in some families, which suggests that in some cases there may be an inherited or genetic factor . Still, most prostate cancers occur in men without a family history of it. Having a father or brother with prostate cancer more than doubles a man’s risk of developing this disease. (The risk is higher for men who have a brother with the disease than for those who have a father with it.) The risk is much higher for men with several affected relatives, particularly if their relatives were young when the cancer was found. Inherited gene changes Certain gene changes (known as variants or mutations ) that are inherited from a parent can raise prostate cancer risk, although these probably account for only a small percentage of prostate cancers overall. For example: Inherited variants of the BRCA1 or BRCA2 gene , which are linked to an increased risk of breast, ovarian, and other cancers in some families, can also increase prostate cancer risk in men (especially mutations in BRCA2 ). Men with Lynch syndrome (also known as hereditary non-polyposis colorectal cancer, or HNPCC ), a condition caused by inherited gene changes, are at increased risk for some types of cancer, including prostate cancer. Other inherited gene changes can also raise a man’s risk of prostate cancer. For more on some of these gene changes, see What Causes Prostate Cancer? Factors with less clear effects on prostate cancer risk Diet The exact role of diet in prostate cancer is not clear, but several factors have been studied. Men who consume a lot of dairy products may have a slightly higher chance of getting prostate cancer. Some studies have suggested that men who consume a lot of calcium (through foods or supplements) may have a higher risk of developing prostate cancer. But most studies have not found such a link with the levels of calcium found in the average diet, and it’s important to note that calcium is known to have other important health benefits. Dietary vegetable intake, soy products, coffee, and multivitamin use have also been studied. However, none of these factors has consistently been linked to prostate cancer risk. Obesity Obesity does not seem to increase the overall risk of getting prostate cancer. Some studies have found that men with obesity have a lower risk of getting a low-grade (slower-growing) form of the disease, but a higher risk of getting more aggressive (faster-growing) prostate cancer. The reasons for this are not clear. Some studies have also found that men with obesity may be at higher risk for having more advanced prostate cancer and of dying from prostate cancer, but not all studies have found this. Smoking Most studies have not found a link between smoking and getting prostate cancer. Some research has linked smoking to a small increased risk of dying from prostate cancer, but this finding needs to be confirmed by other studies. Importantly, smoking is clearly linked with many other health effects, including an increased risk of many other types of cancer. Chemical exposures Research has suggested that exposure to some chemicals might increase prostate cancer risk. For example: Some studies have suggested a link between exposure to arsenic and a higher risk of prostate cancer. To learn more, see Arsenic and Cancer Risk . There is some evidence that firefighters can be exposed to chemicals that may increase their risk of prostate cancer. To learn more, see Firefighters and Cancer Risk . A few studies have suggested a possible link between exposure to Agent Orange , a chemical used widely during the Vietnam War, and the risk of prostate cancer, although not all studies have found such a link. The National Academies of Science, Engineering, and Medicine considers there to be “limited/suggestive evidence” of a link between Agent Orange exposure and prostate cancer. To learn more, see Agent Orange and Cancer . Inflammation of the prostate Some studies have suggested that prostatitis (inflammation of the prostate gland) may be linked to an increased risk of prostate cancer, but other studies have not found such a link. Inflammation is often seen in samples of prostate tissue that also contain cancer. The link between the two is not yet clear, and this is an active area of research. Sexually transmitted infections Researchers have looked to see if sexually transmitted infections (like gonorrhea or chlamydia) might increase the risk of prostate cancer, because they can lead to inflammation of the prostate. So far, studies have had conflicting results, and no firm conclusions have been reached. Vasectomy Some studies have suggested that men who have a vasectomy (minor surgery to make men infertile) have a slightly increased risk for prostate cancer,
+22:56:46 [INFO]   [7/7] EXTRACTED  https://www.cdc.gov/prostate-cancer/risk-factors/
+          title    : Prostate Cancer Risk Factors
+          date     : 2025
+          author   : CDC
+          words    : 348
+          paywalled: no
+          method   : playwright  note=js_rendered
+          body     : Prostate Cancer Risk Factors Feb. 11, 2025 Español For Everyone Key points All men are at risk for prostate cancer. The most common risk factor is age. Conditions that can increase risk All men are at risk for prostate cancer. Out of every 100 American men, about 13 will get prostate cancer during their lifetime, and about 2 to 3 men will die from prostate cancer. The most common risk factor is age. The older a man is, the greater the chance of getting prostate cancer. Some men are at increased risk for prostate cancer. You are at increased risk for getting or dying from prostate cancer if you are African American or have a family history of prostate cancer. Resource Facts about Prostate Cancer provides an overview of symptoms, screening, and treatment. African American men Are more likely to get prostate cancer than other men. Are more than twice as likely to die from prostate cancer than other men. Get prostate cancer at a younger age and tend to have more advanced disease when it is found. Family history (genetic risk factors) For some men, genetic factors may put them at higher risk of prostate cancer. You may have an increased risk of getting a type of prostate cancer caused by genetic changes that are inherited if: You have a first-degree relative (father, son, or brother) who had prostate cancer, including relatives in three generations on your mother's or father's side of the family. You were diagnosed with prostate cancer when you were 55 years old or younger. You were diagnosed with prostate cancer, and other members of your family have been diagnosed with breast, ovarian, or pancreatic cancer. Talk to your doctor about your family's health history. For more information, visit the National Cancer Institute's Genetics of Prostate Cancer (PDQ ® )–Health Professional Version. Treatment Feb. 11, 2025 Sources Print Share Content Source: National Center for Chronic Disease Prevention and Health Promotion ; Division of Cancer Prevention and Control Related Pages Screening Diagnosing Treatment Statistics Prostate Cancer Health Tips View All Prostate Cancer Back to Top
+22:56:46 [INFO] Scoring with Gemini (topic: health)...
+22:56:46 [INFO]   Scoring 7 sources in parallel...
+22:56:48 [INFO] HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+22:56:50 [INFO] HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+22:56:52 [INFO] HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+22:56:54 [INFO] HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+22:56:56 [WARNING] Ollama call failed: 
+22:56:56 [INFO] HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+22:56:58 [INFO] HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+22:57:00 [INFO] HTTP Request: POST http://localhost:11434/api/generate "HTTP/1.1 200 OK"
+22:57:00 [INFO] Scoring done (21688ms total)
+22:57:00 [INFO]   reliable      score=92   mayoclinic.org                            The source content is a truncated version of a Mayo Clinic p
+22:57:00 [INFO]   reliable      score=90   mayoclinic.org                            The source is a Mayo Clinic page specifically about prostate
+22:57:00 [INFO]   reliable      score=90   cdc.gov                                   The source explicitly states that 'Out of every 100 American
+22:57:00 [INFO]   reliable      score=81   cancer.org                                The source discusses prostate cancer risk factors, including
+22:57:00 [INFO]   reliable      score=92   cdc.gov                                   The source explicitly states that 2-3 out of 100 men will di
+22:57:00 [INFO]   caution       score=70   pcf.org                                   The source content directly addresses prostate cancer and it
+22:57:00 [INFO]   caution       score=70   pcf.org                                   The source discusses prostate cancer risk factors and explic
+22:57:00 [INFO]   [1/7] SCORED    mayoclinic.org  →  reliable (92/100)
+          domain   : official_body  95/100
+          recency  : 100/100  (date: 2026)
+          author   : 80/100  (author: Print)
+          relevance: 95/100  alignment: 90/100
+          reason   : The source content is a truncated version of a Mayo Clinic page discussing prostate cancer, which directly addresses the claim about metastasis and its implications. The terms 'prostate cancer' and 'spread' are clearly present in the source content.
+          terms    : prostate cancer, spread, metastasize, bones, lymph nodes
+22:57:00 [INFO]   [2/7] SCORED    mayoclinic.org  →  reliable (90/100)
+          domain   : official_body  95/100
+          recency  : 100/100  (date: 2026)
+          author   : 80/100  (author: Print)
+          relevance: 85/100  alignment: 90/100
+          reason   : The source is a Mayo Clinic page specifically about prostate cancer symptoms and causes, which directly addresses the question of why prostate cancer is dangerous for men. The content is highly relevant and well-aligned with the claim.
+          terms    : prostate cancer, symptoms, causes, men, dangerous
+22:57:00 [INFO]   [3/7] SCORED    cdc.gov  →  reliable (90/100)
+          domain   : official_body  95/100
+          recency  : 100/100  (date: 2025)
+          author   : 80/100  (author: CDC)
+          relevance: 85/100  alignment: 90/100
+          reason   : The source explicitly states that 'Out of every 100 American men, about 2 to 3 men will die from prostate cancer,' which directly supports the AI's claim about the mortality rate.
+          terms    : prostate cancer, men, die, 100, American
+22:57:00 [INFO]   [4/7] SCORED    cancer.org  →  reliable (81/100)
+          domain   : established_news  80/100
+          recency  : 90/100  (date: 2023)
+          author   : 40/100  (author: none)
+          relevance: 85/100  alignment: 90/100
+          reason   : The source discusses prostate cancer risk factors, including genetic mutations like BRCA genes, which directly supports the claim about genetic mutations being a cause of prostate cancer.
+          terms    : genetic mutations, BRCA genes, prostate cancer, risk factors, causes
+22:57:00 [INFO]   [5/7] SCORED    cdc.gov  →  reliable (92/100)
+          domain   : official_body  95/100
+          recency  : 100/100  (date: 2025)
+          author   : 80/100  (author: CDC)
+          relevance: 95/100  alignment: 90/100
+          reason   : The source explicitly states that 2-3 out of 100 men will die from prostate cancer, which directly supports the AI's claim that 00 men will get prostate cancer during their lifetime (though the claim is slightly imprecise, the core statistic is accurate).
+          terms    : prostate cancer, lifetime, men, die, risk
+22:57:00 [INFO]   [6/7] SCORED    pcf.org  →  caution (70/100)
+          domain   : unknown  30/100
+          recency  : 100/100  (date: 2026)
+          author   : 40/100  (author: none)
+          relevance: 85/100  alignment: 90/100
+          reason   : The source content directly addresses prostate cancer and its early symptoms, confirming the claim that early prostate cancer often causes no noticeable symptoms.
+          terms    : prostate cancer, symptoms, early, men, screening
+22:57:00 [INFO]   [7/7] SCORED    pcf.org  →  caution (70/100)
+          domain   : unknown  30/100
+          recency  : 100/100  (date: 2026)
+          author   : 40/100  (author: none)
+          relevance: 85/100  alignment: 90/100
+          reason   : The source discusses prostate cancer risk factors and explicitly mentions that anyone with a prostate gland can develop cancer, which aligns with the claim about prostate cancer being dangerous for men.
+          terms    : prostate cancer, risk factors, men, screening, age
+22:57:00 [INFO] ────────────────────────────────────────────────────────────
