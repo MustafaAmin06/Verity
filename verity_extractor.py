@@ -929,6 +929,48 @@ def extract_doi(soup: BeautifulSoup, html: str) -> str | None:
     return None
 
 
+_SOFT_404_TITLE_PATTERNS = (
+    "page not found", "404 not found", "error 404",
+    "not found", "page doesn't exist", "page does not exist",
+    "no page found", "nothing here", "oops!", "can't find that",
+)
+
+
+def _is_soft_404(title: str | None) -> bool:
+    """Detect pages that returned HTTP 200 but are actually error pages."""
+    if not title:
+        return False
+    title_lower = title.lower()
+    return any(pat in title_lower for pat in _SOFT_404_TITLE_PATTERNS)
+
+
+
+_CONSENT_TEXT_SIGNATURES = (
+    "manage cookie", "cookie preferences", "cookie settings",
+    "we use cookies", "this site uses cookies", "this website uses cookies",
+    "types of cookies", "consent preferences", "privacy preferences",
+    "manage your privacy", "manage preferences", "strictly necessary",
+    "performance cookies", "functional cookies", "targeting cookies",
+    "advertising cookies", "analytics cookies", "third-party cookies",
+    "cookie policy", "save preferences",
+)
+
+
+def _is_consent_text(text: str | None) -> bool:
+    if not text:
+        return False
+    text_lower = text.lower()
+    # Check first 200 chars for consent language
+    prefix = text_lower[:200]
+    if sum(1 for sig in _CONSENT_TEXT_SIGNATURES if sig in prefix) >= 2:
+        return True
+    # High overall density of consent phrases (but skip long articles about privacy)
+    total_hits = sum(1 for sig in _CONSENT_TEXT_SIGNATURES if sig in text_lower)
+    if total_hits >= 3 and len(text) < 3000:
+        return True
+    return False
+
+
 def extract_body_text(soup: BeautifulSoup) -> str | None:
     working_soup = BeautifulSoup(str(soup), "lxml")
     for tag in working_soup(
@@ -939,11 +981,15 @@ def extract_body_text(soup: BeautifulSoup) -> str | None:
     _CONSENT_MARKERS = (
         "cookie-consent", "cookie-banner", "cookie-notice", "cookie-popup",
         "cookie-overlay", "cookie-modal", "cookie-bar", "cookie-wall",
+        "cookie-preferences", "cookie-settings", "cookie-policy",
         "consent-banner", "consent-modal", "consent-overlay", "consent-popup",
         "gdpr-banner", "gdpr-consent", "gdpr-overlay",
         "cc-banner", "cc-window", "cc-overlay",
         "onetrust-consent", "onetrust-banner", "cookiebot",
         "CybotCookiebotDialog",
+        # OneTrust SDK (used by Mayo Clinic and many health sites)
+        "optanon", "ot-sdk-", "ot-pc-", "ot-floating",
+        "privacy-center", "privacy-modal",
     )
     for el in working_soup.find_all(
         lambda tag: _tag_has_marker(tag, _CONSENT_MARKERS)
@@ -1122,6 +1168,9 @@ def _extract_page_fields(html: str, label: str, domain_info: dict) -> dict:
     title = extract_title(soup)
     description = extract_description(soup)
     body_text = extract_body_text(soup)
+    if _is_consent_text(body_text):
+        logging.warning("  CONSENT_TEXT  body appears to be cookie consent text, discarding")
+        body_text = None
     date = extract_date(soup)
     author = extract_author(soup)
     doi = extract_doi(soup, html)
@@ -1282,6 +1331,9 @@ async def scrape_with_beautifulsoup(source: SourceInput) -> ScrapedSource:
 
     try:
         extracted = _extract_page_fields(html, source.label, domain_info)
+        if _is_soft_404(extracted["title"]):
+            logging.warning("  SOFT 404     %-40s  title=%r", domain, extracted["title"])
+            return build_failure_result(source, "soft_404", http_status=http_status)
         scrape_note = None
         if extracted["paywalled"]:
             scrape_note = "paywall_detected"
@@ -1347,6 +1399,60 @@ async def _dismiss_cookie_popup(page) -> bool:
     return False
 
 
+_CONSENT_REMOVAL_JS = """
+() => {
+    const SELECTORS = [
+        '[aria-modal="true"]',
+        '[role="dialog"]',
+        '[role="alertdialog"]',
+        '[class*="cookie" i]', '[id*="cookie" i]',
+        '[class*="consent" i]', '[id*="consent" i]',
+        '[class*="gdpr" i]', '[id*="gdpr" i]',
+        '[class*="onetrust" i]', '[id*="onetrust" i]',
+        '[class*="optanon" i]', '[id*="optanon" i]',
+        '[class*="ot-sdk" i]', '[id*="ot-sdk" i]',
+        '[class*="cookiebot" i]', '[id*="cookiebot" i]',
+        '[class*="truste" i]', '[id*="truste" i]',
+        '[class*="evidon" i]', '[id*="evidon" i]',
+        '[class*="quantcast" i]', '[id*="quantcast" i]',
+        '[class*="sp_veil" i]', '[id*="sp_message" i]',
+        '[class*="privacy-banner" i]', '[class*="privacy-modal" i]',
+        '[class*="privacy-center" i]',
+        '[class*="cc-banner" i]', '[class*="cc-window" i]',
+    ];
+    const mainContent = document.querySelector(
+        'article, main, [role="main"], #content, .article-body, .post-content'
+    );
+    let removed = 0;
+    for (const sel of SELECTORS) {
+        try {
+            document.querySelectorAll(sel).forEach(el => {
+                if (mainContent && (el === mainContent || el.contains(mainContent))) return;
+                const tag = el.tagName.toLowerCase();
+                if (tag === 'body' || tag === 'html' || tag === 'head') return;
+                if (el.innerText && el.innerText.length > 2000) return;
+                el.remove();
+                removed++;
+            });
+        } catch (e) {}
+    }
+    return removed;
+}
+"""
+
+
+async def _remove_consent_elements(page) -> int:
+    """Remove cookie/consent DOM elements from the page before HTML capture."""
+    try:
+        removed = await page.evaluate(_CONSENT_REMOVAL_JS)
+        if removed:
+            logging.info("  CONSENT_DOM  removed %d consent element(s) via JS", removed)
+        return removed or 0
+    except Exception as exc:
+        logging.debug("  CONSENT_DOM  JS removal failed: %s", exc)
+        return 0
+
+
 async def scrape_with_playwright(
     source: SourceInput, baseline: ScrapedSource
 ) -> ScrapedSource:
@@ -1378,6 +1484,18 @@ async def scrape_with_playwright(
 
             await _dismiss_cookie_popup(page)
 
+            # Layer 2: wait for article content to render after cookie dismissal
+            try:
+                await page.wait_for_selector(
+                    'article, main, [role="main"], #content, .article-body',
+                    timeout=3000,
+                )
+            except Exception:
+                pass
+
+            # Layer 3: remove consent/cookie DOM elements via JS
+            await _remove_consent_elements(page)
+
             html = await page.content()
             http_status = response.status if response else baseline.http_status
             if http_status == 403:
@@ -1386,6 +1504,9 @@ async def scrape_with_playwright(
                 return baseline
 
             extracted = _extract_page_fields(html, source.label, domain_info)
+            if _is_soft_404(extracted["title"]):
+                logging.warning("  SOFT 404     %-40s  title=%r  (playwright)", domain, extracted["title"])
+                return build_failure_result(source, "soft_404", http_status=http_status)
 
             scrape_note = "js_rendered"
             if extracted["paywalled"]:
@@ -1450,10 +1571,10 @@ async def scrape_source(source: SourceInput) -> ScrapedSource:
         and not result.is_pdf
         and (result.body_text is None or result.word_count < 500)
     )
-    if not should_use_playwright:
-        return result
-    logging.info("  PLAYWRIGHT   %-40s  words=%s → trying JS render", result.domain, result.word_count)
-    return await scrape_with_playwright(source, result)
+    if should_use_playwright:
+        logging.info("  PLAYWRIGHT   %-40s  words=%s → trying JS render", result.domain, result.word_count)
+        result = await scrape_with_playwright(source, result)
+    return result
 
 
 app = FastAPI(title="Verity Extractor", version="1.0.0")
@@ -1500,7 +1621,7 @@ async def extract(request: ExtractRequest):
     dead_count = len(scraped_sources) - live_count
     logging.info("Scrape done (%dms): %d live, %d dead", scrape_ms, live_count, dead_count)
     for i, s in enumerate(scraped_sources, 1):
-        body_preview = (s.body_text or "")[:200].replace("\n", " ").strip()
+        body_preview = (s.body_text or "").replace("\n", " ").strip()
         logging.info(
             "  [%d/%d] EXTRACTED  %s\n"
             "          title    : %s\n"
