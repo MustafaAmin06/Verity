@@ -199,8 +199,8 @@ window.Verity.ui = {
     const signals = source.signals || {};
 
     const rows = [
-      { label: "Domain", value: signals.domain_tier || source.domain || "", score: signals.domain_score },
-      { label: "Relevance", value: "", score: signals.relevance_score },
+      { label: "Domain", value: source.domain || "", score: signals.domain_score },
+      { label: "Relevance", value: this._relevanceLabel(signals.relevance_score), score: signals.relevance_score },
       {
         label: "Claim alignment",
         value: signals.claim_aligned === true ? "Supported"
@@ -346,5 +346,13 @@ window.Verity.ui = {
       unverified: "gray",
     };
     return map[verdict] || "gray";
+  },
+
+  _relevanceLabel(score) {
+    if (score === undefined || score === null) return "Not assessed";
+    if (score >= 90) return "High";
+    if (score >= 60) return "Moderate";
+    if (score >= 30) return "Low";
+    return "Very low";
   },
 };

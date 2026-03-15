@@ -55,6 +55,18 @@ BROWSER_USER_AGENT = (
     "Chrome/120.0.0.0 Safari/537.36"
 )
 
+BROWSER_HEADERS = {
+    "User-Agent": BROWSER_USER_AGENT,
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+}
+
 DOI_PATTERN = re.compile(r"10\.\d{4,}/[^\s\"<>&]+", re.IGNORECASE)
 YEAR_PATTERN = re.compile(r"(19|20)\d{2}")
 
@@ -502,10 +514,10 @@ Respond with ONLY valid JSON as a list:
 ]"""
 
 
-async def _call_llm(prompt: str) -> str | None:
+async def _call_llm(prompt: str, timeout: int = 30) -> str | None:
     """Call local Ollama model and return the response text."""
     try:
-        async with httpx.AsyncClient(timeout=120) as client:
+        async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.post(
                 f"{OLLAMA_URL}/api/generate",
                 json={
@@ -513,7 +525,7 @@ async def _call_llm(prompt: str) -> str | None:
                     "prompt": prompt,
                     "stream": False,
                     "format": "json",
-                    "options": {"temperature": 0.1},
+                    "options": {"temperature": 0.1, "num_ctx": 1024, "num_predict": 256},
                 },
             )
             response.raise_for_status()
@@ -554,7 +566,7 @@ async def score_source_with_llm(scraped: ScrapedSource, prompt: str) -> dict:
         prompt=prompt[:300],
         body=body_snippet or "(no content retrieved)",
     )
-    raw = await _call_llm(llm_prompt)
+    raw = await _call_llm(llm_prompt, timeout=60)
     fallback = {
         "relevance_score": 50,
         "alignment_score": 50,
@@ -569,8 +581,11 @@ async def score_source_with_llm(scraped: ScrapedSource, prompt: str) -> dict:
 async def get_further_reading(topic: str, prompt: str) -> list[FurtherReadingItem]:
     """Ask local LLM for 3 further reading suggestions on the topic."""
     llm_prompt = _FURTHER_READING_PROMPT.format(topic=topic, prompt=prompt[:300])
-    raw = await _call_llm(llm_prompt)
+    raw = await _call_llm(llm_prompt, timeout=10)
     items = _parse_json_response(raw, [])
+    # Model sometimes returns {"sources": [...]} instead of a bare list
+    if isinstance(items, dict):
+        items = next((v for v in items.values() if isinstance(v, list)), [])
     result = []
     for item in items[:3]:
         try:
@@ -660,6 +675,10 @@ def build_failure_result(
 ) -> ScrapedSource:
     domain = extract_domain(source.url)
     domain_info = get_domain_info(domain)
+    logging.warning(
+        "  SCRAPE FAIL  %-40s  status=%-4s  reason=%s",
+        domain, http_status or "-", note,
+    )
 
     return ScrapedSource(
         url=source.url,
@@ -1128,24 +1147,29 @@ async def scrape_with_beautifulsoup(source: SourceInput) -> ScrapedSource:
     try:
         async with httpx.AsyncClient(
             timeout=REQUEST_TIMEOUT_SECONDS,
-            headers={"User-Agent": BROWSER_USER_AGENT},
+            headers=BROWSER_HEADERS,
             follow_redirects=True,
         ) as client:
+            head_ok = False
+            content_type = ""
             try:
                 head_response = await client.head(source.url)
                 http_status = head_response.status_code
                 content_type = head_response.headers.get("content-type", "")
             except httpx.TimeoutException:
                 return build_failure_result(source, "timeout")
-            except Exception:
-                return build_failure_result(source, "url_dead")
+            except Exception as exc:
+                logging.warning("  HEAD failed  %-40s  %s: %s", source.url, type(exc).__name__, exc)
+                http_status = None
+            else:
+                if http_status == 403:
+                    logging.info("  HEAD 403, will try GET  %s", source.url)
+                elif http_status >= 400 and http_status != 405:
+                    return build_failure_result(source, "url_dead", http_status=http_status)
+                else:
+                    head_ok = True
 
-            if http_status == 403:
-                return build_failure_result(source, "blocked_403", http_status=http_status)
-            if http_status >= 400 and http_status != 405:
-                return build_failure_result(source, "url_dead", http_status=http_status)
-
-            if http_status < 400 and is_pdf_url(source.url, content_type):
+            if head_ok and is_pdf_url(source.url, content_type):
                 return ScrapedSource(
                     url=source.url,
                     label=source.label,
@@ -1224,10 +1248,12 @@ async def scrape_with_beautifulsoup(source: SourceInput) -> ScrapedSource:
                     scrape_note="timeout",
                     scrape_success=False,
                 )
-            except Exception:
+            except Exception as exc:
+                logging.warning("  GET failed   %-40s  %s: %s", source.url, type(exc).__name__, exc)
                 return build_failure_result(source, "scrape_failed", http_status=http_status)
 
-    except Exception:
+    except Exception as exc:
+        logging.warning("  CLIENT fail  %-40s  %s: %s", source.url, type(exc).__name__, exc)
         return build_failure_result(source, "scrape_failed")
 
     try:
@@ -1238,6 +1264,10 @@ async def scrape_with_beautifulsoup(source: SourceInput) -> ScrapedSource:
         elif extracted["body_text"] and len(extracted["body_text"]) < 200:
             scrape_note = "partial_content"
 
+        logging.info(
+            "  SCRAPED OK   %-40s  status=%s  words=%s  method=beautifulsoup  note=%s",
+            domain, http_status, extracted["word_count"], scrape_note or "ok",
+        )
         return ScrapedSource(
             url=source.url,
             label=source.label,
@@ -1260,7 +1290,8 @@ async def scrape_with_beautifulsoup(source: SourceInput) -> ScrapedSource:
             scrape_note=scrape_note,
             scrape_success=bool(extracted["body_text"] and len(extracted["body_text"]) > 100),
         )
-    except Exception:
+    except Exception as exc:
+        logging.warning("  PARSE fail   %-40s  %s: %s", source.url, type(exc).__name__, exc)
         return build_failure_result(source, "scrape_failed", http_status=http_status)
 
 
@@ -1336,7 +1367,8 @@ async def scrape_with_playwright(
             if playwright_result.scrape_success and not baseline.scrape_success:
                 return playwright_result
             return baseline
-    except Exception:
+    except Exception as exc:
+        logging.warning("  PLAYWRIGHT   %-40s  %s: %s", source.url, type(exc).__name__, exc)
         return baseline
     finally:
         if page is not None:
@@ -1418,12 +1450,14 @@ async def extract(request: ExtractRequest):
         topic = _detect_topic(request.full_ai_response + " " + request.original_prompt)
         logging.info("Scoring with Gemini (topic: %s)...", topic)
 
-        llm_results = []
-        for i, s in enumerate(scraped_sources, 1):
-            logging.info("  Scoring %d/%d: %s", i, len(scraped_sources), s.domain)
-            result = await score_source_with_llm(s, request.original_prompt)
-            llm_results.append(result)
-        further_reading = await get_further_reading(topic, request.original_prompt)
+        further_reading_task = asyncio.create_task(
+            get_further_reading(topic, request.original_prompt)
+        )
+        logging.info("  Scoring %d sources in parallel...", len(scraped_sources))
+        llm_results = await asyncio.gather(
+            *(score_source_with_llm(s, request.original_prompt) for s in scraped_sources)
+        )
+        further_reading = await further_reading_task
 
         scored = [build_scored_source(s, llm) for s, llm in zip(scraped_sources, llm_results)]
 
