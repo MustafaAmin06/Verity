@@ -1,0 +1,8 @@
+httpx
+beautifulsoup4
+fastapi
+pydantic
+playwright
+python-dotenv
+uvicorn
+python-multipart

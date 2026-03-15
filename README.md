@@ -107,4 +107,61 @@ Content extraction uses a two-step fallback chain, designed for maximum coverage
 
 ---
 
+## 6. Getting Started
+
+Follow these steps to get VerifyAI running locally.
+
+### Prerequisites
+- **Python 3.10+**
+- **Node.js (v18+)** or **Bun**
+
+### Backend Setup (Python)
+The backend handles source extraction, scraping, and scoring.
+
+1. **Install Python dependencies:**
+   ```bash
+   pip install -r requirements.txt
+   ```
+
+2. **Install Playwright browsers:**
+   ```bash
+   playwright install chromium
+   ```
+
+3. **Install Ollama (for scoring):**
+   - Download from [ollama.com](https://ollama.com/).
+   - Pull the required model: `ollama pull qwen3.5:2b` (or your preferred model).
+
+4. **Run the extractor server:**
+   ```bash
+   python verity_extractor.py
+   ```
+   *The server will start on `http://localhost:8001`.*
+
+### Frontend Setup (React/Vite)
+The frontend is a dashboard for viewing analysis results during development.
+
+1. **Install Node dependencies:**
+   ```bash
+   npm install
+   # or
+   bun install
+   ```
+
+2. **Run the development server:**
+   ```bash
+   npm run dev
+   # or
+   bun dev
+   ```
+   *The dashboard will be available at `http://localhost:8080` (or the port shown in your terminal).*
+
+### Extension Installation
+1. Open Chrome and navigate to `chrome://extensions/`.
+2. Enable **Developer mode** in the top right.
+3. Click **Load unpacked**.
+4. Select the `verity-extension` folder from this repository.
+
+---
+
 > **VerifyAI** — Built to reduce AI misinformation risk, one citation at a time.
