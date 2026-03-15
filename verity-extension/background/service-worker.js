@@ -1,7 +1,8 @@
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type !== "EXTRACT_SOURCES") return false;
+  const extractorUrl = message.extractorUrl || "http://localhost:8001/extract";
 
-  fetch("http://localhost:8001/extract", {
+  fetch(extractorUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(message.payload),
