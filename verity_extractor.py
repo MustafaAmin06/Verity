@@ -48,6 +48,11 @@ ENABLE_PLAYWRIGHT_FALLBACK = (
     os.getenv("ENABLE_PLAYWRIGHT_FALLBACK", "true").lower() == "true"
 )
 EXTRACTOR_PORT = int(os.getenv("EXTRACTOR_PORT", "8001"))
+MAX_CONCURRENT_SCRAPES = int(os.getenv("MAX_CONCURRENT_SCRAPES", "5"))
+MAX_CONCURRENT_PLAYWRIGHT = int(os.getenv("MAX_CONCURRENT_PLAYWRIGHT", "2"))
+MAX_REQUEST_RETRIES = int(os.getenv("MAX_REQUEST_RETRIES", "1"))
+RETRY_BACKOFF_SECONDS = float(os.getenv("RETRY_BACKOFF_SECONDS", "0.5"))
+OLLAMA_STATUS_TTL_SECONDS = int(os.getenv("OLLAMA_STATUS_TTL_SECONDS", "10"))
 
 BROWSER_USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -69,6 +74,11 @@ BROWSER_HEADERS = {
 
 DOI_PATTERN = re.compile(r"10\.\d{4,}/[^\s\"<>&]+", re.IGNORECASE)
 YEAR_PATTERN = re.compile(r"(19|20)\d{2}")
+RETRYABLE_STATUS_CODES = {408, 425, 429, 500, 502, 503, 504}
+PLAYWRIGHT_TRIGGER_CHARS = 200
+SCRAPE_SUCCESS_MIN_CHARS = 100
+PARTIAL_CONTENT_CHARS = 200
+logger = logging.getLogger("verity_extractor")
 
 
 DOMAIN_REGISTRY = {
@@ -341,7 +351,75 @@ class ExtractResponse(BaseModel):
     extraction_time_ms: int
 
 
-# ── Scored response models (returned by /extract when Gemini is available) ──
+_SHARED_HTTP_CLIENT: httpx.AsyncClient | None = None
+_SHARED_PLAYWRIGHT = None
+_SHARED_BROWSER = None
+_HTTP_CLIENT_LOCK = asyncio.Lock()
+_PLAYWRIGHT_LOCK = asyncio.Lock()
+_SCRAPE_SEMAPHORE = asyncio.Semaphore(max(1, MAX_CONCURRENT_SCRAPES))
+_PLAYWRIGHT_SEMAPHORE = asyncio.Semaphore(max(1, MAX_CONCURRENT_PLAYWRIGHT))
+_OLLAMA_STATUS_CACHE = {"checked_at": 0.0, "available": False}
+
+
+async def get_http_client() -> httpx.AsyncClient:
+    global _SHARED_HTTP_CLIENT
+
+    if _SHARED_HTTP_CLIENT is not None and not _SHARED_HTTP_CLIENT.is_closed:
+        return _SHARED_HTTP_CLIENT
+
+    async with _HTTP_CLIENT_LOCK:
+        if _SHARED_HTTP_CLIENT is None or _SHARED_HTTP_CLIENT.is_closed:
+            limits = httpx.Limits(
+                max_connections=max(10, MAX_CONCURRENT_SCRAPES * 4),
+                max_keepalive_connections=max(5, MAX_CONCURRENT_SCRAPES * 2),
+            )
+            _SHARED_HTTP_CLIENT = httpx.AsyncClient(
+                timeout=REQUEST_TIMEOUT_SECONDS,
+                headers=BROWSER_HEADERS,
+                follow_redirects=True,
+                limits=limits,
+            )
+            logger.info("Created shared HTTP client")
+    return _SHARED_HTTP_CLIENT
+
+
+async def get_playwright_browser():
+    global _SHARED_PLAYWRIGHT, _SHARED_BROWSER
+
+    if not ENABLE_PLAYWRIGHT_FALLBACK or not PLAYWRIGHT_AVAILABLE:
+        return None
+
+    if _SHARED_BROWSER is not None and _SHARED_BROWSER.is_connected():
+        return _SHARED_BROWSER
+
+    async with _PLAYWRIGHT_LOCK:
+        if _SHARED_BROWSER is None or not _SHARED_BROWSER.is_connected():
+            _SHARED_PLAYWRIGHT = await async_playwright().start()
+            _SHARED_BROWSER = await _SHARED_PLAYWRIGHT.chromium.launch(headless=True)
+            logger.info("Created shared Playwright browser")
+    return _SHARED_BROWSER
+
+
+async def close_shared_resources() -> None:
+    global _SHARED_HTTP_CLIENT, _SHARED_PLAYWRIGHT, _SHARED_BROWSER
+
+    if _SHARED_HTTP_CLIENT is not None:
+        await _SHARED_HTTP_CLIENT.aclose()
+        _SHARED_HTTP_CLIENT = None
+        logger.info("Closed shared HTTP client")
+
+    if _SHARED_BROWSER is not None:
+        await _SHARED_BROWSER.close()
+        _SHARED_BROWSER = None
+        logger.info("Closed shared Playwright browser")
+
+    if _SHARED_PLAYWRIGHT is not None:
+        await _SHARED_PLAYWRIGHT.stop()
+        _SHARED_PLAYWRIGHT = None
+        logger.info("Stopped Playwright runtime")
+
+
+# ── Scored response models (returned by /extract when Ollama is available) ──
 
 class SourceSignals(BaseModel):
     domain_tier: str
@@ -419,7 +497,7 @@ def _compute_recency_score(year: str | None) -> int:
     if not year:
         return 40
     try:
-        age = 2025 - int(year)
+        age = time.gmtime().tm_year - int(year)
         if age <= 1:  return 100
         if age <= 3:  return 90
         if age <= 5:  return 75
@@ -475,7 +553,7 @@ def _detect_topic(text: str) -> str:
     return best_topic
 
 
-# ── Gemini scoring ──
+# ── Ollama scoring ──
 
 _SCORE_PROMPT = """\
 You are a source credibility analyst. Given a scraped web page and the claim an AI made when citing it, \
@@ -533,18 +611,26 @@ async def _call_llm(prompt: str, timeout: int = 30) -> str | None:
             # Thinking models (qwen3) put output in "thinking" when response is empty
             return data.get("response") or data.get("thinking") or None
     except Exception as exc:
-        logging.warning("Ollama call failed: %s", str(exc)[:120])
+        logger.warning("Ollama call failed: %s", str(exc)[:120])
         return None
 
 
 async def _check_ollama_available() -> bool:
+    now = time.monotonic()
+    if now - _OLLAMA_STATUS_CACHE["checked_at"] < OLLAMA_STATUS_TTL_SECONDS:
+        return bool(_OLLAMA_STATUS_CACHE["available"])
+
     try:
         async with httpx.AsyncClient(timeout=3) as client:
             r = await client.get(f"{OLLAMA_URL}/api/tags")
             models = [m["name"] for m in r.json().get("models", [])]
-            return OLLAMA_MODEL in models
+            available = OLLAMA_MODEL in models
     except Exception:
-        return False
+        available = False
+
+    _OLLAMA_STATUS_CACHE["checked_at"] = now
+    _OLLAMA_STATUS_CACHE["available"] = available
+    return available
 
 
 def _parse_json_response(text: str | None, fallback):
@@ -603,7 +689,7 @@ async def get_further_reading(topic: str, prompt: str) -> list[FurtherReadingIte
 
 
 def build_scored_source(scraped: ScrapedSource, llm: dict) -> ScoredSource:
-    """Combine scraped metadata + Gemini LLM output into a ScoredSource."""
+    """Combine scraped metadata + Ollama LLM output into a ScoredSource."""
     domain_info = get_domain_info(scraped.domain)
 
     domain_score  = _compute_domain_score(domain_info)
@@ -675,7 +761,7 @@ def build_failure_result(
 ) -> ScrapedSource:
     domain = extract_domain(source.url)
     domain_info = get_domain_info(domain)
-    logging.warning(
+    logger.warning(
         "  SCRAPE FAIL  %-40s  status=%-4s  reason=%s",
         domain, http_status or "-", note,
     )
@@ -702,6 +788,24 @@ def build_failure_result(
         scrape_note=note,
         scrape_success=False,
     )
+
+
+def _model_dump(model) -> dict:
+    if hasattr(model, "model_dump"):
+        return model.model_dump()
+    return model.dict()
+
+
+def _clone_result_for_source(
+    result: ScrapedSource, source: SourceInput, *, fallback_title: bool = True
+) -> ScrapedSource:
+    data = _model_dump(result)
+    data["url"] = source.url
+    data["label"] = source.label
+    data["context"] = source.context
+    if fallback_title and not data.get("title") and source.label:
+        data["title"] = _normalize_whitespace(source.label)
+    return ScrapedSource(**data)
 
 
 def _normalize_whitespace(value: str | None) -> str | None:
@@ -753,6 +857,20 @@ def _truncate(value: str | None, limit: int) -> str | None:
     if not value:
         return None
     return value[:limit].strip() or None
+
+
+def _trim_text(value: str | None, limit: int) -> str | None:
+    if not value:
+        return None
+    normalized = _normalize_whitespace(value)
+    if not normalized:
+        return None
+    if len(normalized) <= limit:
+        return normalized
+    cutoff = normalized.rfind(" ", 0, limit + 1)
+    if cutoff < max(50, int(limit * 0.6)):
+        cutoff = limit
+    return normalized[:cutoff].rstrip(" ,;:")
 
 
 def _normalize_keywords(items: list[str]) -> list[str]:
@@ -808,6 +926,171 @@ def _iter_json_ld_nodes(payload):
                 yield from _iter_json_ld_nodes(item)
 
 
+def _score_json_ld_node(node: dict, page_url: str | None = None) -> int:
+    node_type = node.get("@type") or node.get("type")
+    if isinstance(node_type, list):
+        node_type = next((item for item in node_type if isinstance(item, str)), None)
+    normalized_type = str(node_type or "").split("/")[-1].lower()
+
+    type_scores = {
+        "scholarlyarticle": 70,
+        "newsarticle": 65,
+        "article": 60,
+        "blogposting": 50,
+        "webpage": 35,
+    }
+    score = type_scores.get(normalized_type, 0)
+
+    for field, field_score in (
+        ("headline", 12),
+        ("name", 10),
+        ("datePublished", 10),
+        ("author", 10),
+        ("description", 8),
+        ("keywords", 6),
+        ("wordCount", 4),
+        ("publisher", 4),
+    ):
+        if node.get(field):
+            score += field_score
+
+    node_url = str(node.get("url") or "")
+    if page_url and node_url and node_url.rstrip("/") == page_url.rstrip("/"):
+        score += 15
+
+    main_entity = node.get("mainEntityOfPage")
+    if isinstance(main_entity, str) and page_url and main_entity.rstrip("/") == page_url.rstrip("/"):
+        score += 12
+    elif isinstance(main_entity, dict):
+        main_entity_id = str(main_entity.get("@id") or main_entity.get("url") or "")
+        if page_url and main_entity_id.rstrip("/") == page_url.rstrip("/"):
+            score += 12
+
+    return score
+
+
+def _clean_author_candidate(text: str | None) -> str | None:
+    value = _normalize_whitespace(text)
+    if not value:
+        return None
+
+    value = re.sub(r"^\s*(written by|by|author)\s*[:\-]?\s+", "", value, flags=re.IGNORECASE)
+    value = re.split(r"\s*(?:\||/)\s*", value)[0]
+    value = re.sub(
+        r"\s*(updated|published|last updated|posted)\b.*$",
+        "",
+        value,
+        flags=re.IGNORECASE,
+    )
+    return value.strip(" ,-:") or None
+
+
+def _looks_like_author_candidate(text: str | None) -> bool:
+    value = _clean_author_candidate(text)
+    if not value or len(value) > 150:
+        return False
+
+    lower = value.lower()
+    noise_markers = (
+        "read time",
+        "minute read",
+        "minutes read",
+        "comment",
+        "subscribe",
+        "newsletter",
+        "updated",
+        "published",
+    )
+    if any(marker in lower for marker in noise_markers):
+        return False
+
+    if sum(char.isdigit() for char in value) > 3:
+        return False
+
+    return bool(re.search(r"[A-Za-z]", value))
+
+
+def _body_marker_score(tag) -> int:
+    positive_markers = (
+        "article",
+        "article-body",
+        "story-body",
+        "entry-content",
+        "post-content",
+        "main-content",
+        "content-body",
+        "content",
+        "post",
+        "story",
+        "main",
+        "body",
+    )
+    negative_markers = (
+        "comment",
+        "footer",
+        "header",
+        "nav",
+        "sidebar",
+        "share",
+        "social",
+        "related",
+        "recommend",
+        "promo",
+        "advert",
+        "ad-",
+        "ads",
+        "cookie",
+        "consent",
+        "newsletter",
+        "subscribe",
+        "breadcrumb",
+        "toolbar",
+        "menu",
+        "modal",
+        "popup",
+        "outbrain",
+        "taboola",
+    )
+    haystack = " ".join(
+        _flatten_attr_value(tag.get(attr))
+        for attr in ("class", "id", "role", "itemprop")
+    ).lower()
+    score = 0
+    if any(marker in haystack for marker in positive_markers):
+        score += 250
+    if any(marker in haystack for marker in negative_markers):
+        score -= 400
+    return score
+
+
+def _score_body_candidate(tag) -> tuple[int, str]:
+    text = _normalize_whitespace(tag.get_text(" ", strip=True))
+    if not text:
+        return (-10_000, "")
+
+    paragraph_texts = [
+        _normalize_whitespace(paragraph.get_text(" ", strip=True))
+        for paragraph in tag.find_all("p")
+    ]
+    paragraph_texts = [paragraph for paragraph in paragraph_texts if paragraph]
+    paragraph_count = len([paragraph for paragraph in paragraph_texts if len(paragraph) >= 80])
+    sentence_count = len(re.findall(r"[.!?]", text))
+    link_text_length = 0
+    for link in tag.find_all("a"):
+        link_text = _normalize_whitespace(link.get_text(" ", strip=True))
+        if link_text:
+            link_text_length += len(link_text)
+    link_density = link_text_length / max(len(text), 1)
+
+    score = len(text)
+    score += paragraph_count * 220
+    score += sentence_count * 12
+    score += _body_marker_score(tag)
+    score -= int(link_density * 500)
+
+    return (score, text)
+
+
 def extract_title(soup: BeautifulSoup, label: str = "") -> str | None:
     og_title = _get_meta_content(soup, properties=("og:title",), names=("og:title",))
     if og_title:
@@ -846,6 +1129,7 @@ def extract_date(soup: BeautifulSoup) -> str | None:
         (("date",), ()),
         (("dc.date",), ()),
         (("citation_date",), ()),
+        (("citation_publication_date",), ()),
     ):
         year = _extract_year(_get_meta_content(soup, names=names, properties=properties))
         if year:
@@ -863,11 +1147,23 @@ def extract_date(soup: BeautifulSoup) -> str | None:
 
     candidate_tags = soup.find_all(
         lambda tag: _tag_has_marker(
-            tag, ("byline", "author", "date", "publish", "published", "timestamp")
+            tag,
+            (
+                "date",
+                "publish",
+                "published",
+                "timestamp",
+                "dateline",
+                "article-meta",
+                "article-info",
+            ),
         )
     )
-    for tag in candidate_tags[:20]:
-        year = _extract_year(tag.get_text(" ", strip=True))
+    for tag in candidate_tags[:25]:
+        text = _normalize_whitespace(tag.get_text(" ", strip=True))
+        if not text or len(text) > 120:
+            continue
+        year = _extract_year(text)
         if year:
             return year
 
@@ -894,11 +1190,14 @@ def extract_author(soup: BeautifulSoup) -> str | None:
     if citation_authors:
         return _truncate(", ".join(citation_authors), 150)
 
-    candidate = soup.find(lambda tag: _tag_has_marker(tag, ("author", "byline")))
-    if candidate:
-        text = _normalize_whitespace(candidate.get_text(" ", strip=True))
-        if text:
-            text = re.sub(r"^(by|author)\s*[:\-]?\s+", "", text, flags=re.IGNORECASE)
+    candidate_tags = soup.find_all(
+        lambda tag: _tag_has_marker(tag, ("author", "byline", "written-by"))
+        or str(tag.get("itemprop", "")).lower() == "author"
+        or "author" in _flatten_attr_value(tag.get("rel")).lower()
+    )
+    for candidate in candidate_tags[:25]:
+        text = _clean_author_candidate(candidate.get_text(" ", strip=True))
+        if _looks_like_author_candidate(text):
             return _truncate(text, 150)
 
     return None
@@ -921,60 +1220,81 @@ def extract_doi(soup: BeautifulSoup, html: str) -> str | None:
 
 def extract_body_text(soup: BeautifulSoup) -> str | None:
     working_soup = BeautifulSoup(str(soup), "lxml")
+
     for tag in working_soup(
-        ["script", "style", "nav", "header", "footer", "aside", "form", "noscript"]
+        [
+            "script",
+            "style",
+            "nav",
+            "header",
+            "footer",
+            "aside",
+            "form",
+            "noscript",
+            "svg",
+            "canvas",
+            "iframe",
+            "button",
+            "input",
+        ]
     ):
         tag.decompose()
 
-    candidate = working_soup.find("article")
-    if candidate is None:
-        candidate = working_soup.find("main")
-    if candidate is None:
-        candidate = working_soup.find(
-            attrs={"role": lambda value: value and str(value).lower() == "main"}
-        )
-    if candidate is None:
-        candidate = working_soup.find(
-            lambda tag: bool(tag.get("id"))
-            and any(
-                token in _flatten_attr_value(tag.get("id")).lower()
-                for token in ("content", "article")
+    noisy_elements = working_soup.find_all(
+        lambda tag: _body_marker_score(tag) < -200 and tag.name not in {"body", "html"}
+    )
+    for tag in noisy_elements:
+        tag.decompose()
+
+    candidates = []
+    for selector_tag in ("article", "main"):
+        candidates.extend(working_soup.find_all(selector_tag))
+
+    candidates.extend(
+        working_soup.find_all(
+            lambda tag: (
+                str(tag.get("role", "")).lower() == "main"
+                or _body_marker_score(tag) > 0
             )
+            and tag.name in {"section", "div", "article", "main", "body"}
         )
-    if candidate is None:
-        candidate = working_soup.find(
-            lambda tag: _tag_has_marker(
-                tag,
-                (
-                    "article-body",
-                    "article__body",
-                    "story-body",
-                    "entry-content",
-                    "post-content",
-                    "main-content",
-                    "content",
-                ),
-            )
-        )
-    if candidate is None:
-        best_tag = None
-        best_length = 0
-        for tag in working_soup.find_all(["section", "div", "body"]):
-            text = _normalize_whitespace(tag.get_text(" ", strip=True))
-            if text and len(text) > best_length:
-                best_length = len(text)
-                best_tag = tag
-        candidate = best_tag or working_soup.body
+    )
+    candidates.extend(working_soup.find_all(["section", "div", "body"]))
+
+    best_tag = None
+    best_score = -10_000
+    best_text = ""
+    seen_ids = set()
+    for tag in candidates:
+        tag_id = id(tag)
+        if tag_id in seen_ids:
+            continue
+        seen_ids.add(tag_id)
+
+        score, text = _score_body_candidate(tag)
+        if score > best_score:
+            best_score = score
+            best_tag = tag
+            best_text = text
+
+    candidate = best_tag or working_soup.body
 
     if candidate is None:
         return None
 
-    text = _normalize_whitespace(candidate.get_text(separator=" ", strip=True))
+    paragraphs = [
+        _normalize_whitespace(paragraph.get_text(" ", strip=True))
+        for paragraph in candidate.find_all("p")
+    ]
+    paragraphs = [paragraph for paragraph in paragraphs if paragraph and len(paragraph) >= 40]
+    if len(paragraphs) >= 2:
+        text = _normalize_whitespace(" ".join(paragraphs))
+    else:
+        text = best_text or _normalize_whitespace(candidate.get_text(separator=" ", strip=True))
     if not text:
         return None
 
-    if len(text) > MAX_BODY_TEXT_CHARS:
-        text = text[:MAX_BODY_TEXT_CHARS].rstrip()
+    text = _trim_text(text, MAX_BODY_TEXT_CHARS)
     return text or None
 
 
@@ -994,7 +1314,7 @@ def extract_keywords(soup: BeautifulSoup) -> list[str]:
     return _normalize_keywords(keywords)
 
 
-def extract_json_ld(soup: BeautifulSoup) -> dict | None:
+def extract_json_ld(soup: BeautifulSoup, page_url: str | None = None) -> dict | None:
     allowed_types = {
         "article",
         "newsarticle",
@@ -1002,6 +1322,8 @@ def extract_json_ld(soup: BeautifulSoup) -> dict | None:
         "blogposting",
         "webpage",
     }
+    best_node = None
+    best_score = -1
 
     for script in soup.find_all("script", type="application/ld+json"):
         raw = script.string or script.get_text()
@@ -1023,47 +1345,56 @@ def extract_json_ld(soup: BeautifulSoup) -> dict | None:
             normalized_type = node_type.split("/")[-1].lower()
             if normalized_type not in allowed_types:
                 continue
+            score = _score_json_ld_node(node, page_url=page_url)
+            if score > best_score:
+                best_score = score
+                best_node = node
 
-            simplified: dict = {"type": node_type}
+    if not best_node:
+        return None
 
-            headline = _normalize_whitespace(node.get("headline") or node.get("name"))
-            if headline:
-                simplified["headline"] = headline
+    node_type = best_node.get("@type") or best_node.get("type")
+    if isinstance(node_type, list):
+        node_type = next((item for item in node_type if isinstance(item, str)), None)
 
-            if node.get("datePublished"):
-                simplified["datePublished"] = str(node["datePublished"])
+    simplified: dict = {"type": node_type}
 
-            author = _coerce_json_ld_name(node.get("author"))
-            if author:
-                simplified["author"] = author
+    headline = _normalize_whitespace(best_node.get("headline") or best_node.get("name"))
+    if headline:
+        simplified["headline"] = headline
 
-            publisher = _coerce_json_ld_name(node.get("publisher"))
-            if publisher:
-                simplified["publisher"] = publisher
+    if best_node.get("datePublished"):
+        simplified["datePublished"] = str(best_node["datePublished"])
 
-            description = _normalize_whitespace(node.get("description"))
-            if description:
-                simplified["description"] = description
+    author = _coerce_json_ld_name(best_node.get("author"))
+    if author:
+        simplified["author"] = author
 
-            if node.get("keywords") is not None:
-                simplified["keywords"] = node.get("keywords")
+    publisher = _coerce_json_ld_name(best_node.get("publisher"))
+    if publisher:
+        simplified["publisher"] = publisher
 
-            if node.get("wordCount") is not None:
-                try:
-                    simplified["wordCount"] = int(node.get("wordCount"))
-                except (TypeError, ValueError):
-                    pass
+    description = _normalize_whitespace(best_node.get("description"))
+    if description:
+        simplified["description"] = description
 
-            if node.get("isAccessibleForFree") is not None:
-                value = node.get("isAccessibleForFree")
-                if isinstance(value, str):
-                    simplified["isAccessibleForFree"] = value.strip().lower() == "true"
-                else:
-                    simplified["isAccessibleForFree"] = bool(value)
+    if best_node.get("keywords") is not None:
+        simplified["keywords"] = best_node.get("keywords")
 
-            return simplified
+    if best_node.get("wordCount") is not None:
+        try:
+            simplified["wordCount"] = int(best_node.get("wordCount"))
+        except (TypeError, ValueError):
+            pass
 
-    return None
+    if best_node.get("isAccessibleForFree") is not None:
+        value = best_node.get("isAccessibleForFree")
+        if isinstance(value, str):
+            simplified["isAccessibleForFree"] = value.strip().lower() == "true"
+        else:
+            simplified["isAccessibleForFree"] = bool(value)
+
+    return simplified
 
 
 def detect_paywall(soup: BeautifulSoup, body_text: str | None, domain_info: dict) -> bool:
@@ -1091,10 +1422,12 @@ def detect_paywall(soup: BeautifulSoup, body_text: str | None, domain_info: dict
     return False
 
 
-def _extract_page_fields(html: str, label: str, domain_info: dict) -> dict:
+def _extract_page_fields(
+    html: str, label: str, domain_info: dict, page_url: str | None = None
+) -> dict:
     soup = BeautifulSoup(html, "lxml")
 
-    json_ld = extract_json_ld(soup)
+    json_ld = extract_json_ld(soup, page_url=page_url)
     title = extract_title(soup)
     description = extract_description(soup)
     body_text = extract_body_text(soup)
@@ -1120,7 +1453,7 @@ def _extract_page_fields(html: str, label: str, domain_info: dict) -> dict:
 
     title = title or _normalize_whitespace(label)
     if not description and body_text:
-        description = body_text[:200].strip()
+        description = _trim_text(body_text, 200)
 
     author = _truncate(author, 150)
     keywords = _normalize_keywords(keywords)
@@ -1140,43 +1473,196 @@ def _extract_page_fields(html: str, label: str, domain_info: dict) -> dict:
     }
 
 
+def _json_ld_richness_score(json_ld: dict | None) -> int:
+    if not json_ld:
+        return -1
+    score = 0
+    for key, value_score in (
+        ("headline", 10),
+        ("datePublished", 8),
+        ("author", 8),
+        ("description", 6),
+        ("keywords", 4),
+        ("wordCount", 2),
+        ("publisher", 2),
+    ):
+        if json_ld.get(key):
+            score += value_score
+    return score
+
+
+def _prefer_longer_text(
+    current: str | None, candidate: str | None, *, min_gain: int = 10
+) -> str | None:
+    current_text = _normalize_whitespace(current)
+    candidate_text = _normalize_whitespace(candidate)
+    if not current_text:
+        return candidate_text
+    if not candidate_text:
+        return current_text
+    if len(candidate_text) > len(current_text) + min_gain:
+        return candidate_text
+    return current_text
+
+
+def _compute_scrape_note(
+    *, body_text: str | None, paywalled: bool, used_playwright: bool = False
+) -> str | None:
+    if paywalled:
+        return "paywall_detected"
+    if used_playwright:
+        return "js_rendered"
+    if body_text and len(body_text) < PARTIAL_CONTENT_CHARS:
+        return "partial_content"
+    return None
+
+
+def _merge_scrape_results(
+    source: SourceInput, baseline: ScrapedSource, rendered: ScrapedSource
+) -> ScrapedSource:
+    baseline_data = _model_dump(baseline)
+    rendered_data = _model_dump(rendered)
+
+    body_text = baseline.body_text
+    used_playwright = False
+    if len(rendered.body_text or "") > len(baseline.body_text or ""):
+        body_text = rendered.body_text
+        used_playwright = True
+
+    title = _prefer_longer_text(baseline.title, rendered.title, min_gain=5)
+    description = _prefer_longer_text(baseline.description, rendered.description, min_gain=20)
+    author = _prefer_longer_text(baseline.author, rendered.author, min_gain=5)
+    doi = baseline.doi or rendered.doi
+    date = baseline.date or rendered.date
+    json_ld = (
+        rendered.json_ld
+        if _json_ld_richness_score(rendered.json_ld) > _json_ld_richness_score(baseline.json_ld)
+        else baseline.json_ld
+    )
+    keywords = _normalize_keywords((baseline.keywords or []) + (rendered.keywords or []))
+    paywalled = bool(baseline.paywalled or rendered.paywalled)
+
+    for field_name in ("title", "description", "author"):
+        if baseline_data.get(field_name) != locals()[field_name] and rendered_data.get(field_name):
+            used_playwright = True
+    if baseline.doi != doi and rendered.doi:
+        used_playwright = True
+    if baseline.date != date and rendered.date:
+        used_playwright = True
+    if baseline.json_ld != json_ld and rendered.json_ld:
+        used_playwright = True
+    if keywords != (baseline.keywords or []) and rendered.keywords:
+        used_playwright = True
+
+    if not title and source.label:
+        title = _normalize_whitespace(source.label)
+
+    word_count = len(body_text.split()) if body_text else 0
+    scrape_note = _compute_scrape_note(
+        body_text=body_text,
+        paywalled=paywalled,
+        used_playwright=used_playwright,
+    )
+
+    return ScrapedSource(
+        url=source.url,
+        label=source.label,
+        context=source.context,
+        domain=baseline.domain or rendered.domain or extract_domain(source.url),
+        live=baseline.live or rendered.live,
+        http_status=rendered.http_status or baseline.http_status,
+        title=title,
+        description=description,
+        body_text=body_text,
+        date=date,
+        author=_truncate(author, 150),
+        doi=doi,
+        paywalled=paywalled,
+        is_pdf=baseline.is_pdf or rendered.is_pdf,
+        json_ld=json_ld,
+        keywords=keywords,
+        word_count=word_count,
+        scrape_method="playwright" if used_playwright else baseline.scrape_method,
+        scrape_note=scrape_note,
+        scrape_success=bool(body_text and len(body_text) > SCRAPE_SUCCESS_MIN_CHARS),
+    )
+
+
+async def request_with_retries(
+    client: httpx.AsyncClient, method: str, url: str
+) -> httpx.Response:
+    attempts = max(1, MAX_REQUEST_RETRIES + 1)
+    last_exception = None
+
+    for attempt in range(1, attempts + 1):
+        try:
+            response = await client.request(method, url)
+            if response.status_code in RETRYABLE_STATUS_CODES and attempt < attempts:
+                logger.warning(
+                    "Retrying %s %s after status %s (%s/%s)",
+                    method,
+                    url,
+                    response.status_code,
+                    attempt,
+                    attempts,
+                )
+                await asyncio.sleep(RETRY_BACKOFF_SECONDS * attempt)
+                continue
+            return response
+        except httpx.TimeoutException as exc:
+            last_exception = exc
+            if attempt < attempts:
+                logger.warning(
+                    "Retrying %s %s after timeout (%s/%s)",
+                    method,
+                    url,
+                    attempt,
+                    attempts,
+                )
+                await asyncio.sleep(RETRY_BACKOFF_SECONDS * attempt)
+                continue
+            raise
+        except httpx.TransportError as exc:
+            last_exception = exc
+            if attempt < attempts:
+                logger.warning(
+                    "Retrying %s %s after transport error %s (%s/%s)",
+                    method,
+                    url,
+                    exc.__class__.__name__,
+                    attempt,
+                    attempts,
+                )
+                await asyncio.sleep(RETRY_BACKOFF_SECONDS * attempt)
+                continue
+            raise
+
+    if last_exception is not None:
+        raise last_exception
+    raise RuntimeError(f"Failed request for {method} {url}")
+
+
 async def scrape_with_beautifulsoup(source: SourceInput) -> ScrapedSource:
     domain = extract_domain(source.url)
     domain_info = get_domain_info(domain)
+    http_status = None
+    content_type = ""
 
     try:
-        async with httpx.AsyncClient(
-            timeout=REQUEST_TIMEOUT_SECONDS,
-            headers=BROWSER_HEADERS,
-            follow_redirects=True,
-        ) as client:
-            head_ok = False
-            content_type = ""
-            try:
-                head_response = await client.head(source.url)
-                http_status = head_response.status_code
-                content_type = head_response.headers.get("content-type", "")
-            except httpx.TimeoutException:
-                return build_failure_result(source, "timeout")
-            except Exception as exc:
-                logging.warning("  HEAD failed  %-40s  %s: %s", source.url, type(exc).__name__, exc)
-                http_status = None
-            else:
-                if http_status == 403:
-                    logging.info("  HEAD 403, will try GET  %s", source.url)
-                elif http_status >= 400 and http_status != 405:
-                    return build_failure_result(source, "url_dead", http_status=http_status)
-                else:
-                    head_ok = True
+        client = await get_http_client()
 
-            if head_ok and is_pdf_url(source.url, content_type):
+        try:
+            head_response = await request_with_retries(client, "HEAD", source.url)
+            head_status = head_response.status_code
+            content_type = head_response.headers.get("content-type", "")
+            if head_status < 400 and is_pdf_url(source.url, content_type):
                 return ScrapedSource(
                     url=source.url,
                     label=source.label,
                     context=source.context,
                     domain=domain,
                     live=True,
-                    http_status=http_status,
+                    http_status=head_status,
                     title=_normalize_whitespace(source.label),
                     description=None,
                     body_text=None,
@@ -1192,81 +1678,80 @@ async def scrape_with_beautifulsoup(source: SourceInput) -> ScrapedSource:
                     scrape_note="pdf_skipped",
                     scrape_success=False,
                 )
-
-            try:
-                get_response = await client.get(source.url)
-                http_status = get_response.status_code
-                content_type = get_response.headers.get("content-type", content_type)
-                if http_status == 403:
-                    return build_failure_result(source, "blocked_403", http_status=http_status)
-                if http_status >= 400:
-                    return build_failure_result(source, "url_dead", http_status=http_status)
-                if is_pdf_url(source.url, content_type):
-                    return ScrapedSource(
-                        url=source.url,
-                        label=source.label,
-                        context=source.context,
-                        domain=domain,
-                        live=True,
-                        http_status=http_status,
-                        title=_normalize_whitespace(source.label),
-                        description=None,
-                        body_text=None,
-                        date=None,
-                        author=None,
-                        doi=None,
-                        paywalled=False,
-                        is_pdf=True,
-                        json_ld=None,
-                        keywords=[],
-                        word_count=0,
-                        scrape_method="head_only",
-                        scrape_note="pdf_skipped",
-                        scrape_success=False,
-                    )
-                html = get_response.text
-            except httpx.TimeoutException:
-                return ScrapedSource(
-                    url=source.url,
-                    label=source.label,
-                    context=source.context,
-                    domain=domain,
-                    live=True,
-                    http_status=http_status,
-                    title=_normalize_whitespace(source.label),
-                    description=None,
-                    body_text=None,
-                    date=None,
-                    author=None,
-                    doi=None,
-                    paywalled=domain_info["paywalled"],
-                    is_pdf=False,
-                    json_ld=None,
-                    keywords=[],
-                    word_count=0,
-                    scrape_method="beautifulsoup",
-                    scrape_note="timeout",
-                    scrape_success=False,
+            if head_status >= 400:
+                logger.info(
+                    "HEAD returned %s for %s; continuing with GET",
+                    head_status,
+                    source.url,
                 )
-            except Exception as exc:
-                logging.warning("  GET failed   %-40s  %s: %s", source.url, type(exc).__name__, exc)
-                return build_failure_result(source, "scrape_failed", http_status=http_status)
+        except httpx.TimeoutException:
+            logger.warning("HEAD timed out for %s; continuing with GET", source.url)
+        except httpx.TransportError as exc:
+            logger.warning(
+                "HEAD failed for %s with %s; continuing with GET",
+                source.url,
+                exc.__class__.__name__,
+            )
 
+        get_response = await request_with_retries(client, "GET", source.url)
+        http_status = get_response.status_code
+        content_type = get_response.headers.get("content-type", content_type)
+
+        if http_status == 403:
+            return build_failure_result(source, "blocked_403", http_status=http_status)
+        if http_status >= 400:
+            return build_failure_result(source, "url_dead", http_status=http_status)
+        if is_pdf_url(source.url, content_type):
+            return ScrapedSource(
+                url=source.url,
+                label=source.label,
+                context=source.context,
+                domain=domain,
+                live=True,
+                http_status=http_status,
+                title=_normalize_whitespace(source.label),
+                description=None,
+                body_text=None,
+                date=None,
+                author=None,
+                doi=None,
+                paywalled=False,
+                is_pdf=True,
+                json_ld=None,
+                keywords=[],
+                word_count=0,
+                scrape_method="head_only",
+                scrape_note="pdf_skipped",
+                scrape_success=False,
+            )
+        html = get_response.text
+    except httpx.TimeoutException:
+        return build_failure_result(source, "timeout")
+    except httpx.TransportError as exc:
+        logger.warning("GET transport error for %s: %s", source.url, exc.__class__.__name__)
+        return build_failure_result(source, "url_dead")
     except Exception as exc:
-        logging.warning("  CLIENT fail  %-40s  %s: %s", source.url, type(exc).__name__, exc)
+        logger.warning("CLIENT fail  %-40s  %s: %s", source.url, type(exc).__name__, exc)
         return build_failure_result(source, "scrape_failed")
 
     try:
-        extracted = _extract_page_fields(html, source.label, domain_info)
-        scrape_note = None
-        if extracted["paywalled"]:
-            scrape_note = "paywall_detected"
-        elif extracted["body_text"] and len(extracted["body_text"]) < 200:
-            scrape_note = "partial_content"
+        extracted = _extract_page_fields(
+            html,
+            source.label,
+            domain_info,
+            page_url=source.url,
+        )
+        scrape_note = _compute_scrape_note(
+            body_text=extracted["body_text"],
+            paywalled=extracted["paywalled"],
+        )
 
-        logging.info(
-            "  SCRAPED OK   %-40s  status=%s  words=%s  method=beautifulsoup  note=%s",
-            domain, http_status, extracted["word_count"], scrape_note or "ok",
+        logger.info(
+            "SCRAPED OK  %-40s  status=%s  words=%s  method=beautifulsoup  note=%s",
+            domain,
+            http_status,
+            extracted["word_count"],
+            scrape_note or "ok",
         )
         return ScrapedSource(
             url=source.url,
@@ -1288,10 +1773,12 @@ async def scrape_with_beautifulsoup(source: SourceInput) -> ScrapedSource:
             word_count=extracted["word_count"],
             scrape_method="beautifulsoup",
             scrape_note=scrape_note,
-            scrape_success=bool(extracted["body_text"] and len(extracted["body_text"]) > 100),
+            scrape_success=bool(
+                extracted["body_text"] and len(extracted["body_text"]) > SCRAPE_SUCCESS_MIN_CHARS
+            ),
         )
     except Exception as exc:
-        logging.warning("  PARSE fail   %-40s  %s: %s", source.url, type(exc).__name__, exc)
+        logger.warning("PARSE fail   %-40s  %s: %s", source.url, type(exc).__name__, exc)
         return build_failure_result(source, "scrape_failed", http_status=http_status)
 
 
@@ -1308,8 +1795,11 @@ async def scrape_with_playwright(
     browser = None
 
     try:
-        async with async_playwright() as playwright:
-            browser = await playwright.chromium.launch(headless=True)
+        browser = await get_playwright_browser()
+        if browser is None:
+            return baseline
+
+        async with _PLAYWRIGHT_SEMAPHORE:
             context = await browser.new_context(user_agent=BROWSER_USER_AGENT)
             page = await context.new_page()
             response = await page.goto(
@@ -1331,13 +1821,12 @@ async def scrape_with_playwright(
             if http_status and http_status >= 400:
                 return baseline
 
-            extracted = _extract_page_fields(html, source.label, domain_info)
-
-            scrape_note = "js_rendered"
-            if extracted["paywalled"]:
-                scrape_note = "paywall_detected"
-            elif extracted["body_text"] and len(extracted["body_text"]) < 200:
-                scrape_note = "partial_content"
+            extracted = _extract_page_fields(
+                html,
+                source.label,
+                domain_info,
+                page_url=source.url,
+            )
 
             playwright_result = ScrapedSource(
                 url=source.url,
@@ -1358,17 +1847,16 @@ async def scrape_with_playwright(
                 keywords=extracted["keywords"],
                 word_count=extracted["word_count"],
                 scrape_method="playwright",
-                scrape_note=scrape_note,
-                scrape_success=bool(extracted["body_text"] and len(extracted["body_text"]) > 100),
+                scrape_note="js_rendered",
+                scrape_success=bool(
+                    extracted["body_text"] and len(extracted["body_text"]) > SCRAPE_SUCCESS_MIN_CHARS
+                ),
             )
-
-            if len(playwright_result.body_text or "") > len(baseline.body_text or ""):
-                return playwright_result
-            if playwright_result.scrape_success and not baseline.scrape_success:
-                return playwright_result
-            return baseline
+            merged = _merge_scrape_results(source, baseline, playwright_result)
+            logger.info("PLAYWRIGHT OK  %-40s  status=%s", domain, http_status)
+            return merged
     except Exception as exc:
-        logging.warning("  PLAYWRIGHT   %-40s  %s: %s", source.url, type(exc).__name__, exc)
+        logger.warning("PLAYWRIGHT    %-40s  %s: %s", source.url, type(exc).__name__, exc)
         return baseline
     finally:
         if page is not None:
@@ -1381,24 +1869,43 @@ async def scrape_with_playwright(
                 await context.close()
             except Exception:
                 pass
-        if browser is not None:
-            try:
-                await browser.close()
-            except Exception:
-                pass
 
 
-async def scrape_source(source: SourceInput) -> ScrapedSource:
+async def _scrape_source_impl(source: SourceInput) -> ScrapedSource:
     result = await scrape_with_beautifulsoup(source)
     should_use_playwright = (
         ENABLE_PLAYWRIGHT_FALLBACK
         and result.live
         and not result.is_pdf
-        and (result.body_text is None or len(result.body_text) < 200)
+        and (result.body_text is None or len(result.body_text) < PLAYWRIGHT_TRIGGER_CHARS)
     )
     if not should_use_playwright:
         return result
     return await scrape_with_playwright(source, result)
+
+
+async def scrape_source(source: SourceInput) -> ScrapedSource:
+    async with _SCRAPE_SEMAPHORE:
+        return await _scrape_source_impl(source)
+
+
+async def scrape_sources_deduplicated(sources: list[SourceInput]) -> list[ScrapedSource]:
+    tasks: dict[str, asyncio.Task] = {}
+    unique_urls: list[str] = []
+
+    for source in sources:
+        if source.url not in tasks:
+            canonical_source = SourceInput(url=source.url, label="", context="")
+            tasks[source.url] = asyncio.create_task(scrape_source(canonical_source))
+            unique_urls.append(source.url)
+
+    unique_results = await asyncio.gather(*(tasks[url] for url in unique_urls))
+    results_by_url = {url: result for url, result in zip(unique_urls, unique_results)}
+
+    return [
+        _clone_result_for_source(results_by_url[source.url], source)
+        for source in sources
+    ]
 
 
 app = FastAPI(title="Verity Extractor", version="1.0.0")
@@ -1406,10 +1913,15 @@ app = FastAPI(title="Verity Extractor", version="1.0.0")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("shutdown")
+async def shutdown_event() -> None:
+    await close_shared_resources()
 
 
 @app.get("/health")
@@ -1428,32 +1940,33 @@ async def healthcheck() -> dict:
 async def extract(request: ExtractRequest):
     start = time.perf_counter()
 
-    logging.info("─" * 60)
+    logger.info("-" * 60)
     ollama_ok = await _check_ollama_available()
-    logging.info("Extract request: %d source(s)  |  Ollama: %s", len(request.sources), "on" if ollama_ok else "off")
-    logging.info("Prompt: %s", request.original_prompt[:120] or "(none)")
-    for i, s in enumerate(request.sources, 1):
-        logging.info("  [%d] %s  |  label: %s", i, s.url, s.label[:60])
-
-    # Step 1: scrape all sources concurrently
-    scraped_sources = await asyncio.gather(
-        *(scrape_source(source) for source in request.sources)
+    logger.info(
+        "Extract request: %d source(s)  |  Ollama: %s",
+        len(request.sources),
+        "on" if ollama_ok else "off",
     )
+    logger.info("Prompt: %s", request.original_prompt[:120] or "(none)")
+    for i, s in enumerate(request.sources, 1):
+        logger.info("  [%d] %s  |  label: %s", i, s.url, s.label[:60])
+
+    scraped_sources = await scrape_sources_deduplicated(request.sources)
 
     scrape_ms = int((time.perf_counter() - start) * 1000)
     live_count = sum(1 for s in scraped_sources if s.live)
     dead_count = len(scraped_sources) - live_count
-    logging.info("Scrape done (%dms): %d live, %d dead", scrape_ms, live_count, dead_count)
+    logger.info("Scrape done (%dms): %d live, %d dead", scrape_ms, live_count, dead_count)
 
     # Step 2: if Ollama is available, score all sources + get further reading
     if ollama_ok:
         topic = _detect_topic(request.full_ai_response + " " + request.original_prompt)
-        logging.info("Scoring with Gemini (topic: %s)...", topic)
+        logger.info("Scoring with Ollama (topic: %s)...", topic)
 
         further_reading_task = asyncio.create_task(
             get_further_reading(topic, request.original_prompt)
         )
-        logging.info("  Scoring %d sources in parallel...", len(scraped_sources))
+        logger.info("  Scoring %d sources in parallel...", len(scraped_sources))
         llm_results = await asyncio.gather(
             *(score_source_with_llm(s, request.original_prompt) for s in scraped_sources)
         )
@@ -1469,13 +1982,13 @@ async def extract(request: ExtractRequest):
         flagged_count  = sum(1 for s in scored if s.verdict in ("skeptical", "unverified"))
 
         total_ms = int((time.perf_counter() - start) * 1000)
-        logging.info("Scoring done (%dms total)", total_ms)
+        logger.info("Scoring done (%dms total)", total_ms)
         for s in scored:
-            logging.info(
+            logger.info(
                 "  %-12s  score=%-3s  %-40s  %s",
                 s.verdict, s.composite_score, s.domain, s.reason[:60],
             )
-        logging.info("─" * 60)
+        logger.info("-" * 60)
 
         return ScoredResponse(
             sources=scored,
@@ -1486,11 +1999,17 @@ async def extract(request: ExtractRequest):
             flagged_count=flagged_count,
         )
 
-    # Fallback: return raw scraped data if Gemini is not configured
+    # Fallback: return raw scraped data if Ollama is not configured
     for s in scraped_sources:
-        status = "✓ live" if s.live else "✗ dead"
-        logging.info("  %s  %-40s  method=%-14s  words=%s", status, s.domain, s.scrape_method or "-", s.word_count or 0)
-    logging.info("─" * 60)
+        status = "live" if s.live else "dead"
+        logger.info(
+            "  %-4s  %-40s  method=%-14s  words=%s",
+            status,
+            s.domain,
+            s.scrape_method or "-",
+            s.word_count or 0,
+        )
+    logger.info("-" * 60)
 
     extraction_time_ms = int((time.perf_counter() - start) * 1000)
     return ExtractResponse(

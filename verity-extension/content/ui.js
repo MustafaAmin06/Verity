@@ -45,7 +45,10 @@ window.Verity.ui = {
     };
 
     try {
-      const data = await window.Verity.api.checkSources(payload);
+      const data = await window.Verity.api.checkSources(
+        payload,
+        VERITY_CONFIG.extractorUrl
+      );
       btn.remove();
       panel.innerHTML = "";
       panel.classList.remove("verity-loading");

@@ -1,10 +1,10 @@
 window.Verity = window.Verity || {};
 
 window.Verity.api = {
-  checkSources(payload) {
+  checkSources(payload, extractorUrl) {
     return new Promise((resolve, reject) => {
       chrome.runtime.sendMessage(
-        { type: "EXTRACT_SOURCES", payload },
+        { type: "EXTRACT_SOURCES", payload, extractorUrl },
         (response) => {
           if (chrome.runtime.lastError) {
             reject(new Error(chrome.runtime.lastError.message));
