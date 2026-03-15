@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Verity",
+  "name": "Verifty",
   "version": "1.0.0",
   "description": "Score the sources behind AI responses.",
   "permissions": ["activeTab"],
