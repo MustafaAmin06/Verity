@@ -2,6 +2,10 @@
 **A browser extension that audits LLM citations in real time — before you act on them.**
 *24-Hour Hackathon Submission*
 
+
+---
+AWARDS:
+Won first at annual EWB hackathon UofT
 ---
 
 ## 1. Product Overview
