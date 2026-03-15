@@ -4,12 +4,14 @@ Verity source extraction and scraping module.
 
 import asyncio
 import csv
+import ipaddress
 import json
 import logging
 import logging.handlers
 import os
 import pathlib
 import re
+import socket
 import time
 import unicodedata
 from urllib.parse import urlparse
@@ -30,7 +32,7 @@ import httpx
 from bs4 import BeautifulSoup
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 try:
     from playwright.async_api import async_playwright
@@ -48,16 +50,19 @@ except ImportError:
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3.5:2b")
-GEMINI_AVAILABLE = False  # replaced by local Ollama
+OLLAMA_AVAILABLE = False  # checked at request time via _check_ollama_available()
 
 
 REQUEST_TIMEOUT_SECONDS = int(os.getenv("REQUEST_TIMEOUT_SECONDS", "5"))
 MAX_BODY_TEXT_CHARS = int(os.getenv("MAX_BODY_TEXT_CHARS", "8000"))
+MAX_RESPONSE_BYTES = int(os.getenv("MAX_RESPONSE_BYTES", str(10 * 1024 * 1024)))  # 10 MB
+MAX_SOURCES_PER_REQUEST = int(os.getenv("MAX_SOURCES_PER_REQUEST", "25"))
 PLAYWRIGHT_TIMEOUT_SECONDS = int(os.getenv("PLAYWRIGHT_TIMEOUT_SECONDS", "10"))
 ENABLE_PLAYWRIGHT_FALLBACK = (
     os.getenv("ENABLE_PLAYWRIGHT_FALLBACK", "true").lower() == "true"
 )
 EXTRACTOR_PORT = int(os.getenv("EXTRACTOR_PORT", "8001"))
+MAX_REDIRECTS = 5
 
 BROWSER_USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -79,6 +84,11 @@ BROWSER_HEADERS = {
 
 DOI_PATTERN = re.compile(r"10\.\d{4,}/[^\s\"<>&]+", re.IGNORECASE)
 YEAR_PATTERN = re.compile(r"(19|20)\d{2}")
+
+# ── URL result cache (TTL-based, keyed by URL) ──
+
+_SCRAPE_CACHE: dict[str, tuple[float, "ScrapedSource"]] = {}
+_CACHE_TTL_SECONDS = 3600  # 1 hour
 
 
 DOMAIN_REGISTRY = {
@@ -394,9 +404,9 @@ class SourceInput(BaseModel):
 
 
 class ExtractRequest(BaseModel):
-    sources: list[SourceInput]
-    original_prompt: str
-    full_ai_response: str
+    sources: list[SourceInput] = Field(..., max_length=25)
+    original_prompt: str = Field(..., max_length=5000)
+    full_ai_response: str = Field(..., max_length=50000)
 
 
 class ScrapedSource(BaseModel):
@@ -432,7 +442,7 @@ class ExtractResponse(BaseModel):
     extraction_time_ms: int
 
 
-# ── Scored response models (returned by /extract when Gemini is available) ──
+# ── Scored response models (returned by /extract when Ollama is available) ──
 
 class SourceSignals(BaseModel):
     domain_tier: str
@@ -516,7 +526,7 @@ def _compute_recency_score(year: str | None) -> int:
     if not year:
         return 40
     try:
-        age = 2025 - int(year)
+        age = time.localtime().tm_year - int(year)
         if age <= 1:  return 100
         if age <= 3:  return 90
         if age <= 5:  return 75
@@ -572,7 +582,7 @@ def _detect_topic(text: str) -> str:
     return best_topic
 
 
-# ── Gemini scoring ──
+# ── Ollama scoring ──
 
 _SCORE_PROMPT = """\
 You are a source credibility analyst. Given a scraped web page and the claim an AI made when citing it, \
@@ -622,7 +632,7 @@ async def _call_llm(prompt: str, timeout: int = 30) -> str | None:
                     "prompt": prompt,
                     "stream": False,
                     "format": "json",
-                    "options": {"temperature": 0.1, "num_ctx": 1024, "num_predict": 256},
+                    "options": {"temperature": 0.1, "num_ctx": 4096, "num_predict": 256},
                 },
             )
             response.raise_for_status()
@@ -657,7 +667,7 @@ def _parse_json_response(text: str | None, fallback):
 
 async def score_source_with_llm(scraped: ScrapedSource, prompt: str) -> dict:
     """Call local LLM to get relevance, alignment and reasoning for one source."""
-    body_snippet = (scraped.body_text or scraped.description or "")[:800]
+    body_snippet = (scraped.body_text or scraped.description or "")[:3000]
     llm_prompt = _SCORE_PROMPT.format(
         context=scraped.context[:400],
         prompt=prompt[:300],
@@ -700,7 +710,7 @@ async def get_further_reading(topic: str, prompt: str) -> list[FurtherReadingIte
 
 
 def build_scored_source(scraped: ScrapedSource, llm: dict) -> ScoredSource:
-    """Combine scraped metadata + Gemini LLM output into a ScoredSource."""
+    """Combine scraped metadata + Ollama LLM output into a ScoredSource."""
     domain_info = get_domain_info(scraped.domain)
 
     # Enrich with ScimagoJR data when JSON-LD exposes journal metadata
@@ -1327,15 +1337,45 @@ def _extract_page_fields(html: str, label: str, domain_info: dict) -> dict:
     }
 
 
+def _is_private_ip(hostname: str) -> bool:
+    """Return True if hostname resolves to a private/reserved IP address."""
+    try:
+        resolved = socket.getaddrinfo(hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
+        for family, _type, _proto, _canonname, sockaddr in resolved:
+            ip = ipaddress.ip_address(sockaddr[0])
+            if ip.is_private or ip.is_reserved or ip.is_loopback or ip.is_link_local:
+                return True
+        return False
+    except (socket.gaierror, ValueError, OSError):
+        return True  # fail-closed: block unresolvable hosts
+
+
 async def scrape_with_beautifulsoup(source: SourceInput) -> ScrapedSource:
     domain = extract_domain(source.url)
     domain_info = get_domain_info(domain)
+
+    # SSRF protection: block private/internal IPs
+    parsed = urlparse(source.url)
+    if not parsed.hostname or _is_private_ip(parsed.hostname):
+        return build_failure_result(source, "private_ip_blocked")
+
+    # Check URL cache
+    cached = _SCRAPE_CACHE.get(source.url)
+    if cached:
+        ts, cached_result = cached
+        if time.time() - ts < _CACHE_TTL_SECONDS:
+            logging.info("  CACHE HIT    %-40s", domain)
+            return cached_result
+        else:
+            del _SCRAPE_CACHE[source.url]
 
     try:
         async with httpx.AsyncClient(
             timeout=REQUEST_TIMEOUT_SECONDS,
             headers=BROWSER_HEADERS,
             follow_redirects=True,
+            max_redirects=MAX_REDIRECTS,
+            http2=True,
         ) as client:
             head_ok = False
             content_type = ""
@@ -1384,6 +1424,10 @@ async def scrape_with_beautifulsoup(source: SourceInput) -> ScrapedSource:
                 get_response = await client.get(source.url)
                 http_status = get_response.status_code
                 content_type = get_response.headers.get("content-type", content_type)
+                # Reject oversized responses
+                content_length = get_response.headers.get("content-length")
+                if content_length and int(content_length) > MAX_RESPONSE_BYTES:
+                    return build_failure_result(source, "response_too_large", http_status=http_status)
                 if http_status == 403:
                     return build_failure_result(source, "blocked_403", http_status=http_status)
                 if http_status >= 400:
@@ -1458,7 +1502,7 @@ async def scrape_with_beautifulsoup(source: SourceInput) -> ScrapedSource:
             "  SCRAPED OK   %-40s  status=%s  words=%s  method=beautifulsoup  note=%s",
             domain, http_status, extracted["word_count"], scrape_note or "ok",
         )
-        return ScrapedSource(
+        result = ScrapedSource(
             url=source.url,
             label=source.label,
             context=source.context,
@@ -1480,6 +1524,9 @@ async def scrape_with_beautifulsoup(source: SourceInput) -> ScrapedSource:
             scrape_note=scrape_note,
             scrape_success=bool(extracted["body_text"] and len(extracted["body_text"]) > 100),
         )
+        # Cache successful results
+        _SCRAPE_CACHE[source.url] = (time.time(), result)
+        return result
     except Exception as exc:
         logging.warning("  PARSE fail   %-40s  %s: %s", source.url, type(exc).__name__, exc)
         return build_failure_result(source, "scrape_failed", http_status=http_status)
@@ -1621,6 +1668,10 @@ async def scrape_with_playwright(
             if _is_soft_404(extracted["title"]):
                 logging.warning("  SOFT 404     %-40s  title=%r  (playwright)", domain, extracted["title"])
                 return build_failure_result(source, "soft_404", http_status=http_status)
+            # Re-check soft-404 on body text as well
+            if extracted["body_text"] and _is_soft_404(extracted["body_text"][:200]):
+                logging.warning("  SOFT 404     %-40s  body=%r  (playwright)", domain, extracted["body_text"][:80])
+                return build_failure_result(source, "soft_404", http_status=http_status)
 
             scrape_note = "js_rendered"
             if extracted["paywalled"]:
@@ -1679,11 +1730,14 @@ async def scrape_with_playwright(
 
 async def scrape_source(source: SourceInput) -> ScrapedSource:
     result = await scrape_with_beautifulsoup(source)
+    _recoverable = result.scrape_note in ("scrape_failed", "blocked_403")
     should_use_playwright = (
         ENABLE_PLAYWRIGHT_FALLBACK
-        and result.live
         and not result.is_pdf
-        and (result.body_text is None or result.word_count < 500)
+        and (
+            (result.live and (result.body_text is None or result.word_count < 500))
+            or (not result.live and _recoverable)
+        )
     )
     if should_use_playwright:
         logging.info("  PLAYWRIGHT   %-40s  words=%s → trying JS render", result.domain, result.word_count)
@@ -1693,12 +1747,18 @@ async def scrape_source(source: SourceInput) -> ScrapedSource:
 
 app = FastAPI(title="Verity Extractor", version="1.0.0")
 
+_ALLOWED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000").split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_ALLOWED_ORIGINS,
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST"],
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 
@@ -1758,7 +1818,7 @@ async def extract(request: ExtractRequest):
     # Step 2: if Ollama is available, score all sources + get further reading
     if ollama_ok:
         topic = _detect_topic(request.full_ai_response + " " + request.original_prompt)
-        logging.info("Scoring with Gemini (topic: %s)...", topic)
+        logging.info("Scoring with Ollama (topic: %s)...", topic)
 
         further_reading_task = asyncio.create_task(
             get_further_reading(topic, request.original_prompt)
@@ -1813,7 +1873,7 @@ async def extract(request: ExtractRequest):
             flagged_count=flagged_count,
         )
 
-    # Fallback: return raw scraped data if Gemini is not configured
+    # Fallback: return raw scraped data if Ollama is not configured
     for s in scraped_sources:
         status = "✓ live" if s.live else "✗ dead"
         logging.info("  %s  %-40s  method=%-14s  words=%s", status, s.domain, s.scrape_method or "-", s.word_count or 0)
