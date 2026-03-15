@@ -3,7 +3,7 @@
   "name": "Verifty",
   "version": "1.0.0",
   "description": "Score the sources behind AI responses.",
-  "permissions": ["activeTab"],
+  "permissions": ["activeTab", "tabs"],
   "host_permissions": [
     "http://localhost:8001/*"
   ],
@@ -17,6 +17,7 @@
         "content/api.js",
         "content/extractor.js",
         "content/ui.js",
+        "content/panel.js",
         "content/observer.js",
         "content/content.js"
       ],
@@ -26,5 +27,9 @@
   ],
   "background": {
     "service_worker": "background/service-worker.js"
-  }
+  },
+  "web_accessible_resources": [{
+    "resources": ["styles/cards.css"],
+    "matches": ["https://chat.openai.com/*", "https://chatgpt.com/*"]
+  }]
 }

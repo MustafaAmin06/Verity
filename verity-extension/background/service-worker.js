@@ -1,3 +1,18 @@
+// When the extension is installed or reloaded, tell open ChatGPT tabs to
+// refresh so they pick up fresh content scripts instead of running stale ones.
+chrome.runtime.onInstalled.addListener(async () => {
+  const tabs = await chrome.tabs.query({
+    url: ["https://chat.openai.com/*", "https://chatgpt.com/*"],
+  });
+  for (const tab of tabs) {
+    try {
+      await chrome.tabs.sendMessage(tab.id, { type: "VERITY_RELOAD" });
+    } catch {
+      // Content script not present yet or tab is unresponsive — that's fine
+    }
+  }
+});
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type !== "EXTRACT_SOURCES") return false;
 
