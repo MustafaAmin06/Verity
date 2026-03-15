@@ -72,6 +72,20 @@ function resolveAllSelectors(config) {
 }
 
 // Detect platform and initialize
+// Listen for extension reload notifications from the service worker.
+// When the extension is reloaded/updated, the service worker broadcasts
+// VERITY_RELOAD so we refresh the page and get fresh content scripts.
+try {
+  chrome.runtime.onMessage.addListener((message) => {
+    if (message.type === "VERITY_RELOAD") {
+      console.log("[Verity] Extension reloaded, refreshing page...");
+      window.location.reload();
+    }
+  });
+} catch {
+  // Extension context already dead — nothing to listen on
+}
+
 (function () {
   console.log("[Verity] Content script loaded on", window.location.hostname);
 

@@ -19,6 +19,11 @@ window.Verity.ui = {
     container.after(btn);
   },
 
+  /** Remove all child nodes (Trusted Types safe — no innerHTML) */
+  _clearElement(el) {
+    while (el.firstChild) el.firstChild.remove();
+  },
+
   async _handleCheck(responseEl, sources, btn, platformConfig, container) {
     btn.textContent = "Checking...";
     btn.disabled = true;
@@ -41,14 +46,17 @@ window.Verity.ui = {
     };
 
     try {
-      const data = await window.Verity.api.checkSources(payload);
+      // Use shared fetch-with-dedup so panel takeover and inline button
+      // share a single in-flight request and cache
+      const cacheKey = window.Verity.panel._computeCacheKey(sources);
+      const data = await window.Verity.panel._fetchWithDedup(cacheKey, payload);
       btn.remove();
-      panel.innerHTML = "";
+      this._clearElement(panel);
       panel.classList.remove("verity-loading");
       this._renderScorecard(data, panel);
     } catch (err) {
       btn.remove();
-      panel.innerHTML = "";
+      this._clearElement(panel);
       panel.classList.remove("verity-loading");
       this._renderError(err, panel, () => {
         panel.remove();
@@ -111,21 +119,10 @@ window.Verity.ui = {
       (b.composite_score || 0) - (a.composite_score || 0)
     );
 
-    const topCards = sorted.slice(0, 3);
-    const rest = sorted.slice(3);
-
-    // Render top cards (full-size, expandable)
-    topCards.forEach((source) => {
+    // Render all sources as full-size, expandable cards
+    sorted.forEach((source) => {
       panel.appendChild(this._createCard(source));
     });
-
-    // "More" divider + compact cards
-    if (rest.length > 0) {
-      panel.appendChild(this._createMoreDivider());
-      rest.forEach((source) => {
-        panel.appendChild(this._createCompactCard(source));
-      });
-    }
 
     // Further reading
     if (data.further_reading && data.further_reading.length > 0) {
@@ -164,9 +161,15 @@ window.Verity.ui = {
     domain.className = "verity-card-domain";
     domain.textContent = source.domain || "";
 
-    const title = document.createElement("div");
+    const title = document.createElement("a");
     title.className = "verity-card-title";
     title.textContent = source.title || source.label || source.url || "";
+    if (source.url) {
+      title.href = source.url;
+      title.target = "_blank";
+      title.rel = "noopener noreferrer";
+      title.addEventListener("click", (e) => e.stopPropagation());
+    }
 
     const date = document.createElement("div");
     date.className = "verity-card-date";
@@ -275,9 +278,14 @@ window.Verity.ui = {
     domain.className = "verity-compact-domain";
     domain.textContent = source.domain || "";
 
-    const title = document.createElement("span");
+    const title = document.createElement("a");
     title.className = "verity-compact-title";
     title.textContent = source.title || "";
+    if (source.url) {
+      title.href = source.url;
+      title.target = "_blank";
+      title.rel = "noopener noreferrer";
+    }
 
     const info = document.createElement("span");
     info.className = "verity-compact-info";
@@ -357,15 +365,30 @@ window.Verity.ui = {
     const errorDiv = document.createElement("div");
     errorDiv.className = "verity-error";
 
+    const isContextDead =
+      err.message?.includes("context invalidated") ||
+      err.message?.includes("Extension context") ||
+      err.message?.includes("Extension was reloaded");
+
     const msg = document.createElement("p");
-    msg.textContent = `Verity couldn't check sources: ${err.message}`;
+    msg.textContent = isContextDead
+      ? "Verity lost connection — please refresh the page to reconnect."
+      : `Verity couldn't check sources: ${err.message}`;
     errorDiv.appendChild(msg);
 
-    const retryBtn = document.createElement("button");
-    retryBtn.className = "verity-trigger-btn";
-    retryBtn.textContent = "Retry";
-    retryBtn.addEventListener("click", retryFn);
-    errorDiv.appendChild(retryBtn);
+    if (isContextDead) {
+      const refreshBtn = document.createElement("button");
+      refreshBtn.className = "verity-trigger-btn";
+      refreshBtn.textContent = "Refresh page";
+      refreshBtn.addEventListener("click", () => window.location.reload());
+      errorDiv.appendChild(refreshBtn);
+    } else {
+      const retryBtn = document.createElement("button");
+      retryBtn.className = "verity-trigger-btn";
+      retryBtn.textContent = "Retry";
+      retryBtn.addEventListener("click", retryFn);
+      errorDiv.appendChild(retryBtn);
+    }
 
     panel.appendChild(errorDiv);
   },
@@ -380,7 +403,7 @@ window.Verity.ui = {
   renderSkeletonInShadow(shadowRoot) {
     const body = shadowRoot.querySelector('.verity-panel-body');
     if (!body) return;
-    body.innerHTML = '';
+    this._clearElement(body);
     body.classList.add('verity-loading');
 
     // Skeleton rows with inline fallback style in case full CSS not yet loaded
@@ -403,7 +426,7 @@ window.Verity.ui = {
       console.warn('[Verity] renderInShadow: .verity-panel-body not found in shadow root');
       return;
     }
-    body.innerHTML = '';
+    this._clearElement(body);
     body.classList.remove('verity-loading');
     this._renderScorecard(data, body);
 
@@ -423,7 +446,7 @@ window.Verity.ui = {
   renderErrorInShadow(shadowRoot, err, retryFn) {
     const body = shadowRoot.querySelector('.verity-panel-body');
     if (!body) return;
-    body.innerHTML = '';
+    this._clearElement(body);
     body.classList.remove('verity-loading');
     this._renderError(err, body, retryFn);
   },

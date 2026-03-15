@@ -184,6 +184,12 @@
   line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  text-decoration: none;
+}
+
+.verity-card-title:hover {
+  text-decoration: underline;
+  color: #fff;
 }
 
 .verity-card-date {
@@ -302,6 +308,12 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-decoration: none;
+}
+
+.verity-compact-title:hover {
+  text-decoration: underline;
+  color: #fff;
 }
 
 .verity-compact-info {
