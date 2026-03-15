@@ -460,6 +460,8 @@ class ScoredSource(BaseModel):
     url: str
     domain: str
     title: str | None
+    description: str | None
+    live: bool
     verdict: str
     verdict_label: str
     color: str
@@ -759,6 +761,8 @@ def build_scored_source(scraped: ScrapedSource, llm: dict) -> ScoredSource:
         url=scraped.url,
         domain=scraped.domain,
         title=scraped.title,
+        description=scraped.description,
+        live=scraped.live,
         verdict=verdict,
         verdict_label=verdict_label,
         color=color,
