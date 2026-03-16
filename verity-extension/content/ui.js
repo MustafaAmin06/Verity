@@ -46,10 +46,8 @@ window.Verity.ui = {
     };
 
     try {
-      // Use shared fetch-with-dedup so panel takeover and inline button
-      // share a single in-flight request and cache
-      const cacheKey = window.Verity.panel._computeCacheKey(sources);
-      const data = await window.Verity.panel._fetchWithDedup(cacheKey, payload);
+      const cacheKey = window.Verity.api.computeCacheKey(sources);
+      const data = await window.Verity.api.fetchWithDedup(cacheKey, payload);
       btn.remove();
       this._clearElement(panel);
       panel.classList.remove("verity-loading");
@@ -398,58 +396,5 @@ window.Verity.ui = {
   _inferVerdict(source) {
     if (!source.live && source.live !== undefined) return "unverified";
     return "reliable";
-  },
-
-  // --- Shadow DOM entry points (used by panel.js) ---
-
-  renderSkeletonInShadow(shadowRoot) {
-    const body = shadowRoot.querySelector('.verity-panel-body');
-    if (!body) return;
-    this._clearElement(body);
-    body.classList.add('verity-loading');
-
-    // Skeleton rows with inline fallback style in case full CSS not yet loaded
-    for (let i = 0; i < 3; i++) {
-      const skel = document.createElement('div');
-      skel.className = 'verity-skeleton';
-      body.appendChild(skel);
-    }
-
-    // Loading label — always visible regardless of CSS load state
-    const label = document.createElement('p');
-    label.className = 'verity-loading-label';
-    label.textContent = 'Analyzing sources...';
-    body.appendChild(label);
-  },
-
-  renderInShadow(shadowRoot, data) {
-    const body = shadowRoot.querySelector('.verity-panel-body');
-    if (!body) {
-      console.warn('[Verity] renderInShadow: .verity-panel-body not found in shadow root');
-      return;
-    }
-    this._clearElement(body);
-    body.classList.remove('verity-loading');
-    this._renderScorecard(data, body);
-
-    // Update header with average score
-    const sources = data.sources || data.scraped_sources || [];
-    const withScores = sources.filter(s => s.composite_score != null);
-    if (withScores.length > 0) {
-      const avg = withScores.reduce((sum, s) => sum + s.composite_score, 0) / withScores.length;
-      const avgFive = (avg / 20).toFixed(1);
-      const subtitle = shadowRoot.querySelector('.verity-panel-stats');
-      if (subtitle) {
-        subtitle.textContent = `${sources.length} sources \u00b7 Average score ${avgFive} / 5.0`;
-      }
-    }
-  },
-
-  renderErrorInShadow(shadowRoot, err, retryFn) {
-    const body = shadowRoot.querySelector('.verity-panel-body');
-    if (!body) return;
-    this._clearElement(body);
-    body.classList.remove('verity-loading');
-    this._renderError(err, body, retryFn);
   },
 };

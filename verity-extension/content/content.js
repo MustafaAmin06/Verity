@@ -71,6 +71,24 @@ function resolveAllSelectors(config) {
   return { ...config, selectors: resolved };
 }
 
+function cleanupLegacyPanelTakeover() {
+  const legacyHost = document.querySelector('[data-verity-host]');
+  if (!legacyHost) return false;
+
+  const reloadKey = 'verity-legacy-panel-cleanup';
+  if (sessionStorage.getItem(reloadKey) === 'done') {
+    console.warn('[Verity] Legacy panel takeover remnants still present after reload; removing stale host and continuing');
+    legacyHost.remove();
+    sessionStorage.removeItem(reloadKey);
+    return false;
+  }
+
+  console.warn('[Verity] Legacy panel takeover remnants detected, reloading to restore native ChatGPT sources panel');
+  sessionStorage.setItem(reloadKey, 'done');
+  window.location.reload();
+  return true;
+}
+
 // Detect platform and initialize
 // Listen for extension reload notifications from the service worker.
 // When the extension is reloaded/updated, the service worker broadcasts
@@ -88,6 +106,10 @@ try {
 
 (function () {
   console.log("[Verity] Content script loaded on", window.location.hostname);
+
+  if (cleanupLegacyPanelTakeover()) {
+    return;
+  }
 
   const hostname = window.location.hostname;
   let matchedPlatform = null;
@@ -115,6 +137,5 @@ try {
     const resolved = resolveAllSelectors(matchedPlatform);
     console.log("[Verity] Resolved selectors:", resolved.selectors);
     window.Verity.observer.init(resolved);
-    window.Verity.panel.init();
   }, 2000);
 })();

@@ -177,8 +177,8 @@ DOMAIN_REGISTRY = {
     "tumblr.com": {"tier": "independent_blog", "paywalled": False},
     "reddit.com": {"tier": "independent_blog", "paywalled": False},
     "quora.com": {"tier": "independent_blog", "paywalled": False},
-    "wikipedia.org": {"tier": "independent_blog", "paywalled": False},
-    "en.wikipedia.org": {"tier": "independent_blog", "paywalled": False},
+    "wikipedia.org": {"tier": "reference_tertiary", "paywalled": False},
+    "en.wikipedia.org": {"tier": "reference_tertiary", "paywalled": False},
     "naturalnews.com": {"tier": "flagged", "paywalled": False},
     "infowars.com": {"tier": "flagged", "paywalled": False},
     "breitbart.com": {"tier": "flagged", "paywalled": False},
@@ -189,6 +189,8 @@ DOMAIN_REGISTRY = {
 
 def get_domain_info(domain: str) -> dict:
     clean = domain.lower().replace("www.", "").strip("/")
+    if clean == "wikipedia.org" or clean.endswith(".wikipedia.org"):
+        return {"tier": "reference_tertiary", "paywalled": False}
     return DOMAIN_REGISTRY.get(clean, {"tier": "unknown", "paywalled": False})
 
 
@@ -500,6 +502,7 @@ DOMAIN_TIER_SCORES: dict[str, int] = {
     "academic_journal": 100,
     "official_body":    95,
     "established_news": 80,
+    "reference_tertiary": 35,
     "independent_blog": 50,
     "flagged":          10,
     "unknown":          30,
@@ -565,11 +568,13 @@ def _build_flags(scraped: ScrapedSource) -> list[str]:
     flags: list[str] = []
     if not scraped.live:
         flags.append("url_dead")
-    if scraped.scrape_note == "blocked_403":
+    if (scraped.scrape_note or "").startswith("blocked_403"):
         flags.append("access_blocked")
     if scraped.paywalled:
         flags.append("paywalled")
     domain_info = get_domain_info(scraped.domain)
+    if domain_info.get("tier") == "reference_tertiary":
+        flags.append("tertiary_source")
     if domain_info.get("tier") == "flagged":
         flags.append("low_credibility_domain")
     return flags
@@ -782,6 +787,9 @@ def build_scored_source(scraped: ScrapedSource, llm: dict) -> ScoredSource:
         # Flagged domains are capped at skeptical
         if domain_info.get("tier") == "flagged":
             composite = min(composite, 24)
+        # Tertiary reference sources can be useful, but should not be marked reliable.
+        if domain_info.get("tier") == "reference_tertiary":
+            composite = min(composite, 74)
         verdict, verdict_label, color = _verdict_from_score(composite)
 
     signals = SourceSignals(
@@ -873,6 +881,41 @@ def _normalize_whitespace(value: str | None) -> str | None:
         return None
     normalized = re.sub(r"\s+", " ", value).strip()
     return normalized or None
+
+
+def _classify_403_response(response: httpx.Response) -> str:
+    """Differentiate generic 403s from hard WAF/CDN blocks.
+
+    Hard blocks are not worth retrying through Playwright from the same machine.
+    """
+    server = response.headers.get("server", "").lower()
+    header_names = {name.lower() for name in response.headers.keys()}
+    body_sample = (response.text or "")[:600].lower()
+
+    hard_block_markers = (
+        "attention required",
+        "access denied",
+        "forbidden",
+        "please enable cookies",
+        "checking your browser",
+        "security check",
+        "request blocked",
+        "captcha",
+    )
+
+    if (
+        "cf-ray" in header_names
+        or "cloudflare" in server
+        or "akamai" in server
+        or "imperva" in server
+        or "sucuri" in server
+        or "x-sucuri-id" in header_names
+        or "x-iinfo" in header_names
+        or any(marker in body_sample for marker in hard_block_markers)
+    ):
+        return "blocked_403_waf"
+
+    return "blocked_403"
 
 
 def _flatten_attr_value(value) -> str:
@@ -1472,7 +1515,11 @@ async def scrape_with_beautifulsoup(source: SourceInput) -> ScrapedSource:
                 if content_length and int(content_length) > MAX_RESPONSE_BYTES:
                     return build_failure_result(source, "response_too_large", http_status=http_status)
                 if http_status == 403:
-                    return build_failure_result(source, "blocked_403", http_status=http_status)
+                    return build_failure_result(
+                        source,
+                        _classify_403_response(get_response),
+                        http_status=http_status,
+                    )
                 if http_status >= 400:
                     return build_failure_result(source, "url_dead", http_status=http_status)
                 if is_pdf_url(source.url, content_type):
@@ -1782,6 +1829,11 @@ async def scrape_source(source: SourceInput) -> ScrapedSource:
             or (not result.live and _recoverable)
         )
     )
+    if not should_use_playwright and result.scrape_note == "blocked_403_waf":
+        logging.info(
+            "  PLAYWRIGHT   %-40s  skipped after confirmed hard 403/WAF block",
+            result.domain,
+        )
     if should_use_playwright:
         logging.info("  PLAYWRIGHT   %-40s  words=%s → trying JS render", result.domain, result.word_count)
         result = await scrape_with_playwright(source, result)

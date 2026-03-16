@@ -1,6 +1,9 @@
 window.Verity = window.Verity || {};
 
 const CONTEXT_DEAD_MSG = "Extension was reloaded — please refresh the page.";
+const RESPONSE_CACHE_TTL_MS = 30 * 60 * 1000;
+const responseCache = new Map();
+const pendingRequests = new Map();
 
 /**
  * Returns true when the extension context is still alive
@@ -17,6 +20,41 @@ function isContextAlive() {
 window.Verity.api = {
   /** Expose for other modules that need to guard chrome.runtime calls */
   isContextAlive,
+
+  computeCacheKey(sources) {
+    const joined = sources.map((source) => source.url).sort().join('|');
+    let hash = 5381;
+    for (let i = 0; i < joined.length; i++) {
+      hash = ((hash << 5) + hash) + joined.charCodeAt(i);
+      hash &= hash;
+    }
+    return 'verity_' + Math.abs(hash).toString(36);
+  },
+
+  async fetchWithDedup(cacheKey, payload) {
+    const cached = responseCache.get(cacheKey);
+    if (cached && (Date.now() - cached.timestamp) < RESPONSE_CACHE_TTL_MS) {
+      return cached.data;
+    }
+
+    if (pendingRequests.has(cacheKey)) {
+      return pendingRequests.get(cacheKey);
+    }
+
+    const promise = this.checkSources(payload);
+    pendingRequests.set(cacheKey, promise);
+
+    try {
+      const data = await promise;
+      responseCache.set(cacheKey, {
+        timestamp: Date.now(),
+        data,
+      });
+      return data;
+    } finally {
+      pendingRequests.delete(cacheKey);
+    }
+  },
 
   checkSources(payload) {
     return new Promise((resolve, reject) => {

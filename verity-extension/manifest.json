@@ -17,7 +17,6 @@
         "content/api.js",
         "content/extractor.js",
         "content/ui.js",
-        "content/panel.js",
         "content/observer.js",
         "content/content.js"
       ],

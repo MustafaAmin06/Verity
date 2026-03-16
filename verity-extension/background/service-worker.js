@@ -6,9 +6,9 @@ chrome.runtime.onInstalled.addListener(async () => {
   });
   for (const tab of tabs) {
     try {
-      await chrome.tabs.sendMessage(tab.id, { type: "VERITY_RELOAD" });
+      await chrome.tabs.reload(tab.id);
     } catch {
-      // Content script not present yet or tab is unresponsive — that's fine
+      // Tab may be gone or not reloadable — that's fine
     }
   }
 });
