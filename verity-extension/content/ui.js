@@ -51,7 +51,7 @@ window.Verity.ui = {
       btn.remove();
       this._clearElement(panel);
       panel.classList.remove("verity-loading");
-      this._renderScorecard(data, panel);
+      this._renderScorecard(data, panel, responseEl);
     } catch (err) {
       btn.remove();
       this._clearElement(panel);
@@ -59,6 +59,7 @@ window.Verity.ui = {
       this._renderError(err, panel, () => {
         panel.remove();
         container.removeAttribute("data-verity-processed");
+        this._cleanupAnnotations(responseEl);
         this.injectButton(responseEl, sources, platformConfig);
       });
     }
@@ -101,7 +102,7 @@ window.Verity.ui = {
 
   // --- Main render ---
 
-  _renderScorecard(data, panel) {
+  _renderScorecard(data, panel, responseEl) {
     const sources = data.sources || data.scraped_sources || [];
 
     if (sources.length === 0) {
@@ -125,6 +126,12 @@ window.Verity.ui = {
     // Further reading
     if (data.further_reading && data.further_reading.length > 0) {
       panel.appendChild(this._createFurtherReading(data.further_reading));
+    }
+
+    // Annotate citation links in the response with hover tooltips
+    if (responseEl) {
+      this._cleanupAnnotations(responseEl);
+      this._annotateLinks(responseEl, sorted);
     }
   },
 
@@ -396,5 +403,128 @@ window.Verity.ui = {
   _inferVerdict(source) {
     if (!source.live && source.live !== undefined) return "unverified";
     return "reliable";
+  },
+
+  // --- Inline tooltip for citation links ---
+
+  _ensureTooltip() {
+    if (this._tooltip) return this._tooltip;
+    const tip = document.createElement("div");
+    tip.className = "verity-tooltip";
+    tip.setAttribute("role", "tooltip");
+    tip.setAttribute("aria-hidden", "true");
+    document.body.appendChild(tip);
+    this._tooltip = tip;
+    return tip;
+  },
+
+  _buildTooltipContent(source) {
+    const tip = this._tooltip;
+    this._clearElement(tip);
+
+    const score100 = source.composite_score;
+    const color = this._scoreColor(score100);
+    const signals = source.signals || {};
+
+    const circle = document.createElement("div");
+    circle.className = "verity-score-circle verity-score-circle--sm";
+    circle.style.setProperty("--verity-score-color", color);
+    circle.textContent = this._toFiveScale(score100) || "—";
+
+    const domain = document.createElement("div");
+    domain.className = "verity-tooltip-domain";
+    domain.textContent = source.domain || "";
+
+    const author = document.createElement("div");
+    author.className = "verity-tooltip-author";
+    if (source.author) {
+      author.textContent = "by " + source.author;
+    } else {
+      author.setAttribute("hidden", "");
+    }
+
+    const tier = document.createElement("div");
+    tier.className = "verity-tier-badge";
+    tier.textContent = this._humanizeTier(signals.domain_tier);
+
+    tip.append(circle, domain, author, tier);
+  },
+
+  _positionTooltip(anchorEl) {
+    const tip = this._tooltip;
+    const rect = anchorEl.getBoundingClientRect();
+    const tipRect = tip.getBoundingClientRect();
+    const GAP = 8;
+    const MARGIN = 8;
+
+    let top = rect.top - tipRect.height - GAP;
+    const isFlipped = top < MARGIN;
+    if (isFlipped) top = rect.bottom + GAP;
+
+    let left = rect.left + rect.width / 2 - tipRect.width / 2;
+    left = Math.max(MARGIN, Math.min(left, window.innerWidth - tipRect.width - MARGIN));
+
+    tip.style.top = top + "px";
+    tip.style.left = left + "px";
+    tip.classList.toggle("verity-tooltip--flipped", isFlipped);
+  },
+
+  _annotateLinks(responseEl, enrichedSources) {
+    const urlToSource = new Map();
+    for (const source of enrichedSources) {
+      try {
+        urlToSource.set(new URL(source.url).href, source);
+      } catch {
+        urlToSource.set(source.url, source);
+      }
+    }
+
+    const anchors = responseEl.querySelectorAll("a[href]");
+    for (const a of anchors) {
+      let normalizedHref;
+      try {
+        normalizedHref = new URL(a.href).href;
+      } catch {
+        continue;
+      }
+      const source = urlToSource.get(normalizedHref);
+      if (!source) continue;
+
+      a._veritySource = source;
+      a.setAttribute("data-verity-annotated", "true");
+      this._attachTooltipListeners(a);
+    }
+  },
+
+  _attachTooltipListeners(anchorEl) {
+    anchorEl.addEventListener("mouseenter", () => {
+      if (!anchorEl._veritySource) return;
+      clearTimeout(this._hoverTimer);
+      this._hoverTimer = setTimeout(() => {
+        const tip = this._ensureTooltip();
+        this._buildTooltipContent(anchorEl._veritySource);
+        tip.classList.add("verity-tooltip--visible");
+        this._positionTooltip(anchorEl);
+      }, VERITY_CONFIG.hoverDelayMs);
+    });
+
+    anchorEl.addEventListener("mouseleave", () => {
+      clearTimeout(this._hoverTimer);
+      if (this._tooltip) {
+        this._tooltip.classList.remove("verity-tooltip--visible");
+      }
+    });
+  },
+
+  _cleanupAnnotations(responseEl) {
+    if (!responseEl) return;
+    for (const a of responseEl.querySelectorAll("[data-verity-annotated]")) {
+      a.removeAttribute("data-verity-annotated");
+      delete a._veritySource;
+    }
+    if (this._tooltip) {
+      this._tooltip.classList.remove("verity-tooltip--visible");
+    }
+    clearTimeout(this._hoverTimer);
   },
 };

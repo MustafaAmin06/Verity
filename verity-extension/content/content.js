@@ -84,7 +84,7 @@ function cleanupInjectedUi() {
     removedLegacyPanel = true;
   }
 
-  for (const node of document.querySelectorAll('.verity-trigger-btn, .verity-panel')) {
+  for (const node of document.querySelectorAll('.verity-trigger-btn, .verity-panel, .verity-tooltip')) {
     node.remove();
   }
 
