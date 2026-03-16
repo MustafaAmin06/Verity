@@ -49,16 +49,16 @@ try:
 except ImportError:
     pass
 
-OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
-OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen3.5:2b")
-OLLAMA_AVAILABLE = False  # checked at request time via _check_ollama_available()
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
+GITHUB_MODEL = os.getenv("GITHUB_MODEL", "gpt-4o")
+GITHUB_API_URL = "https://models.inference.ai.azure.com/chat/completions"
 
 
 REQUEST_TIMEOUT_SECONDS = int(os.getenv("REQUEST_TIMEOUT_SECONDS", "5"))
 MAX_BODY_TEXT_CHARS = int(os.getenv("MAX_BODY_TEXT_CHARS", "8000"))
 MAX_RESPONSE_BYTES = int(os.getenv("MAX_RESPONSE_BYTES", str(10 * 1024 * 1024)))  # 10 MB
 MAX_SOURCES_PER_REQUEST = int(os.getenv("MAX_SOURCES_PER_REQUEST", "25"))
-PLAYWRIGHT_TIMEOUT_SECONDS = int(os.getenv("PLAYWRIGHT_TIMEOUT_SECONDS", "10"))
+PLAYWRIGHT_TIMEOUT_SECONDS = int(os.getenv("PLAYWRIGHT_TIMEOUT_SECONDS", "6"))
 ENABLE_PLAYWRIGHT_FALLBACK = (
     os.getenv("ENABLE_PLAYWRIGHT_FALLBACK", "true").lower() == "true"
 )
@@ -654,40 +654,63 @@ Respond with ONLY valid JSON as a list of exactly 3 objects:
 ]"""
 
 
-async def _call_llm(prompt: str, timeout: int = 30, system: str | None = None) -> str | None:
-    """Call local Ollama model and return the response text."""
-    try:
-        async with httpx.AsyncClient(timeout=timeout) as client:
-            payload: dict = {
-                "model": OLLAMA_MODEL,
-                "prompt": prompt,
-                "stream": False,
-                "format": "json",
-                "options": {"temperature": 0.1, "num_ctx": 4096, "num_predict": 400},
-            }
-            if system:
-                payload["system"] = system
-            response = await client.post(
-                f"{OLLAMA_URL}/api/generate",
-                json=payload,
-            )
-            response.raise_for_status()
-            data = response.json()
-            # Thinking models (qwen3) put output in "thinking" when response is empty
-            return data.get("response") or data.get("thinking") or None
-    except Exception as exc:
-        logging.warning("Ollama call failed: %s", str(exc)[:120])
+_llm_client: httpx.AsyncClient | None = None
+
+
+def _get_llm_client() -> httpx.AsyncClient:
+    """Reuse a single persistent HTTP client for all LLM calls."""
+    global _llm_client
+    if _llm_client is None or _llm_client.is_closed:
+        _llm_client = httpx.AsyncClient(
+            timeout=15,
+            headers={
+                "Authorization": f"Bearer {GITHUB_TOKEN}",
+                "Content-Type": "application/json",
+            },
+            http2=True,
+        )
+    return _llm_client
+
+
+async def _call_llm(prompt: str, system: str | None = None) -> str | None:
+    """Call GitHub Models API (OpenAI-compatible) and return the response text."""
+    if not GITHUB_TOKEN:
+        logging.warning("GITHUB_TOKEN not set — skipping LLM call")
         return None
 
+    messages = []
+    if system:
+        messages.append({"role": "system", "content": system})
+    messages.append({"role": "user", "content": prompt})
 
-async def _check_ollama_available() -> bool:
-    try:
-        async with httpx.AsyncClient(timeout=3) as client:
-            r = await client.get(f"{OLLAMA_URL}/api/tags")
-            models = [m["name"] for m in r.json().get("models", [])]
-            return OLLAMA_MODEL in models
-    except Exception:
-        return False
+    client = _get_llm_client()
+    for attempt in range(2):
+        try:
+            response = await client.post(
+                GITHUB_API_URL,
+                json={
+                    "model": GITHUB_MODEL,
+                    "messages": messages,
+                    "temperature": 0.1,
+                    "max_tokens": 150,
+                },
+            )
+            if response.status_code == 429 and attempt == 0:
+                await asyncio.sleep(2)
+                continue
+            response.raise_for_status()
+            return response.json()["choices"][0]["message"]["content"]
+        except Exception as exc:
+            if attempt == 0 and "429" in str(exc):
+                await asyncio.sleep(2)
+                continue
+            logging.warning("GitHub Models call failed: %s", str(exc)[:120])
+            return None
+    return None
+
+
+async def _check_llm_available() -> bool:
+    return bool(GITHUB_TOKEN)
 
 
 def _parse_json_response(text: str | None, fallback):
@@ -709,7 +732,7 @@ async def score_source_with_llm(scraped: ScrapedSource, prompt: str) -> dict:
         prompt=prompt[:500],
         body=body_snippet or "(no content retrieved)",
     )
-    raw = await _call_llm(llm_prompt, timeout=60, system=_SCORE_SYSTEM_PROMPT)
+    raw = await _call_llm(llm_prompt, system=_SCORE_SYSTEM_PROMPT)
     fallback = {
         "relevance_score": 50,
         "alignment_score": 50,
@@ -724,7 +747,7 @@ async def score_source_with_llm(scraped: ScrapedSource, prompt: str) -> dict:
 async def get_further_reading(topic: str, prompt: str) -> list[FurtherReadingItem]:
     """Ask local LLM for 3 further reading suggestions and build real search URLs."""
     llm_prompt = _FURTHER_READING_PROMPT.format(topic=topic, prompt=prompt[:500])
-    raw = await _call_llm(llm_prompt, timeout=10)
+    raw = await _call_llm(llm_prompt)
     items = _parse_json_response(raw, [])
     # Model sometimes returns {"sources": [...]} instead of a bare list
     if isinstance(items, dict):
@@ -1580,53 +1603,10 @@ async def scrape_with_beautifulsoup(source: SourceInput) -> ScrapedSource:
             max_redirects=MAX_REDIRECTS,
             http2=True,
         ) as client:
-            head_ok = False
-            content_type = ""
-            try:
-                head_response = await client.head(source.url)
-                http_status = head_response.status_code
-                content_type = head_response.headers.get("content-type", "")
-            except httpx.TimeoutException:
-                return build_failure_result(source, "timeout")
-            except Exception as exc:
-                logging.warning("  HEAD failed  %-40s  %s: %s", source.url, type(exc).__name__, exc)
-                http_status = None
-            else:
-                if http_status == 403:
-                    logging.info("  HEAD 403, will try GET  %s", source.url)
-                elif http_status >= 400 and http_status != 405:
-                    return build_failure_result(source, "url_dead", http_status=http_status)
-                else:
-                    head_ok = True
-
-            if head_ok and is_pdf_url(source.url, content_type):
-                return ScrapedSource(
-                    url=source.url,
-                    label=source.label,
-                    context=source.context,
-                    domain=domain,
-                    live=True,
-                    http_status=http_status,
-                    title=_normalize_whitespace(source.label),
-                    description=None,
-                    body_text=None,
-                    date=None,
-                    author=None,
-                    doi=None,
-                    paywalled=False,
-                    is_pdf=True,
-                    json_ld=None,
-                    keywords=[],
-                    word_count=0,
-                    scrape_method="head_only",
-                    scrape_note="pdf_skipped",
-                    scrape_success=False,
-                )
-
             try:
                 get_response = await client.get(source.url)
                 http_status = get_response.status_code
-                content_type = get_response.headers.get("content-type", content_type)
+                content_type = get_response.headers.get("content-type", "")
                 # Reject oversized responses
                 content_length = get_response.headers.get("content-length")
                 if content_length and int(content_length) > MAX_RESPONSE_BYTES:
@@ -1747,23 +1727,24 @@ _COOKIE_CONSENT_BUTTON_TEXTS = [
     "Got it", "OK", "Okay", "Continue", "Consent", "Close",
 ]
 
+# Pre-build a single CSS selector that matches all consent buttons at once
+_COOKIE_SELECTOR = ", ".join(
+    f"button:has-text('{t}'), a:has-text('{t}'), [role='button']:has-text('{t}')"
+    for t in _COOKIE_CONSENT_BUTTON_TEXTS
+)
+
 
 async def _dismiss_cookie_popup(page) -> bool:
     """Best-effort attempt to dismiss cookie consent popups."""
-    for text in _COOKIE_CONSENT_BUTTON_TEXTS:
-        try:
-            button = page.locator(
-                f"button:has-text('{text}'), "
-                f"a:has-text('{text}'), "
-                f"[role='button']:has-text('{text}')"
-            ).first
-            if await button.is_visible(timeout=200):
-                await button.click(timeout=1000)
-                await page.wait_for_timeout(500)
-                logging.info("  COOKIE_POPUP dismissed button with text: %r", text)
-                return True
-        except Exception:
-            continue
+    try:
+        button = page.locator(_COOKIE_SELECTOR).first
+        if await button.is_visible(timeout=300):
+            await button.click(timeout=1000)
+            await page.wait_for_timeout(300)
+            logging.info("  COOKIE_POPUP dismissed")
+            return True
+    except Exception:
+        pass
     return False
 
 
@@ -1845,7 +1826,7 @@ async def scrape_with_playwright(
             )
             try:
                 await page.wait_for_load_state(
-                    "networkidle", timeout=min(5000, PLAYWRIGHT_TIMEOUT_SECONDS * 1000)
+                    "networkidle", timeout=2000
                 )
             except Exception:
                 pass
@@ -1856,7 +1837,7 @@ async def scrape_with_playwright(
             try:
                 await page.wait_for_selector(
                     'article, main, [role="main"], #content, .article-body',
-                    timeout=3000,
+                    timeout=1500,
                 )
             except Exception:
                 pass
@@ -1942,7 +1923,7 @@ async def scrape_source(source: SourceInput) -> ScrapedSource:
         ENABLE_PLAYWRIGHT_FALLBACK
         and not result.is_pdf
         and (
-            (result.live and (result.body_text is None or result.word_count < 500))
+            (result.live and result.word_count == 0)
             or (not result.live and _recoverable)
         )
     )
@@ -1976,13 +1957,13 @@ app.add_middleware(
 
 @app.get("/health")
 async def healthcheck() -> dict:
-    ollama_ok = await _check_ollama_available()
+    llm_ok = await _check_llm_available()
     return {
         "status": "ok",
         "playwright_enabled": ENABLE_PLAYWRIGHT_FALLBACK and PLAYWRIGHT_AVAILABLE,
-        "llm_enabled": ollama_ok,
-        "llm_model": OLLAMA_MODEL,
-        "llm_backend": "ollama",
+        "llm_enabled": llm_ok,
+        "llm_model": GITHUB_MODEL,
+        "llm_backend": "github_models",
     }
 
 
@@ -1991,21 +1972,37 @@ async def extract(request: ExtractRequest):
     start = time.perf_counter()
 
     logging.info("─" * 60)
-    ollama_ok = await _check_ollama_available()
-    logging.info("Extract request: %d source(s)  |  Ollama: %s", len(request.sources), "on" if ollama_ok else "off")
+    llm_ok = await _check_llm_available()
+    logging.info("Extract request: %d source(s)  |  LLM: %s", len(request.sources), "on" if llm_ok else "off")
     logging.info("Prompt: %s", request.original_prompt[:120] or "(none)")
     for i, s in enumerate(request.sources, 1):
         logging.info("  [%d] %s  |  label: %s", i, s.url, s.label[:60])
 
-    # Step 1: scrape all sources concurrently
-    scraped_sources = await asyncio.gather(
-        *(scrape_source(source) for source in request.sources)
+    # Scrape + score overlap: each source starts LLM scoring as soon as it's scraped
+    topic = _detect_topic(request.full_ai_response + " " + request.original_prompt)
+    further_reading_task = (
+        asyncio.create_task(get_further_reading(topic, request.original_prompt))
+        if llm_ok else None
     )
+
+    async def scrape_and_score(source: SourceInput) -> tuple:
+        scraped = await scrape_source(source)
+        llm_result = (
+            await score_source_with_llm(scraped, request.original_prompt)
+            if llm_ok else None
+        )
+        return scraped, llm_result
+
+    results = await asyncio.gather(
+        *(scrape_and_score(source) for source in request.sources)
+    )
+    scraped_sources = [r[0] for r in results]
+    llm_results = [r[1] for r in results]
 
     scrape_ms = int((time.perf_counter() - start) * 1000)
     live_count = sum(1 for s in scraped_sources if s.live)
     dead_count = len(scraped_sources) - live_count
-    logging.info("Scrape done (%dms): %d live, %d dead", scrape_ms, live_count, dead_count)
+    logging.info("Scrape+Score done (%dms): %d live, %d dead", scrape_ms, live_count, dead_count)
     for i, s in enumerate(scraped_sources, 1):
         body_preview = (s.body_text or "").replace("\n", " ").strip()
         logging.info(
@@ -2027,18 +2024,7 @@ async def extract(request: ExtractRequest):
             body_preview or "(none)",
         )
 
-    # Step 2: if Ollama is available, score all sources + get further reading
-    if ollama_ok:
-        topic = _detect_topic(request.full_ai_response + " " + request.original_prompt)
-        logging.info("Scoring with Ollama (topic: %s)...", topic)
-
-        further_reading_task = asyncio.create_task(
-            get_further_reading(topic, request.original_prompt)
-        )
-        logging.info("  Scoring %d sources in parallel...", len(scraped_sources))
-        llm_results = await asyncio.gather(
-            *(score_source_with_llm(s, request.original_prompt) for s in scraped_sources)
-        )
+    if llm_ok:
         further_reading = await further_reading_task
 
         scored = [build_scored_source(s, llm) for s, llm in zip(scraped_sources, llm_results)]
