@@ -6,6 +6,14 @@ const VERITY_CONFIG = {
   minContextChars: 30,
   maxContextChars: 400,
   minUrlsToShowButton: 1,
+  previewCardSelectors: [
+    '[data-testid*="link-preview"]',
+    '[data-testid*="preview"]',
+    '[class*="LinkPreview"]',
+    '[class*="link-preview"]',
+    '[class*="linkPreview"]',
+  ],
+  previewSearchTimeoutMs: 800,
 };
 
 // Platform-specific selectors — multiple fallbacks for each since ChatGPT changes their DOM frequently

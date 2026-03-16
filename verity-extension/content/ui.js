@@ -405,69 +405,7 @@ window.Verity.ui = {
     return "reliable";
   },
 
-  // --- Inline tooltip for citation links ---
-
-  _ensureTooltip() {
-    if (this._tooltip) return this._tooltip;
-    const tip = document.createElement("div");
-    tip.className = "verity-tooltip";
-    tip.setAttribute("role", "tooltip");
-    tip.setAttribute("aria-hidden", "true");
-    document.body.appendChild(tip);
-    this._tooltip = tip;
-    return tip;
-  },
-
-  _buildTooltipContent(source) {
-    const tip = this._tooltip;
-    this._clearElement(tip);
-
-    const score100 = source.composite_score;
-    const color = this._scoreColor(score100);
-    const signals = source.signals || {};
-
-    const circle = document.createElement("div");
-    circle.className = "verity-score-circle verity-score-circle--sm";
-    circle.style.setProperty("--verity-score-color", color);
-    circle.textContent = this._toFiveScale(score100) || "—";
-
-    const domain = document.createElement("div");
-    domain.className = "verity-tooltip-domain";
-    domain.textContent = source.domain || "";
-
-    const author = document.createElement("div");
-    author.className = "verity-tooltip-author";
-    if (source.author) {
-      author.textContent = "by " + source.author;
-    } else {
-      author.setAttribute("hidden", "");
-    }
-
-    const tier = document.createElement("div");
-    tier.className = "verity-tier-badge";
-    tier.textContent = this._humanizeTier(signals.domain_tier);
-
-    tip.append(circle, domain, author, tier);
-  },
-
-  _positionTooltip(anchorEl) {
-    const tip = this._tooltip;
-    const rect = anchorEl.getBoundingClientRect();
-    const tipRect = tip.getBoundingClientRect();
-    const GAP = 8;
-    const MARGIN = 8;
-
-    let top = rect.top - tipRect.height - GAP;
-    const isFlipped = top < MARGIN;
-    if (isFlipped) top = rect.bottom + GAP;
-
-    let left = rect.left + rect.width / 2 - tipRect.width / 2;
-    left = Math.max(MARGIN, Math.min(left, window.innerWidth - tipRect.width - MARGIN));
-
-    tip.style.top = top + "px";
-    tip.style.left = left + "px";
-    tip.classList.toggle("verity-tooltip--flipped", isFlipped);
-  },
+  // --- Inject Verity score into ChatGPT's native link preview card ---
 
   _annotateLinks(responseEl, enrichedSources) {
     const urlToSource = new Map();
@@ -499,21 +437,129 @@ window.Verity.ui = {
   _attachTooltipListeners(anchorEl) {
     anchorEl.addEventListener("mouseenter", () => {
       if (!anchorEl._veritySource) return;
-      clearTimeout(this._hoverTimer);
-      this._hoverTimer = setTimeout(() => {
-        const tip = this._ensureTooltip();
-        this._buildTooltipContent(anchorEl._veritySource);
-        tip.classList.add("verity-tooltip--visible");
-        this._positionTooltip(anchorEl);
-      }, VERITY_CONFIG.hoverDelayMs);
+      this._startPreviewWatch(anchorEl);
     });
-
     anchorEl.addEventListener("mouseleave", () => {
-      clearTimeout(this._hoverTimer);
-      if (this._tooltip) {
-        this._tooltip.classList.remove("verity-tooltip--visible");
+      this._stopPreviewWatch();
+    });
+  },
+
+  _startPreviewWatch(anchorEl) {
+    this._stopPreviewWatch();
+
+    const source = anchorEl._veritySource;
+    let sld = "";
+    try {
+      const parts = new URL(anchorEl.href).hostname.split(".");
+      // Extract second-level domain: "mayoclinic" from "www.mayoclinic.org"
+      sld = parts.length >= 2 ? parts[parts.length - 2] : parts[0];
+    } catch {}
+
+    // ChatGPT reuses its preview card element — check if it's already in the DOM.
+    // Only use explicit selectors here (not the heuristic) to avoid matching the
+    // entire ChatGPT app container which also contains the SLD text.
+    for (const node of document.body.children) {
+      const matched = VERITY_CONFIG.previewCardSelectors.some((sel) => {
+        try { return node.matches(sel); } catch { return false; }
+      });
+      if (matched) {
+        this._injectScoreBadge(node, source);
+        return;
+      }
+    }
+
+    this._previewObserver = new MutationObserver((mutations) => {
+      for (const mutation of mutations) {
+        for (const node of mutation.addedNodes) {
+          if (node.nodeType !== Node.ELEMENT_NODE) continue;
+          if (this._tryInjectIntoCard(node, source, sld)) return;
+        }
       }
     });
+
+    this._previewObserver.observe(document.documentElement, { childList: true, subtree: true });
+
+    this._previewTimer = setTimeout(() => {
+      this._stopPreviewWatch();
+    }, VERITY_CONFIG.previewSearchTimeoutMs);
+  },
+
+  _tryInjectIntoCard(node, source, sld) {
+
+    // Check against known selector candidates
+    const matched = VERITY_CONFIG.previewCardSelectors.some((sel) => {
+      try { return node.matches(sel); } catch { return false; }
+    });
+
+    // Heuristic: new div whose text contains the SLD with whitespace stripped
+    // e.g. sld="mayoclinic", card text "Mayo Clinic..." → stripped "mayoclinic..." ✓
+    const cardText = node.textContent.replace(/\s+/g, "").toLowerCase();
+    const heuristic = !matched &&
+      node.tagName === "DIV" &&
+      node.childElementCount > 0 &&
+      sld &&
+      cardText.includes(sld.toLowerCase());
+
+    if (!matched && !heuristic) return false;
+
+    this._injectScoreBadge(node, source);
+    this._stopPreviewWatch(/* keepBadge= */ true);
+    return true;
+  },
+
+  _injectScoreBadge(cardEl, source) {
+    const score100 = source.composite_score;
+    const color = this._scoreColor(score100);
+    const signals = source.signals || {};
+
+    const badge = document.createElement("div");
+    badge.className = "verity-score-badge";
+
+    const circle = document.createElement("div");
+    circle.className = "verity-score-circle verity-score-circle--sm";
+    circle.style.setProperty("--verity-score-color", color);
+    circle.textContent = this._toFiveScale(score100) || "—";
+
+    const text = document.createElement("div");
+    text.className = "verity-score-badge-text";
+
+    const domain = document.createElement("span");
+    domain.className = "verity-score-badge-domain";
+    domain.textContent = source.domain || "";
+
+    const tier = document.createElement("span");
+    tier.className = "verity-tier-badge";
+    tier.textContent = this._humanizeTier(signals.domain_tier);
+
+    text.append(domain, tier);
+
+    if (source.author) {
+      const author = document.createElement("span");
+      author.className = "verity-score-badge-author";
+      author.textContent = "by " + source.author;
+      text.append(author);
+    }
+
+    badge.append(circle, text);
+    cardEl.setAttribute("data-verity-badge-injected", "true");
+    cardEl.appendChild(badge);
+  },
+
+  _stopPreviewWatch(keepBadge = false) {
+    if (this._previewObserver) {
+      this._previewObserver.disconnect();
+      this._previewObserver = null;
+    }
+    clearTimeout(this._previewTimer);
+    this._previewTimer = null;
+
+    if (!keepBadge) {
+      for (const el of document.querySelectorAll("[data-verity-badge-injected]")) {
+        el.removeAttribute("data-verity-badge-injected");
+        const badge = el.querySelector(".verity-score-badge");
+        if (badge) badge.remove();
+      }
+    }
   },
 
   _cleanupAnnotations(responseEl) {
@@ -522,9 +568,6 @@ window.Verity.ui = {
       a.removeAttribute("data-verity-annotated");
       delete a._veritySource;
     }
-    if (this._tooltip) {
-      this._tooltip.classList.remove("verity-tooltip--visible");
-    }
-    clearTimeout(this._hoverTimer);
+    this._stopPreviewWatch();
   },
 };
