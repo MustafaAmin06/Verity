@@ -71,22 +71,32 @@ function resolveAllSelectors(config) {
   return { ...config, selectors: resolved };
 }
 
-function cleanupLegacyPanelTakeover() {
-  const legacyHost = document.querySelector('[data-verity-host]');
-  if (!legacyHost) return false;
+function cleanupInjectedUi() {
+  let removedLegacyPanel = false;
 
-  const reloadKey = 'verity-legacy-panel-cleanup';
-  if (sessionStorage.getItem(reloadKey) === 'done') {
-    console.warn('[Verity] Legacy panel takeover remnants still present after reload; removing stale host and continuing');
-    legacyHost.remove();
-    sessionStorage.removeItem(reloadKey);
-    return false;
+  for (const host of document.querySelectorAll('[data-verity-host]')) {
+    const container = host.parentElement;
+    if (container && container.childElementCount === 1) {
+      container.remove();
+    } else {
+      host.remove();
+    }
+    removedLegacyPanel = true;
   }
 
-  console.warn('[Verity] Legacy panel takeover remnants detected, reloading to restore native ChatGPT sources panel');
-  sessionStorage.setItem(reloadKey, 'done');
-  window.location.reload();
-  return true;
+  for (const node of document.querySelectorAll('.verity-trigger-btn, .verity-panel')) {
+    node.remove();
+  }
+
+  for (const node of document.querySelectorAll('[data-verity-processed]')) {
+    node.removeAttribute('data-verity-processed');
+  }
+
+  if (removedLegacyPanel) {
+    console.warn('[Verity] Removed stale legacy panel takeover DOM so ChatGPT can rebuild its native sources panel');
+  }
+
+  return removedLegacyPanel;
 }
 
 // Detect platform and initialize
@@ -107,9 +117,7 @@ try {
 (function () {
   console.log("[Verity] Content script loaded on", window.location.hostname);
 
-  if (cleanupLegacyPanelTakeover()) {
-    return;
-  }
+  cleanupInjectedUi();
 
   const hostname = window.location.hostname;
   let matchedPlatform = null;

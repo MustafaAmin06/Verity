@@ -990,6 +990,112 @@ def _coerce_json_ld_name(value) -> str | None:
     return None
 
 
+_AUTHOR_JUNK_WORDS = frozenset({
+    "print", "share", "email", "subscribe", "follow", "save",
+    "comment", "comments", "reply", "report", "menu", "search",
+    "home", "login", "logout", "register", "admin", "staff",
+})
+
+_AUTHOR_JUNK_PHRASES = (
+    "min read", "last updated", "date created", "reviewed/revised",
+    "you're currently following", "want to unfollow", "unsubscribe",
+    "about the creator", "overview of",
+)
+
+_AUTHOR_TRAILING_RE = re.compile(
+    r"\s+(?:Last\s+Updated|Updated|Published|Posted|Modified|Reviewed|Created)"
+    r"|\s+(?:Mon|Tue|Wed|Thu|Fri|Sat|Sun)[,\s]"
+    r"|\s+(?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)\s+\d"
+    r"|\s+\d{1,2}/\d{1,2}/\d{2,4}"
+    r"|\s+\d{4}-\d{2}-\d{2}"
+    r"|\s*[·|]\s*\d+\s*min\s+read",
+    re.IGNORECASE,
+)
+
+
+def _validate_author(value: str | None) -> str | None:
+    """Return value if it looks like a plausible author name, else None."""
+    if not value:
+        return None
+    text = _normalize_whitespace(value)
+    if not text:
+        return None
+
+    # Reject URLs
+    if text.startswith(("http://", "https://", "//")) or "://" in text:
+        return None
+
+    # Reject single junk words
+    if text.lower().strip() in _AUTHOR_JUNK_WORDS:
+        return None
+
+    # Reject strings that start with timestamp-like prefixes
+    if re.match(
+        r"^(updated|published|posted|modified|reviewed|created)\s+(on\s+)?",
+        text, re.IGNORECASE,
+    ):
+        return None
+
+    # Strip trailing metadata (dates, day names, "N min read") to salvage the name part
+    text = _AUTHOR_TRAILING_RE.split(text, maxsplit=1)[0].rstrip(" ,;:-")
+    text = _normalize_whitespace(text)
+    if not text:
+        return None
+
+    # Reject if too many words (bio text, concatenated paragraphs)
+    if len(text.split()) > 12:
+        return None
+
+    # Reject strings containing known junk phrases
+    text_lower = text.lower()
+    if any(phrase in text_lower for phrase in _AUTHOR_JUNK_PHRASES):
+        return None
+
+    return text
+
+
+_AUTHOR_INLINE_TAGS = frozenset({"a", "span", "cite", "em", "strong", "address"})
+_AUTHOR_BLOCK_TAGS = frozenset({"p", "li", "td", "h3", "h4", "h5", "h6"})
+
+
+def _find_author_element(soup: BeautifulSoup):
+    """Find the most specific DOM element that likely contains an author name."""
+    candidates = soup.find_all(lambda tag: _tag_has_marker(tag, ("author", "byline")))
+
+    best = None
+    best_score = -1
+    for tag in candidates:
+        text = _normalize_whitespace(tag.get_text(" ", strip=True))
+        if not text:
+            continue
+
+        score = 0
+        word_count = len(text.split())
+
+        if word_count <= 8:
+            score += 10
+        elif word_count <= 15:
+            score += 3
+        else:
+            score -= 5
+
+        if tag.name in _AUTHOR_INLINE_TAGS:
+            score += 5
+        elif tag.name in _AUTHOR_BLOCK_TAGS:
+            score += 2
+
+        if "author" in _flatten_attr_value(tag.get("itemprop")).lower():
+            score += 8
+        if "author" in _flatten_attr_value(tag.get("role")).lower():
+            score += 4
+
+        if score > best_score:
+            best_score = score
+            best = tag
+
+    return best
+
+
 def _extract_keywords_from_json_ld(json_ld: dict | None) -> list[str]:
     if not json_ld:
         return []
@@ -1082,16 +1188,22 @@ def extract_date(soup: BeautifulSoup) -> str | None:
 
 
 def extract_author(soup: BeautifulSoup) -> str | None:
-    author = _get_meta_content(soup, names=("author",))
+    # Tier 1: meta name="author"
+    author = _validate_author(_truncate(_get_meta_content(soup, names=("author",)), 150))
     if author:
-        return _truncate(author, 150)
+        return author
 
-    article_author = _get_meta_content(
-        soup, names=("article:author",), properties=("article:author",)
+    # Tier 2: meta article:author (may be a URL on some sites)
+    article_author = _validate_author(
+        _truncate(
+            _get_meta_content(soup, names=("article:author",), properties=("article:author",)),
+            150,
+        )
     )
     if article_author:
-        return _truncate(article_author, 150)
+        return article_author
 
+    # Tier 3: citation_author (academic)
     citation_authors = []
     for meta in soup.find_all("meta"):
         if str(meta.get("name", "")).lower() == "citation_author":
@@ -1099,14 +1211,19 @@ def extract_author(soup: BeautifulSoup) -> str | None:
             if content:
                 citation_authors.append(content)
     if citation_authors:
-        return _truncate(", ".join(citation_authors), 150)
+        result = _validate_author(_truncate(", ".join(citation_authors), 150))
+        if result:
+            return result
 
-    candidate = soup.find(lambda tag: _tag_has_marker(tag, ("author", "byline")))
+    # Tier 4: DOM search (scored, prefers specific/small elements)
+    candidate = _find_author_element(soup)
     if candidate:
         text = _normalize_whitespace(candidate.get_text(" ", strip=True))
         if text:
             text = re.sub(r"^(by|author)\s*[:\-]?\s+", "", text, flags=re.IGNORECASE)
-            return _truncate(text, 150)
+            result = _validate_author(_truncate(text, 150))
+            if result:
+                return result
 
     return None
 
@@ -1395,7 +1512,7 @@ def _extract_page_fields(html: str, label: str, domain_info: dict) -> dict:
         if not date and json_ld.get("datePublished"):
             date = _extract_year(str(json_ld["datePublished"]))
         if not author and json_ld.get("author"):
-            author = _normalize_whitespace(str(json_ld["author"]))
+            author = _validate_author(_coerce_json_ld_name(json_ld["author"]))
         if not keywords:
             keywords = _extract_keywords_from_json_ld(json_ld)
         if json_ld.get("isAccessibleForFree") is False:
