@@ -7581,3 +7581,296 @@ For more informati
           reason   : The source mentions that cancer can start in various parts of the body but does not specifically address how it spreads or metastasizes, which is central to the claim.
           terms    : (none)
 19:04:18 [INFO] ────────────────────────────────────────────────────────────
+19:10:37 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+19:11:03 [INFO] ────────────────────────────────────────────────────────────
+19:11:03 [INFO] Extract request: 3 source(s)  |  LLM: on
+19:11:03 [INFO] Prompt: why is lebron the goat?
+19:11:03 [INFO]   [1] https://www.sportingnews.com/ca/nba/los-angeles-lakers/news/lebron-james-goat-stats-accolades-michael-jordan-debate/2c1a89fd8c8505213c44c4dc?utm_source=chatgpt.com  |  label: Sporting News
+19:11:03 [INFO]   [2] https://thequickreport.com/entertainment/sports/20-reasons-lebron-james-goat/?utm_source=chatgpt.com  |  label: The Quick Report
+19:11:03 [INFO]   [3] https://vocal.media/proof/chasing-greatness-the-never-ending-nba-goat-debate?utm_source=chatgpt.com  |  label: Vocal
+19:11:03 [INFO] HTTP Request: GET https://www.sportingnews.com/ca/nba/los-angeles-lakers/news/lebron-james-goat-stats-accolades-michael-jordan-debate/2c1a89fd8c8505213c44c4dc?utm_source=chatgpt.com "HTTP/2 200 OK"
+19:11:04 [INFO]   SCRAPED OK   sportingnews.com                          status=200  words=1310  method=beautifulsoup  note=ok
+19:11:06 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+19:11:06 [INFO] HTTP Request: GET https://vocal.media/proof/chasing-greatness-the-never-ending-nba-goat-debate?utm_source=chatgpt.com "HTTP/2 200 OK"
+19:11:06 [INFO]   SCRAPED OK   vocal.media                               status=200  words=1000  method=beautifulsoup  note=ok
+19:11:06 [INFO] HTTP Request: GET https://thequickreport.com/entertainment/sports/20-reasons-lebron-james-goat/?utm_source=chatgpt.com "HTTP/2 200 OK"
+19:11:06 [INFO]   SCRAPED OK   thequickreport.com                        status=200  words=1240  method=beautifulsoup  note=ok
+19:11:06 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+19:11:08 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+19:11:08 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+19:11:08 [INFO] Scrape+Score done (5273ms): 3 live, 0 dead
+19:11:08 [INFO]   [1/3] EXTRACTED  https://www.sportingnews.com/ca/nba/los-angeles-lakers/news/lebron-james-goat-stats-accolades-michael-jordan-debate/2c1a89fd8c8505213c44c4dc?utm_source=chatgpt.com
+          title    : Why LeBron James is the NBA's GOAT: How legend's stats, accolades compare to Michael Jordan in debate | Sporting News Canada
+          date     : 2025
+          author   : Senior Content Producer
+          words    : 1310
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : Why LeBron James is the NBA's GOAT: How legend's stats, accolades compare to Michael Jordan in debate Gilbert McGregor • Add The Sporting News on Google The term "generational" is often used to describe the world's most talented individuals. The most accurate portrayal of generational talents may very well be the dynamic between LeBron James and Michael Jordan. Born just over 20 years apart, Jordan and James came within months of overlapping in the NBA. Jordan played his final game in April 2003 and James was selected first overall in the NBA Draft two months later. For the better part of the last 40 seasons, one of Jordan or James has been the face of the league, rewriting the history books with unprecedented levels of excellence. As a result, the two are often mentioned in the conversation as the greatest players to ever play the game. 📲 Follow The Sporting News on WhatsApp Who is the greatest of all time? The Sporting News takes a look at the career stats and accolades of James and Jordan to find an answer to one of sports' age-old debates. NBA PLAYOFFS HQ: Live NBA scores | NBA playoff schedule | NBA playoff bracket Why LeBron James is the NBA's GOAT With 22 seasons in the books, James has turned in the greatest career in NBA history. An unprecedented run of longevity has seen James continue to perform at an All-NBA level for the entirety of his career, and he finishes his age-40 season as one of the league's best players . As a result, James is rewriting the NBA's record book with untouchable marks. After becoming the league's all-time leading scorer in 2023, James became the first player in NBA history to surpass the 40,000 career point mark during the 2023-24 season. In Year 22, James added another milestone with 50,000 combined points in the regular season and playoffs. James' 22nd NBA season tied the record previously set by Vince Carter and he has an outside shot of also playing in the most games in NBA history. James holds the record for most All-NBA selections and All-Star Game selections with 20 and stands to add to that tally in 2024-25. Perhaps the most impressive aspect of James' career is that he has somehow exceeded the unprecedented expectations placed upon him as a teenager. James entered the national spotlight as a 16-year-old and has spent the last 25 years thriving in it. James' list of accolades is highlighted by four NBA titles and four NBA Finals MVP awards. While some may hold James' 4-6 Finals record against him, it says something that he has led three different franchises to the NBA Finals a total of 10 times, including a run of eight consecutive Finals appearances with the Heat and Cavaliers from 2011 to 2018. While many other all-time greats bowed out earlier in the postseason, James-led teams have come within at least four wins of an NBA title six times. How could you penalize him for that? MORE: What LeBron James has said about NBA future in 2025-26 As for James' wins, some championships hold more weight than others. After winning back-to-back titles with the Heat in 2012 and 2013, James returned to Cleveland in 2014 and, after coming up short in Year 1, led the Cavs to one of the most impressive championships in NBA history. The 2016 Cavaliers are the first — and only — NBA team to overcome a 3-1 deficit in the NBA Finals, doing so against a Warriors team that won an NBA-record 73 games in the regular season. James' Herculean efforts in that series allowed his team to make history and end a 52-year playoff drought for the city of Cleveland, adding even more meaning for James, a native of Northeast Ohio. It's also worth mentioning that his next two Finals losses came to the Warriors, who improved on that 73-win team by replacing Harrison Barnes with Kevin Durant. James has come up short against some of the best teams ever assembled. That championship win in 2016 was James' magnum opus. Leading the Lakers to a championship in 2020 was yet another title that held extra meaning. In winning a championship during the NBA bubble in Orlando, James earned a seat at the table of Lakers lore and delivered the city of Los Angeles a title in a year when it had experienced unfathomable loss. Set aside the longevity, numbers and accolades for a moment, and James' GOAT case is rooted in a simple argument: there is no greater basketball player to have ever played the game. At 6-9 and 250 pounds, James is one of the most physically imposing players, blending his size with one-of-a-kind strength, athleticism and basketball IQ. His scoring and passing are both generational and at his peak, he is one of the stingiest and most versatile defenders to ever play the game. James checks each box of what a great basketball player does well and for the better part of his career, he did them at an all-time level. It quite literally does not get better than that. MORE: What's next for the Lakers after first-round playoff exit? LeBron James vs. Michael Jordan: Regular season stats James' longevity gives him the edge in total statistics but Jordan holds the edge in scoring average. To perfectly illustrate their dynamic, James is the league's all-time scoring leader while Jordan has the highest scoring average in league history. The following stats are up to date as of April 13, 2025. Stat James Jordan Games 1,562 1,072 Points 42,184 32,292 Points per game 27.0 30.1 Rebounds 11,731 6,672 Rebounds per game 7.5 6.2 Assists 11,584 5,633 Assists per game 7.4 5.3 Steals 2,345 2,514 Steals per game 1.5 2.3 Blocks 1,150 893 Blocks per game 0.7 0.8 FG% 50.6 49.7 3P% 34.9 32.7 FT% 73.7 83.5 LeBron James vs. Michael Jordan: Playoff stats Similar to regular season totals, James has a clear advantage in total playoff stats because of his 17 postseason trips and 10 NBA Finals runs. Jordan, who played in 108 fewer playoff games, is also the all-time leader in playoff points per game. The following stats are up to date as of May 1, 2025. Stat James Jordan Games 292 179 Points 8,289 5,987 Points per game 28.4 33.4 Rebounds 2,628 1,152 Rebounds per game 9.0 6.4 Assists 2,095 1,022 Assists per game 7.2 5.7 Steals 493 376 Steals per game 1.7 2.1 Blocks 284 158 Blocks per game 1.0 0.9 FG% 49.6 48.7 3P% 33.3 33.2 FT% 74.1 82.8 LeBron James vs. Michael Jordan career accolades Longevity again shows with the career accolades, as James holds an advantage in All-NBA and All-Star Game selections. Jordan, however, has won two more championships and one more league MVP award. Adding to Jordan's lore are his 10 scoring titles to James' one, but James is on a short list of players to win a scoring title and an assists title. The following accolades are up to date as of May 1, 2025. Accolade James Jordan Championships 4 6 MVPs 4 5 Defensive Player of the Year 0 1 Finals MVPs 4 6 All-NBA (First Team) 20 (13) 11 (10) All-Defense (First Team) 6 (5) 9 (9) All-Star 21 14 Scoring titles 1 10 Assists titles 1 0 Steals titles 0 3 ENJOYED THIS STORY? Add Sporting News as a preferred source on Google to see more of our reporting Add as preferred source on Google Senior Content Producer Gilbert McGregor Gilbert McGregor first joined The Sporting News in 2018 as a content producer for Global editions of NBA.com. Before covering the game, McGregor played basketball collegiately at Wake Forest, graduating with a Communication degree in 2016. McGregor began covering the NBA during the 2017-18 season and has been on hand for a number of league events.
+19:11:08 [INFO]   [2/3] EXTRACTED  https://thequickreport.com/entertainment/sports/20-reasons-lebron-james-goat/?utm_source=chatgpt.com
+          title    : 20 Reasons Why LeBron James is the Undisputed GOAT
+          date     : 2025
+          author   : Steven Stiles
+          words    : 1240
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : LeBron James isn’t just a basketball superstar—he’s a global icon. From his early days as a high school phenom to becoming one of the greatest players in NBA history, his career is a masterclass in dominance, adaptability, and longevity. Whether it’s his record-breaking stats, championship runs, or impact off the court, LeBron has redefined what it means to be an athlete. Here, we break down 20 remarkable aspects of his career that showcase why his legacy goes far beyond the game. 20. Cultural Icon and Global Influence Deposit Photos LeBron’s impact extends far beyond basketball. With a net worth of $1.2 billion, he’s a cultural icon and philanthropist. His influence spans media, entertainment, and social justice initiatives. LeBron’s global appeal has made him a role model for athletes worldwide, inspiring the next generation to use their platforms for positive change. 19. Sustained Excellence Across Multiple Decades Deposit Photos LeBron James has maintained an elite level of play for over two decades, defying age and expectations. At 40, he continues to dominate, averaging over 25 points per game in his 22nd NBA season. His longevity and consistent performance have earned him a record-extending 21st All-Star selection, surpassing Kareem Abdul-Jabbar’s previous record of 19. 18. Ability to Adapt to Different Eras of Basketball Deposit Photos LeBron James has consistently evolved his game to stay dominant across multiple eras of basketball. From developing a reliable three-point shot to improving his post-up game, James has added new skills to his arsenal throughout his career. His adaptability has allowed him to remain an elite player for over two decades, outmaneuvering defenses and staying ahead of the game’s changing trends. 17. Olympic Success and International Impact Deposit Photos LeBron James has dominated on the international stage, winning three Olympic gold medals (2008, 2012, 2024) and a bronze (2004). His leadership and versatility have been crucial to Team USA’s success. In 2024, at age 39, James led in rebounds and assists, securing his legacy as an Olympic legend and global basketball ambassador. 16. All-Time Playoff Scoring Leader Deposit Photos LeBron James dominates the NBA playoffs, holding the record for most career playoff points with an astounding 8,162. He has surpassed legends like Michael Jordan and Kareem Abdul-Jabbar, showcasing his unparalleled consistency and ability to elevate his game when it matters most. James continues to extend this record with each postseason appearance. 15. Overcoming the 3-1 Deficit in 2016 NBA Finals Deposit Photos LeBron James led the Cleveland Cavaliers to a historic comeback in the 2016 NBA Finals, overcoming a 3-1 series deficit against the 73-win Golden State Warriors. His exceptional performances, including a clutch block on Andre Iguodala in Game 7, secured Cleveland’s first NBA championship and ended the city’s 52-year title drought. 14. Impact Beyond Basketball Deposit Photos LeBron’s influence extends far beyond the court. His LeBron James Family Foundation has invested over $20 million in the I PROMISE School, providing education and support for at-risk youth in Akron. James has also been a vocal advocate for social justice, using his platform to address issues like racial inequality and voter suppression. 13. Physical Dominance and Athleticism Openverse LeBron James’ unparalleled combination of size, speed, and strength has revolutionized basketball. At 6’9″ and 250 pounds, he possesses the agility of a guard and the power of a center. His explosive first step, vertical leap, and court vision make him a nightmare for defenders. James’ physical prowess has allowed him to dominate multiple positions throughout his career. 12. Basketball IQ and Court Vision Deposit Photos LeBron’s exceptional basketball IQ and court vision set him apart. He possesses a photographic memory, allowing him to recall the positions of all players on the court during a game. This ability, combined with his encyclopedic knowledge of opponents’ tendencies, enables James to make split-second decisions and anticipate plays before they unfold, giving his team a significant advantage. 11. Clutch Performances in High-Pressure Situations Deposit Photos LeBron James has consistently delivered in crucial moments throughout his career. From his game-winning buzzer-beater against the Bulls in the 2015 playoffs to his iconic block in Game 7 of the 2016 NBA Finals, James has proven his ability to elevate his game when it matters most. His clutch performances have solidified his reputation as a player who thrives under pressure. 10. Leadership and Team Elevation Deposit Photos LeBron’s leadership skills have consistently elevated his teams to championship contention. He’s led three different franchises to NBA titles, adapting his approach to each team’s needs. His ability to mentor younger players, make teammates better, and maintain a positive locker room atmosphere has been crucial to his success. 9. Unprecedented Statistical Achievements Deposit Photos LeBron James is the only player in NBA history to record at least 30,000 points, 10,000 rebounds, and 10,000 assists. He’s also the sole player to rank in the top 5 all-time in points, top 10 in assists, and top 10 in steals, showcasing his unparalleled versatility and longevity. 8. Most All-NBA Team Selections (20) Deposit Photos LeBron James has secured an unprecedented 20 All-NBA Team selections, surpassing legends like Kareem Abdul-Jabbar, Kobe Bryant, and Tim Duncan. His 13 First Team nods further cement his dominance. This record showcases James’ consistent excellence and impact across two decades in the league, solidifying his GOAT status. 7. Record 21 All-Star Selections Deposit Photos LeBron James has been selected for an unprecedented 21 NBA All-Star Games, surpassing Kareem Abdul-Jabbar’s previous record of 19. In January 2025, James extended his streak of consecutive All-Star selections to 21, a testament to his enduring excellence and popularity throughout his career. 6. Four NBA Finals MVP Awards Deposit Photos LeBron James has secured the prestigious NBA Finals MVP award four times, showcasing his dominance on basketball’s biggest stage. He earned this honor with three different teams: twice with the Miami Heat (2012, 2013), once with the Cleveland Cavaliers (2016), and once with the Los Angeles Lakers (2020). This versatility across franchises further cements his legacy as an all-time great. 5. Four NBA MVP Awards Deposit Photos LeBron James has secured the NBA Most Valuable Player award four times in his illustrious career. He won the coveted title in 2009, 2010, 2012, and 2013, showcasing his dominance during his prime years. This impressive feat places him among the elite group of players with multiple MVP honors, further solidifying his status as one of the greatest to ever play the game. 4. Longevity and Consistency Deposit Photos LeBron James has redefined NBA longevity, entering his 21st season at age 39 while still performing at an elite level. He’s averaged at least 25 points per game for 20 consecutive seasons, setting numerous records along the way. James’ durability and consistent excellence have allowed him to surpass 40,000 career points, a testament to his enduring impact on the game. Read More: The Best NBA Draft Picks of All Time 3. Unmatched Versatility on the Court Deposit Photos LeBron James’ ability to play all five positions at an elite level sets him apart. His unique combination of size, strength, and skill allows him to dominate as a scorer, playmaker, and defender. This versatility enables coaches to deploy him strategically, making him an invaluable asset in any lineup or game situation. Read More: The Winning Playbook: 10 Sports Stars Who Excelled in Business Ventures 2. Four NBA Championships with Three Different Teams Deposit Photos LeBron James has achieved the remarkable feat of winning NBA championships with three differe
+19:11:08 [INFO]   [3/3] EXTRACTED  https://vocal.media/proof/chasing-greatness-the-never-ending-nba-goat-debate?utm_source=chatgpt.com
+          title    : Chasing Greatness: The Never-Ending NBA GOAT Debate
+          date     : (none)
+          author   : (none)
+          words    : 1000
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : Chasing Greatness: The Never-Ending NBA GOAT Debate Stats, Rings, and Legacy – Who Truly Deserves the Crown? By Jason “Jay” Benskin Published about a year ago • 3 min read 1 Photo Credit: https://hoopshype.com The debate over the Greatest of All Time (GOAT) in the NBA is as thrilling as the games themselves. Fans argue with passion, analysts debate with stats, and players throw their hats in the ring with their own resumes. Let’s break down the cases for the main contenders, supported by their stats, accolades, and intangible legacies. --- Michael Jordan: The Quintessential GOAT Stats & Achievements - 6-time NBA Champion (6-0 in the Finals). - 10 scoring titles (most in NBA history). - 5-time MVP, 14-time All-Star, and 10-time All-NBA First Team. - Career averages: 30.1 PPG, 6.2 RPG, 5.3 APG. - Defensive accolades: 9-time All-Defensive First Team, 1988 Defensive Player of the Year. Argument: Jordan's dominance in the Finals (never losing a series) and his ability to elevate his team under the brightest lights define his legacy. He was unstoppable offensively and a lockdown defender. Critics of MJ’s GOAT status argue that his era had fewer superteams and less advanced analytics, but his iconic moments—like "The Shot" and the flu game—are etched in basketball lore. --- LeBron James: The Longevity GOAT Stats & Achievements: - 4-time NBA Champion, 10-time Finals participant. - 4-time MVP, 19-time All-Star, and 13-time All-NBA First Team. - All-time leading scorer in NBA history. - Career averages (as of 2024): 27.1 PPG, 7.5 RPG, 7.3 APG. Argument: LeBron is the most complete player in history, excelling in scoring, passing, and rebounding while defending multiple positions. His unmatched longevity and consistency—being elite for over two decades—set him apart. Critics argue that his 4-6 Finals record and frequent team changes tarnish his case. However, his adaptability and leadership on and off the court solidify his GOAT credentials. --- Kareem Abdul-Jabbar: The Legacy GOAT Stats & Achievements: - 6-time NBA Champion, 6-time MVP (most in NBA history). - 19-time All-Star, 15-time All-NBA Team. - Scoring leader for 39 years until LeBron surpassed him. - Career averages: 24.6 PPG, 11.2 RPG, 3.6 APG. Argument: Kareem’s dominance spanned two decades, and his skyhook remains the most unstoppable shot ever. Critics argue that he played alongside other all-time greats like Magic Johnson, but his statistical dominance and leadership in multiple eras make him an undeniable contender. --- Kobe Bryant: The Mamba Mentality GOAT Stats & Achievements: - 5-time NBA Champion. - 18-time All-Star, 12-time All-Defensive Team. - Career averages: 25.0 PPG, 5.2 RPG, 4.7 APG. Argument: Kobe’s relentless work ethic and clutch performances earned him legendary status. His critics point to his lower efficiency (career FG% of 44.7%) and only one MVP award. However, his influence and killer instinct have made him a global icon, cementing his place in the GOAT conversation. Wilt Chamberlain: The Statistical GOAT Stats & Achievements: - 2-time NBA Champion, 4-time MVP. - Averaged 50.4 PPG in a season (!). - Career averages: 30.1 PPG, 22.9 RPG, 4.4 APG. Argument: Wilt’s stats are otherworldly, including his 100-point game. Critics argue that he played in an era with less competition and smaller players, but his impact on the game was transformative, from rule changes to scoring records. --- The Verdict The GOAT debate ultimately depends on what you value most: - Dominance in Finals: MJ. - Versatility and Longevity: LeBron. - Historical Impact and Scoring Innovation: Kareem. - Clutch Gene and Legacy: Kobe. - Raw Stats: Wilt. Who is the GOAT? The answer lies in the eye of the beholder. Do you prioritize rings, stats, cultural impact, or all of the above? Let the debate continue! 🏀 history 1 About the Creator Jason “Jay” Benskin Crafting authored passion in fiction, horror fiction, and poems. Creationati L.C. ♥ Gina ♥ Mike ♥ Heather ♥ Caroline ♥ Dharrsheena ♥ Cathy ♥ Daphsam ♥ Misty ♥ JBaz ♥ D. A. Ratliff ♥ Sam Harty ♥ Gerard ♥ Mark ♥ Melissa ♥ M Combs ♥ Colleen Reader insights Be the first to share your insights about this piece. How does it work? Add your insights Comments ( 1 ) Sign in to comment Mark Graham about a year ago True these are all great and famous BB players, but actually I am not a true basketball fan. Good work on the story though. 1 reply Keep reading More stories from Jason “Jay” Benskin and writers in Proof and other communities. The Void no—floating in fog; no thought, not even that but the void. -- An internal buzzing, a hum deep in my bones, regrettable, unfathomable low frequencies. J“B By Jason “Jay” Benskin Exclusive • 2 years ago Actor Lukas Gage joined Jameson Irish Whiskey and KidSuper designer Colm Dillane to Celebrate St. Patrick’s Season for a pre-holiday kick off party in Brooklyn The collaboration between KidSuper and Jameson Irish Whiskey shows how the holiday is moving beyond bars and into fashion driven culture spaces. by NWO Sparrow NS By NWO SPARROW 2 days ago in Proof Cryptocurrency Explained: Pros and Cons of Investing – A Guide by Topwaynews Cryptocurrency has become one of the most talked-about financial innovations of the modern era. Over the past decade, digital currencies have transformed the way people think about money, online transactions, and investments. From individual investors to major financial institutions, interest in cryptocurrency continues to grow worldwide. However, before investing in digital assets, it is important to understand how cryptocurrencies work and what benefits and risks they carry. This guide by Topwaynews explains the basics of cryptocurrency along with its major advantages and disadvantages for investors. PSW By Pink salt wall 5 days ago in Proof Lycan Lore As the students of my 10am mythology class take their seats, I decide to steer the day's curriculum away from Greek and dive into a Western European discourse on the misaligned beliefs of the Werewolf. A tale of truth or fiction. No one really knows. LW By Lamar Wiggins 4 days ago in Fiction
+19:11:08 [INFO] Scoring done (5274ms total)
+19:11:08 [INFO]   reliable      score=75   sportingnews.com                          The source discusses LeBron James' achievements, including b
+19:11:08 [INFO]   reliable      score=75   thequickreport.com                        The source discusses LeBron James's sustained excellence and
+19:11:08 [INFO]   caution       score=59   vocal.media                               The source discusses LeBron James' career averages and his F
+19:11:08 [INFO]   [1/3] SCORED    sportingnews.com  →  reliable (75/100)
+          domain   : unknown  30/100
+          recency  : 100/100  (date: 2025)
+          author   : 80/100  (author: Senior Content Producer)
+          relevance: 90/100  alignment: 90/100
+          reason   : The source discusses LeBron James' achievements, including becoming the all-time leading scorer in 2023 and surpassing 40,000 career points, which directly supports the claim.
+          terms    : (none)
+19:11:08 [INFO]   [2/3] SCORED    thequickreport.com  →  reliable (75/100)
+          domain   : unknown  30/100
+          recency  : 100/100  (date: 2025)
+          author   : 80/100  (author: Steven Stiles)
+          relevance: 90/100  alignment: 90/100
+          reason   : The source discusses LeBron James's sustained excellence and elite performance late in his career, specifically noting his average of over 25 points per game in his 22nd NBA season, which directly supports the claim.
+          terms    : (none)
+19:11:08 [INFO]   [3/3] SCORED    vocal.media  →  caution (59/100)
+          domain   : unknown  30/100
+          recency  : 40/100  (date: none)
+          author   : 40/100  (author: none)
+          relevance: 90/100  alignment: 80/100
+          reason   : The source discusses LeBron James' career averages and his Finals appearances, stating he is a 10-time Finals participant with averages close to the claim (27.1 PPG, 7.5 RPG, 7.3 APG).
+          terms    : (none)
+19:11:08 [INFO] ────────────────────────────────────────────────────────────
+19:11:15 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+19:14:05 [INFO] ────────────────────────────────────────────────────────────
+19:14:05 [INFO] Extract request: 2 source(s)  |  LLM: on
+19:14:05 [INFO] Prompt: why is cancer bad
+19:14:05 [INFO]   [1] https://my.clevelandclinic.org/health/diseases/12194-cancer?utm_source=chatgpt.com  |  label: Cleveland Clinic
++1
+19:14:05 [INFO]   [2] https://www.mayoclinic.org/diseases-conditions/cancer/symptoms-causes/syc-20370588?utm_source=chatgpt.com  |  label: Mayo Clinic
+19:14:05 [INFO]   CACHE HIT    my.clevelandclinic.org                  
+19:14:05 [INFO]   PLAYWRIGHT   my.clevelandclinic.org                    words=0 → trying JS render
+19:14:05 [INFO]   CACHE HIT    mayoclinic.org                          
+19:14:05 [INFO]   PLAYWRIGHT   mayoclinic.org                            words=0 → trying JS render
+19:14:08 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+19:14:08 [INFO]   CONSENT_DOM  removed 6 consent element(s) via JS
+19:14:08 [INFO]   COOKIE_POPUP dismissed
+19:14:10 [INFO]   CONSENT_DOM  removed 1 consent element(s) via JS
+19:14:11 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+19:14:11 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+19:14:11 [INFO] Scrape+Score done (6403ms): 2 live, 0 dead
+19:14:11 [INFO]   [1/2] EXTRACTED  https://my.clevelandclinic.org/health/diseases/12194-cancer?utm_source=chatgpt.com
+          title    : Cancer: What It Is, How You Can Treat It & Outlook
+          date     : (none)
+          author   : (none)
+          words    : 0
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : (none)
+19:14:11 [INFO]   [2/2] EXTRACTED  https://www.mayoclinic.org/diseases-conditions/cancer/symptoms-causes/syc-20370588?utm_source=chatgpt.com
+          title    : Cancer - Symptoms and causes
+          date     : 2024
+          author   : (none)
+          words    : 1
+          paywalled: no
+          method   : playwright  note=partial_content
+          body     : Feedback
+19:14:11 [INFO] Scoring done (6403ms total)
+19:14:11 [INFO]   reliable      score=80   mayoclinic.org                            The source discusses the impact of tumors on vital organs, w
+19:14:11 [INFO]   skeptical     score=28   my.clevelandclinic.org                    The source mentions that cancer can start in various parts o
+19:14:11 [INFO]   [1/2] SCORED    mayoclinic.org  →  reliable (80/100)
+          domain   : official_body  95/100
+          recency  : 90/100  (date: 2024)
+          author   : 40/100  (author: none)
+          relevance: 90/100  alignment: 70/100
+          reason   : The source discusses the impact of tumors on vital organs, which directly relates to the claim about tumors invading or pressing on organs like the lungs, brain, or liver. It supports the idea that this can hinder organ function.
+          terms    : (none)
+19:14:11 [INFO]   [2/2] SCORED    my.clevelandclinic.org  →  skeptical (28/100)
+          domain   : unknown  30/100
+          recency  : 40/100  (date: none)
+          author   : 40/100  (author: none)
+          relevance: 40/100  alignment: 10/100
+          reason   : The source mentions that cancer can start in various parts of the body but does not address the claim about metastasis through blood or lymph systems. It does not provide evidence supporting the claim.
+          terms    : (none)
+19:14:11 [INFO] ────────────────────────────────────────────────────────────
+19:17:04 [INFO] ────────────────────────────────────────────────────────────
+19:17:04 [INFO] Extract request: 2 source(s)  |  LLM: on
+19:17:04 [INFO] Prompt: why is cancer bad
+19:17:04 [INFO]   [1] https://my.clevelandclinic.org/health/diseases/12194-cancer?utm_source=chatgpt.com  |  label: Cleveland Clinic
++1
+19:17:04 [INFO]   [2] https://www.mayoclinic.org/diseases-conditions/cancer/symptoms-causes/syc-20370588?utm_source=chatgpt.com  |  label: Mayo Clinic
+19:17:04 [INFO]   CACHE HIT    my.clevelandclinic.org                  
+19:17:04 [INFO]   PLAYWRIGHT   my.clevelandclinic.org                    words=0 → trying JS render
+19:17:04 [INFO]   CACHE HIT    mayoclinic.org                          
+19:17:04 [INFO]   PLAYWRIGHT   mayoclinic.org                            words=0 → trying JS render
+19:17:06 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+19:17:07 [INFO]   COOKIE_POPUP dismissed
+19:17:07 [INFO]   CONSENT_DOM  removed 6 consent element(s) via JS
+19:17:08 [INFO]   CONSENT_DOM  removed 1 consent element(s) via JS
+19:17:09 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+19:17:10 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+19:17:10 [INFO] Scrape+Score done (6026ms): 2 live, 0 dead
+19:17:10 [INFO]   [1/2] EXTRACTED  https://my.clevelandclinic.org/health/diseases/12194-cancer?utm_source=chatgpt.com
+          title    : Cancer: What It Is, How You Can Treat It & Outlook
+          date     : (none)
+          author   : (none)
+          words    : 0
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : (none)
+19:17:10 [INFO]   [2/2] EXTRACTED  https://www.mayoclinic.org/diseases-conditions/cancer/symptoms-causes/syc-20370588?utm_source=chatgpt.com
+          title    : Cancer - Symptoms and causes
+          date     : 2024
+          author   : (none)
+          words    : 1
+          paywalled: no
+          method   : playwright  note=partial_content
+          body     : Feedback
+19:17:10 [INFO] Scoring done (6026ms total)
+19:17:10 [INFO]   reliable      score=80   mayoclinic.org                            The source discusses the impact of cancer on the body, inclu
+19:17:10 [INFO]   skeptical     score=28   my.clevelandclinic.org                    The source mentions cancer starting in various parts of the 
+19:17:10 [INFO]   [1/2] SCORED    mayoclinic.org  →  reliable (80/100)
+          domain   : official_body  95/100
+          recency  : 90/100  (date: 2024)
+          author   : 40/100  (author: none)
+          relevance: 90/100  alignment: 70/100
+          reason   : The source discusses the impact of cancer on the body, including how cancer cells can consume nutrients needed by normal cells, which aligns with the claim about weight loss, fatigue, and weakness.
+          terms    : (none)
+19:17:10 [INFO]   [2/2] SCORED    my.clevelandclinic.org  →  skeptical (28/100)
+          domain   : unknown  30/100
+          recency  : 40/100  (date: none)
+          author   : 40/100  (author: none)
+          relevance: 40/100  alignment: 10/100
+          reason   : The source mentions cancer starting in various parts of the body but does not address the metastasis process or the claim about spreading through blood or lymph systems. It primarily focuses on the importance of early treatment.
+          terms    : (none)
+19:17:10 [INFO] ────────────────────────────────────────────────────────────
+19:20:52 [INFO] ────────────────────────────────────────────────────────────
+19:20:52 [INFO] Extract request: 4 source(s)  |  LLM: on
+19:20:52 [INFO] Prompt: why is cancer bad
+19:20:52 [INFO]   [1] https://www.cancer.gov/about-cancer/understanding/what-is-cancer?utm_source=chatgpt.com  |  label: Cancer.gov
++1
+19:20:52 [INFO]   [2] https://my.clevelandclinic.org/departments/cancer/patient-education/wellness-prevention/what-is-cancer?utm_source=chatgpt.com  |  label: Cleveland Clinic
+19:20:52 [INFO]   [3] https://my.clevelandclinic.org/health/diseases/12194-cancer?utm_source=chatgpt.com  |  label: Cleveland Clinic
+19:20:52 [INFO]   [4] https://www.mayoclinic.org/diseases-conditions/cancer/symptoms-causes/syc-20370588?utm_source=chatgpt.com  |  label: Mayo Clinic
+19:20:52 [INFO]   CACHE HIT    cancer.gov                              
+19:20:52 [INFO]   CACHE HIT    my.clevelandclinic.org                  
+19:20:52 [INFO]   CACHE HIT    my.clevelandclinic.org                  
+19:20:52 [INFO]   PLAYWRIGHT   my.clevelandclinic.org                    words=0 → trying JS render
+19:20:52 [INFO]   CACHE HIT    mayoclinic.org                          
+19:20:52 [INFO]   PLAYWRIGHT   mayoclinic.org                            words=0 → trying JS render
+19:20:54 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+19:20:54 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+19:20:54 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+19:20:55 [INFO]   COOKIE_POPUP dismissed
+19:20:55 [INFO]   CONSENT_DOM  removed 6 consent element(s) via JS
+19:20:56 [INFO]   CONSENT_DOM  removed 1 consent element(s) via JS
+19:20:57 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+19:20:58 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+19:20:58 [INFO] Scrape+Score done (6029ms): 4 live, 0 dead
+19:20:58 [INFO]   [1/4] EXTRACTED  https://www.cancer.gov/about-cancer/understanding/what-is-cancer?utm_source=chatgpt.com
+          title    : What Is Cancer?
+          date     : 2021
+          author   : (none)
+          words    : 1301
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : What Is Cancer? A dividing breast cancer cell. Credit: National Cancer Institute / Univ. of Pittsburgh Cancer Institute The Definition of Cancer Cancer is a disease in which some of the body’s cells grow uncontrollably and spread to other parts of the body. Cancer can start almost anywhere in the human body, which is made up of trillions of cells. Normally, human cells grow and multiply (through a process called cell division) to form new cells as the body needs them. When cells grow old or become damaged, they die, and new cells take their place. Sometimes this orderly process breaks down, and abnormal or damaged cells grow and multiply when they shouldn’t. These cells may form tumors, which are lumps of tissue. Tumors can be cancerous or not cancerous ( benign ). Cancerous tumors spread into, or invade, nearby tissues and can travel to distant places in the body to form new tumors (a process called metastasis ). Cancerous tumors may also be called malignant tumors. Many cancers form solid tumors, but cancers of the blood, such as leukemias , generally do not. Benign tumors do not spread into, or invade, nearby tissues. When removed, benign tumors usually don’t grow back, whereas cancerous tumors sometimes do. Benign tumors can sometimes be quite large, however. Some can cause serious symptoms or be life threatening, such as benign tumors in the brain. Differences between Cancer Cells and Normal Cells Get email updates from NCI on cancer health information, news, and other topics Cancer cells differ from normal cells in many ways. For instance, cancer cells: grow in the absence of signals telling them to grow. Normal cells only grow when they receive such signals. ignore signals that normally tell cells to stop dividing or to die (a process known as programmed cell death , or apoptosis ). invade into nearby areas and spread to other areas of the body. Normal cells stop growing when they encounter other cells, and most normal cells do not move around the body. tell blood vessels to grow toward tumors. These blood vessels supply tumors with oxygen and nutrients and remove waste products from tumors. hide from the immune system . The immune system normally eliminates damaged or abnormal cells. trick the immune system into helping cancer cells stay alive and grow. For instance, some cancer cells convince immune cells to protect the tumor instead of attacking it. accumulate multiple changes in their chromosomes , such as duplications and deletions of chromosome parts. Some cancer cells have double the normal number of chromosomes. rely on different kinds of nutrients than normal cells. In addition, some cancer cells make energy from nutrients in a different way than most normal cells. This lets cancer cells grow more quickly. Many times, cancer cells rely so heavily on these abnormal behaviors that they can’t survive without them. Researchers have taken advantage of this fact, developing therapies that target the abnormal features of cancer cells. For example, some cancer therapies prevent blood vessels from growing toward tumors , essentially starving the tumor of needed nutrients. Cancer is a disease caused when cells divide uncontrollably and spread into surrounding tissues. Enlarge Image Immune system cells can detect and attack cancer cells. But some cancer cells can avoid detection or thwart an attack. Some cancer treatments can help the immune system better detect and kill cancer cells. Enlarge Image How Does Cancer Develop? Cancer is a genetic disease—that is, it is caused by changes to genes that control the way our cells function, especially how they grow and divide. Genetic changes that cause cancer can happen because: of errors that occur as cells divide. of damage to DNA caused by harmful substances in the environment, such as the chemicals in tobacco smoke and ultraviolet rays from the sun. (Our Cancer Causes and Prevention section has more information.) they were inherited from our parents. The body normally eliminates cells with damaged DNA before they turn cancerous. But the body’s ability to do so goes down as we age. This is part of the reason why there is a higher risk of cancer later in life. Each person’s cancer has a unique combination of genetic changes. As the cancer continues to grow, additional changes will occur. Even within the same tumor, different cells may have different genetic changes. Cancer is caused by certain changes to genes, the basic physical units of inheritance. Genes are arranged in long strands of tightly packed DNA called chromosomes. Credit: © Terese Winslow Enlarge Image Cancer is caused by changes to DNA. Most cancer-causing DNA changes occur in sections of DNA called genes. These changes are also called genetic changes. Enlarge Image Genetic changes that cause cancer can be inherited or arise from certain environmental exposures. Genetic changes can also happen because of errors that occur as cells divide. Credit: National Cancer Institute Enlarge Image Most often, cancer-causing genetic changes accumulate slowly as a person ages, leading to a higher risk of cancer later in life. Enlarge Image Types of Genes that Cause Cancer A DNA change can cause genes involved in normal cell growth to become oncogenes. Unlike normal genes, oncogenes cannot be turned off, so they cause uncontrolled cell growth. Enlarge Image The genetic changes that contribute to cancer tend to affect three main types of genes— proto-oncogenes , tumor suppressor genes , and DNA repair genes. These changes are sometimes called “drivers” of cancer. Proto-oncogenes are involved in normal cell growth and division. However, when these genes are altered in certain ways or are more active than normal, they may become cancer-causing genes (or oncogenes), allowing cells to grow and survive when they should not. Tumor suppressor genes are also involved in controlling cell growth and division. Cells with certain alterations in tumor suppressor genes may divide in an uncontrolled manner. DNA repair genes are involved in fixing damaged DNA. Cells with mutations in these genes tend to develop additional mutations in other genes and changes in their chromosomes, such as duplications and deletions of chromosome parts. Together, these mutations may cause the cells to become cancerous. As scientists have learned more about the molecular changes that lead to cancer, they have found that certain mutations commonly occur in many types of cancer. Now there are many cancer treatments available that target gene mutations found in cancer . A few of these treatments can be used by anyone with a cancer that has the targeted mutation, no matter where the cancer started growing . In normal cells, tumor suppressor genes prevent cancer by slowing or stopping cell growth. DNA changes that inactivate tumor suppressor genes can lead to uncontrolled cell growth and cancer. Enlarge Image Each person’s cancer has a unique combination of genetic changes. Specific genetic changes may make a person’s cancer more or less likely to respond to certain treatments. Enlarge Image When Cancer Spreads In metastasis, cancer cells break away from where they first formed and form new tumors in other parts of the body. Credit: © Terese Winslow Enlarge Image A cancer that has spread from the place where it first formed to another place in the body is called metastatic cancer. The process by which cancer cells spread to other parts of the body is called metastasis. Metastatic cancer has the same name and the same type of cancer cells as the original, or primary, cancer. For example, breast cancer that forms a metastatic tumor in the lung is metastatic breast cancer, not lung cancer. Under a microscope, metastatic cancer cells generally look the same as cells of the original cancer. Moreover, metastatic cancer cells and cells of the original cancer usually have some molecular features in common, such as the presence of specific chromosome changes. In some cases, treatment may help prolong
+19:20:58 [INFO]   [2/4] EXTRACTED  https://my.clevelandclinic.org/departments/cancer/patient-education/wellness-prevention/what-is-cancer?utm_source=chatgpt.com
+          title    : What is Cancer? | Cleveland Clinic
+          date     : (none)
+          author   : (none)
+          words    : 1206
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : Cancer can take on many forms and affect patients in a lot of different ways. It can be a difficult thing to understand for patients and family. We've compiled this cancer information to help you get a better understanding of what cancer is, how it develops, and how it can be treated. Arming yourself with the proper cancer information can help you understand, prepare for, and cope with cancer. Cancer Information: What Is Cancer? Put simply, cancer is the abnormal growth of cells. Cancers arise from an organ or body structure and are composed of tiny cells that have lost the ability to stop growing. This growing structure then sticks out from that organ or body structure until it reaches a size large enough to be noticed by a patient or physician. Occasionally, cancer may be detected "incidentally" by a laboratory test or X-ray - that is, the test or X-ray may have been ordered for purposes of routine screening or for an entirely different reason; in such a case, the cancer gets noticed almost by accident. At this point, it may be referred to as a "mass," a "growth," a "tumor," a "nodule," a "spot," a "lump," a "lesion," or a "malignancy." In general, the cancer must reach a size of one centimeter (that is, between one-third and one-half of an inch), or be comprised of one million cells, before it is detected. Exceptions to this general rule include cancers of the blood and bone marrow - called lymphomas and leukemias - which frequently do not produce a "mass," but will be evident on laboratory tests; these cancers still require more than a million cells to be present before they are detected. Lymphomas and leukemias are examples of "liquid tumors" - or cancers present in body fluids (the blood and bone marrow), and are detectable by blood laboratory tests. "Solid tumors," including cancers of the lung, breast, prostate, colon and rectum, bladder, are not present in large enough numbers in body fluids to be detected with a blood test. However, they may release chemicals that are detectable in body fluids. (A person with prostate cancer, for example, may have an elevated level of Prostate-specific Antigen, or PSA, in the blood stream). Cancer Information: Where In the Body Can Cancer Develop? Cancer can occur anywhere in the body. Any area of the body that you can name can be the target area for a cancer. Some cancers even arise in parts of the body that only contained structures when that person was just an embryo -- only weeks after conception! Cancer cells - those abnormal cells that have lost the ability to stop growing - arise from cells that used to be normal components of organs and tissues. What causes cells to become cancerous? Cells grow abnormally because of environmental factors (such as cigarette smoking or radiation exposure), dumb luck, and as yet unexplained causes. And "just dumb luck" explains the majority of cancers. Cancer Information: What Makes Cancerous Cells Stop Growing? Cancer cells continue to grow unless one of four things occurs: 1) The cancerous mass is removed by a surgeon; 2) Chemotherapy or another type of cancer-specific medication, such as hormonal therapy, is given to the person with cancer; 3) A person with cancer receives radiation therapy; or 4) The cancer cells shrink and disappear on their own. This last event, while extremely rare, can occur with some melanomas (a type of skin cancer) or some kidney cancers. Why Not Just Let the Cancer Grow? In some cases, this may be the right thing to do. Since some cancers grow very slowly, exposing a person with a slowly growing tumor to either surgery or chemotherapy may make him/her very sick without doing much to improve that person's survival. Older adults in particular are more prone to experience the side effects of therapy; if those side effects outweigh the potential benefit of therapy or the potential harm of living with cancer, then the proposed therapy may not really be of benefit. This is where the notion of "quality of life" becomes important. Alternatively, a person may be ideologically opposed to therapy; for that individual, letting the cancer grow might be the right thing to do. In other cases, letting the cancer grow may not be the right thing to do. Unfortunately, many cancer cells do not respect the boundaries of other organs or body structures. A growing cancer might either press on another organ and prevent that organ's ability to function normally, or it might actually invade another organ, and prevent that organ's ability to function normally. At these times, a situation may be created in which bleeding or an infection might occur. A lung cancer, for example, might press on the esophagus (the tube that carries food from the mouth to the stomach) and block the transit of food. A person with this cancer might describe a sensation of "…food getting caught in my throat - I just can't get it down." Alternatively, if the cancer invaded a blood vessel in the lungs, bleeding would occur, and a person might describe episodes of "coughing up blood." Cancer Information: Why Does Having Cancer Make a Person Feel Sick? Some types of cancer release chemicals that make a person feel ill. These chemicals, called "cytokines," may cause fevers, chills, sweats, fatigue, anorexia (the loss of appetite), or even nausea and vomiting. These are the same chemicals released into the bloodstream when a person has the flu; this explains why the symptoms of flu and of cancer often are similar. One of these cytokines, called "tumor necrosis factor" or "TNF," used to be called "cachexin" because its release from cancer cells was associated with cachexia, or wasting. These symptoms are, in fact, the ones that often bring a person with cancer to a doctor's attention in the first place. As a cancer continues to grow, these chemicals continue to be released. Treating the cancer should alleviate these symptoms. Is Cancer Curable? The short answer to this question is "Yes." In fact, all cancers are curable if they are caught early enough. That is the justification for screening tests, (such as mammograms, colonoscopies, and prostate exams). When cancers are caught early, they tend to be smaller; they are thus either easier to remove surgically, or more likely to shrink in response to chemotherapy or radiation therapy. Cancers not caught "early enough" (when they are no longer small in size or few in number) may be curable, and almost certainly are treatable. Even advanced cancers that have spread to different parts of the body are usually treatable. More often, they are thought of as "chronic diseases," meaning they are diseases a person will live with over a long period of time. While a given therapy may not be able to cure the disease, it may be able to extend a person's life until a more promising, and potentially curative, therapy becomes available. Where Can I Get More Cancer Information? This website is a remarkable resource. The Taussig homepage provides a gateway to a lot of useful cancer information. Also, our cancer information and answer line is available by calling 1.866.223.8100 Monday through Friday from 8:00 A.M to 4:30 P.M.
+19:20:58 [INFO]   [3/4] EXTRACTED  https://my.clevelandclinic.org/health/diseases/12194-cancer?utm_source=chatgpt.com
+          title    : Cancer: What It Is, How You Can Treat It & Outlook
+          date     : (none)
+          author   : (none)
+          words    : 0
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : (none)
+19:20:58 [INFO]   [4/4] EXTRACTED  https://www.mayoclinic.org/diseases-conditions/cancer/symptoms-causes/syc-20370588?utm_source=chatgpt.com
+          title    : Cancer - Symptoms and causes
+          date     : 2024
+          author   : (none)
+          words    : 1
+          paywalled: no
+          method   : playwright  note=partial_content
+          body     : Feedback
+19:20:58 [INFO] Scoring done (6029ms total)
+19:20:58 [INFO]   reliable      score=84   cancer.gov                                The source provides a detailed explanation of cancer, specif
+19:20:58 [INFO]   reliable      score=83   mayoclinic.org                            The source discusses how cancer cells can consume nutrients 
+19:20:58 [INFO]   caution       score=52   my.clevelandclinic.org                    The source discusses cancer as an abnormal growth of cells a
+19:20:58 [INFO]   skeptical     score=28   my.clevelandclinic.org                    The source mentions that cancer can start in various parts o
+19:20:58 [INFO]   [1/4] SCORED    cancer.gov  →  reliable (84/100)
+          domain   : official_body  95/100
+          recency  : 75/100  (date: 2021)
+          author   : 40/100  (author: none)
+          relevance: 90/100  alignment: 90/100
+          reason   : The source provides a detailed explanation of cancer, specifically how cells grow uncontrollably, which directly supports the claim made about cancer cell behavior. It discusses the normal cell growth process and how it breaks down in cancer, aligning well with the claim.
+          terms    : (none)
+19:20:58 [INFO]   [2/4] SCORED    mayoclinic.org  →  reliable (83/100)
+          domain   : official_body  95/100
+          recency  : 90/100  (date: 2024)
+          author   : 40/100  (author: none)
+          relevance: 90/100  alignment: 80/100
+          reason   : The source discusses how cancer cells can consume nutrients and energy needed by normal cells, which aligns with the claim about the negative effects of cancer on the body, including weight loss and weakness.
+          terms    : (none)
+19:20:58 [INFO]   [3/4] SCORED    my.clevelandclinic.org  →  caution (52/100)
+          domain   : unknown  30/100
+          recency  : 40/100  (date: none)
+          author   : 40/100  (author: none)
+          relevance: 70/100  alignment: 70/100
+          reason   : The source discusses cancer as an abnormal growth of cells and mentions tumors, which aligns with the claim about cancer cells invading tissues and affecting organ function. However, it does not explicitly state the destructive nature of cancer cells on healthy cells.
+          terms    : (none)
+19:20:58 [INFO]   [4/4] SCORED    my.clevelandclinic.org  →  skeptical (28/100)
+          domain   : unknown  30/100
+          recency  : 40/100  (date: none)
+          author   : 40/100  (author: none)
+          relevance: 40/100  alignment: 10/100
+          reason   : The source mentions that cancer can start in various parts of the body but does not address the claim about metastasis through blood or lymph systems. It primarily focuses on the importance of early treatment.
+          terms    : (none)
+19:20:58 [INFO] ────────────────────────────────────────────────────────────
+19:31:44 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+19:31:45 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+19:32:04 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+19:32:04 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+19:35:59 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+19:36:08 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+19:36:08 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+19:36:08 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+19:36:10 [INFO] ────────────────────────────────────────────────────────────
+19:36:10 [INFO] Extract-stream request: 3 source(s)  |  LLM: on
+19:36:10 [INFO] Prompt: why is cancer bad
+19:36:10 [INFO]   [1] https://www.cancer.gov/about-cancer/understanding/what-is-cancer?utm_source=chatgpt.com  |  label: Cancer.gov
++1
+19:36:10 [INFO]   [2] https://my.clevelandclinic.org/health/diseases/12194-cancer?utm_source=chatgpt.com  |  label: Cleveland Clinic
+19:36:10 [INFO]   [3] https://www.mayoclinic.org/diseases-conditions/cancer/symptoms-causes/syc-20370588?utm_source=chatgpt.com  |  label: Mayo Clinic
+19:36:10 [INFO] HTTP Request: GET https://www.mayoclinic.org/diseases-conditions/cancer/symptoms-causes/syc-20370588?utm_source=chatgpt.com "HTTP/2 200 OK"
+19:36:10 [INFO] HTTP Request: GET https://www.cancer.gov/about-cancer/understanding/what-is-cancer?utm_source=chatgpt.com "HTTP/2 200 OK"
+19:36:10 [INFO]   SCRAPED OK   cancer.gov                                status=200  words=1301  method=beautifulsoup  note=ok
+19:36:10 [INFO] HTTP Request: GET https://my.clevelandclinic.org/health/diseases/12194-cancer?utm_source=chatgpt.com "HTTP/2 200 OK"
+19:36:10 [INFO]   SCRAPED OK   my.clevelandclinic.org                    status=200  words=0  method=beautifulsoup  note=ok
+19:36:10 [INFO]   PLAYWRIGHT   my.clevelandclinic.org                    words=0 → trying JS render
+19:36:10 [INFO]   SCRAPED OK   mayoclinic.org                            status=200  words=0  method=beautifulsoup  note=ok
+19:36:10 [INFO]   PLAYWRIGHT   mayoclinic.org                            words=0 → trying JS render
+19:36:12 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+19:36:13 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+19:36:13 [INFO]   CONSENT_DOM  removed 6 consent element(s) via JS
+19:36:14 [INFO]   COOKIE_POPUP dismissed
+19:36:15 [INFO]   CONSENT_DOM  removed 1 consent element(s) via JS
+19:36:15 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+19:36:18 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+19:36:18 [INFO] Scrape+Score done (7866ms): 3 live, 0 dead
+19:36:18 [INFO] Scoring done (7867ms total)
+19:36:18 [INFO] ────────────────────────────────────────────────────────────

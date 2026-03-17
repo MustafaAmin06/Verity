@@ -5,6 +5,14 @@ const RESPONSE_CACHE_TTL_MS = 30 * 60 * 1000;
 const responseCache = new Map();
 const pendingRequests = new Map();
 
+let _progressCallback = null;
+
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.type === "SCRAPE_PROGRESS" && _progressCallback) {
+    _progressCallback(message);
+  }
+});
+
 /**
  * Returns true when the extension context is still alive
  * (i.e. the service worker hasn't been replaced by a newer version).
@@ -20,6 +28,14 @@ function isContextAlive() {
 window.Verity.api = {
   /** Expose for other modules that need to guard chrome.runtime calls */
   isContextAlive,
+
+  onProgress(callback) {
+    _progressCallback = callback;
+  },
+
+  clearProgress() {
+    _progressCallback = null;
+  },
 
   computeCacheKey(sources) {
     const joined = sources.map((source) => source.url).sort().join('|');

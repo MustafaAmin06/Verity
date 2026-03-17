@@ -31,7 +31,14 @@ window.Verity.ui = {
     const panel = document.createElement("div");
     panel.className = "verity-panel";
     btn.after(panel);
-    this._renderSkeleton(panel);
+    this._renderProgress(panel, sources.length);
+
+    const progressEl = panel.querySelector(".verity-progress-text");
+    window.Verity.api.onProgress((msg) => {
+      if (progressEl) {
+        progressEl.textContent = `Scraping ${msg.domain} [${msg.completed}/${msg.total}]`;
+      }
+    });
 
     const prompt = window.Verity.extractor.extractPrompt(platformConfig.selectors);
     const fullResponse = window.Verity.extractor.extractResponse(
@@ -48,11 +55,13 @@ window.Verity.ui = {
     try {
       const cacheKey = window.Verity.api.computeCacheKey(sources);
       const data = await window.Verity.api.fetchWithDedup(cacheKey, payload);
+      window.Verity.api.clearProgress();
       btn.remove();
       this._clearElement(panel);
       panel.classList.remove("verity-loading");
       this._renderScorecard(data, panel, responseEl);
     } catch (err) {
+      window.Verity.api.clearProgress();
       btn.remove();
       this._clearElement(panel);
       panel.classList.remove("verity-loading");
@@ -72,6 +81,18 @@ window.Verity.ui = {
       skel.className = "verity-skeleton";
       panel.appendChild(skel);
     }
+  },
+
+  _renderProgress(panel, totalSources) {
+    panel.classList.add("verity-loading");
+    const progressText = document.createElement("div");
+    progressText.className = "verity-progress-text";
+    progressText.textContent = `Preparing to scrape ${totalSources} source${totalSources !== 1 ? "s" : ""}...`;
+    panel.appendChild(progressText);
+
+    const skel = document.createElement("div");
+    skel.className = "verity-skeleton";
+    panel.appendChild(skel);
   },
 
   // --- Score helpers ---
@@ -541,8 +562,23 @@ window.Verity.ui = {
     }
 
     badge.append(circle, text);
+
+    // Read card styles to match
+    const cs = getComputedStyle(cardEl);
+    const radius = cs.borderRadius || "8px";
+
+    // Style badge to continue the card visually
+    badge.style.background = cs.backgroundColor;
+    badge.style.borderRadius = `0 0 ${radius} ${radius}`;
+    badge.style.marginTop = "0";
+
+    // Remove card's bottom rounding so they merge
+    cardEl.style.borderBottomLeftRadius = "0";
+    cardEl.style.borderBottomRightRadius = "0";
+
+    // Place badge as sibling after the card
     cardEl.setAttribute("data-verity-badge-injected", "true");
-    cardEl.appendChild(badge);
+    cardEl.after(badge);
   },
 
   _stopPreviewWatch(keepBadge = false) {
@@ -555,9 +591,13 @@ window.Verity.ui = {
 
     if (!keepBadge) {
       for (const el of document.querySelectorAll("[data-verity-badge-injected]")) {
+        // Restore card's bottom border-radius
+        el.style.borderBottomLeftRadius = "";
+        el.style.borderBottomRightRadius = "";
         el.removeAttribute("data-verity-badge-injected");
-        const badge = el.querySelector(".verity-score-badge");
-        if (badge) badge.remove();
+        // Badge is now a sibling, not a child
+        const badge = el.nextElementSibling;
+        if (badge && badge.classList.contains("verity-score-badge")) badge.remove();
       }
     }
   },

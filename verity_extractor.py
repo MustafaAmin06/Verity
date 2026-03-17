@@ -33,6 +33,7 @@ import httpx
 from bs4 import BeautifulSoup
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 try:
@@ -2086,6 +2087,106 @@ async def extract(request: ExtractRequest):
         live_count=live_count,
         dead_count=dead_count,
         extraction_time_ms=extraction_time_ms,
+    )
+
+
+@app.post("/extract-stream")
+async def extract_stream(request: ExtractRequest):
+    """SSE endpoint that emits progress events as each source finishes scraping."""
+
+    async def event_generator():
+        start = time.perf_counter()
+
+        logging.info("─" * 60)
+        llm_ok = await _check_llm_available()
+        logging.info("Extract-stream request: %d source(s)  |  LLM: %s", len(request.sources), "on" if llm_ok else "off")
+        logging.info("Prompt: %s", request.original_prompt[:120] or "(none)")
+        for i, s in enumerate(request.sources, 1):
+            logging.info("  [%d] %s  |  label: %s", i, s.url, s.label[:60])
+
+        topic = _detect_topic(request.full_ai_response + " " + request.original_prompt)
+        further_reading_task = (
+            asyncio.create_task(get_further_reading(topic, request.original_prompt))
+            if llm_ok else None
+        )
+
+        total = len(request.sources)
+
+        async def scrape_and_score_indexed(index, source):
+            scraped = await scrape_source(source)
+            llm_result = (
+                await score_source_with_llm(scraped, request.original_prompt)
+                if llm_ok else None
+            )
+            return index, scraped, llm_result
+
+        tasks = [
+            asyncio.create_task(scrape_and_score_indexed(i, s))
+            for i, s in enumerate(request.sources)
+        ]
+
+        results = [None] * total
+        completed = 0
+        for coro in asyncio.as_completed(tasks):
+            idx, scraped, llm_result = await coro
+            results[idx] = (scraped, llm_result)
+            completed += 1
+            progress = {
+                "completed": completed,
+                "total": total,
+                "domain": scraped.domain,
+            }
+            yield f"event: progress\ndata: {json.dumps(progress)}\n\n"
+
+        scraped_sources = [r[0] for r in results]
+        llm_results = [r[1] for r in results]
+
+        scrape_ms = int((time.perf_counter() - start) * 1000)
+        live_count = sum(1 for s in scraped_sources if s.live)
+        dead_count = len(scraped_sources) - live_count
+        logging.info("Scrape+Score done (%dms): %d live, %d dead", scrape_ms, live_count, dead_count)
+
+        if llm_ok:
+            further_reading = await further_reading_task
+            scored = [build_scored_source(s, llm) for s, llm in zip(scraped_sources, llm_results)]
+
+            order = {"reliable": 0, "caution": 1, "skeptical": 2, "unverified": 3}
+            scored.sort(key=lambda s: order.get(s.verdict, 4))
+
+            reliable_count = sum(1 for s in scored if s.verdict == "reliable")
+            flagged_count = sum(1 for s in scored if s.verdict in ("skeptical", "unverified"))
+
+            total_ms = int((time.perf_counter() - start) * 1000)
+            logging.info("Scoring done (%dms total)", total_ms)
+            logging.info("─" * 60)
+
+            response_obj = ScoredResponse(
+                sources=scored,
+                further_reading=further_reading,
+                topic_detected=topic,
+                source_count=len(scored),
+                reliable_count=reliable_count,
+                flagged_count=flagged_count,
+            )
+        else:
+            extraction_time_ms = int((time.perf_counter() - start) * 1000)
+            logging.info("─" * 60)
+            response_obj = ExtractResponse(
+                scraped_sources=list(scraped_sources),
+                original_prompt=request.original_prompt,
+                full_ai_response=request.full_ai_response,
+                source_count=len(scraped_sources),
+                live_count=live_count,
+                dead_count=dead_count,
+                extraction_time_ms=extraction_time_ms,
+            )
+
+        yield f"event: result\ndata: {response_obj.model_dump_json()}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
 
 

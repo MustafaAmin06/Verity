@@ -101,6 +101,15 @@
   50%      { opacity: 0.8; }
 }
 
+/* ---------- Progress text ---------- */
+.verity-progress-text {
+  font-size: 13px;
+  font-weight: 500;
+  color: #999;
+  padding: 8px 0;
+  transition: opacity 0.15s;
+}
+
 /* ---------- Panel header ---------- */
 .verity-panel-header {
   margin-bottom: 16px;
@@ -470,10 +479,8 @@
   align-items: center;
   gap: 10px;
   padding: 7px 12px;
-  margin-top: 6px;
-  border-top: 1px solid rgba(255, 255, 255, 0.1);
-  background: rgba(0, 0, 0, 0.22);
-  border-radius: 0 0 8px 8px;
+  margin-top: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 .verity-score-badge .verity-score-circle {
