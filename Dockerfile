@@ -34,7 +34,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN playwright install chromium
 
 COPY verity_extractor.py .
-COPY "scimagojr 2024.csv" .
+COPY ["scimagojr 2024.csv", "."]
 
 EXPOSE 8001
 
