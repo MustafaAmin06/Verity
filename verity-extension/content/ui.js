@@ -19,6 +19,22 @@ window.Verity.ui = {
     container.after(btn);
   },
 
+  /**
+   * Auto-check sources without requiring a button click.
+   * Creates the panel directly and triggers the check flow.
+   */
+  autoCheck(responseEl, sources, platformConfig) {
+    const container = responseEl.closest("[data-message-id]") || responseEl.parentElement;
+    if (container.hasAttribute("data-verity-processed")) return;
+    container.setAttribute("data-verity-processed", "true");
+
+    // Create a hidden placeholder button so _handleCheck can remove it cleanly
+    const placeholder = document.createElement("span");
+    container.after(placeholder);
+
+    this._handleCheck(responseEl, sources, placeholder, platformConfig, container);
+  },
+
   /** Remove all child nodes (Trusted Types safe — no innerHTML) */
   _clearElement(el) {
     while (el.firstChild) el.firstChild.remove();
@@ -116,6 +132,7 @@ window.Verity.ui = {
       official_body: 'Official / Government',
       established_news: 'Established News',
       independent_blog: 'Independent / Blog',
+      reference_tertiary: 'Reference / Tertiary',
       flagged: 'Flagged Source',
     };
     return map[tier] || 'Unknown';
@@ -143,11 +160,6 @@ window.Verity.ui = {
     sorted.forEach((source) => {
       panel.appendChild(this._createCard(source));
     });
-
-    // Further reading
-    if (data.further_reading && data.further_reading.length > 0) {
-      panel.appendChild(this._createFurtherReading(data.further_reading));
-    }
 
     // Annotate citation links in the response with hover tooltips
     if (responseEl) {
@@ -250,10 +262,43 @@ window.Verity.ui = {
     grid.appendChild(this._detailCell("Relevance", relevanceText));
 
     // Row 3: Author | Publication
-    grid.appendChild(this._detailCell("Author", source.author || "Unknown"));
+    const authorLabel = source.author || "Unknown";
+    const hIndex = signals.oa_author_h_index;
+    const authorText = hIndex ? `${authorLabel} · h-index ${hIndex}` : authorLabel;
+    grid.appendChild(this._detailCell("Author", authorText));
     grid.appendChild(this._detailCell("Publication", source.domain || ""));
 
+    // Row 4: Publisher | Citations (OpenAlex, conditional)
+    if (source.publisher) {
+      grid.appendChild(this._detailCell("Publisher", source.publisher));
+    }
+    const citedBy = signals.oa_cited_by_count;
+    if (citedBy != null && citedBy > 0) {
+      grid.appendChild(this._detailCell("Citations", citedBy.toLocaleString()));
+    }
+
     detail.appendChild(grid);
+
+    // Topics tags (OpenAlex)
+    if (source.topics && source.topics.length > 0) {
+      const tagRow = document.createElement("div");
+      tagRow.className = "verity-topic-tags";
+      for (const topic of source.topics.slice(0, 4)) {
+        const tag = document.createElement("span");
+        tag.className = "verity-topic-tag";
+        tag.textContent = topic;
+        tagRow.appendChild(tag);
+      }
+      detail.appendChild(tagRow);
+    }
+
+    // Funders (OpenAlex)
+    if (source.funders && source.funders.length > 0) {
+      const funderRow = document.createElement("div");
+      funderRow.className = "verity-funders-row";
+      funderRow.textContent = "Funded by: " + source.funders.join(", ");
+      detail.appendChild(funderRow);
+    }
 
     // Summary paragraph
     const reason = source.reason || source.description || "";
@@ -338,53 +383,6 @@ window.Verity.ui = {
     div.className = "verity-more-divider";
     div.textContent = "More";
     return div;
-  },
-
-  // --- Further reading ---
-
-  _createFurtherReading(items) {
-    const section = document.createElement("div");
-    section.className = "verity-further-reading";
-
-    const header = document.createElement("div");
-    header.className = "verity-fr-header";
-    header.textContent = "Further reading";
-    section.appendChild(header);
-
-    items.forEach((item) => {
-      const card = document.createElement("div");
-      card.className = "verity-fr-card";
-
-      const domain = document.createElement("span");
-      domain.className = "verity-fr-domain";
-      domain.textContent = item.domain || "";
-
-      const title = document.createElement("span");
-      title.className = "verity-fr-title";
-      title.textContent = item.title || "";
-
-      const date = document.createElement("span");
-      date.className = "verity-fr-date";
-      date.textContent = item.date || "";
-
-      const link = document.createElement("a");
-      link.className = "verity-fr-link";
-      link.href = item.url;
-      link.target = "_blank";
-      link.rel = "noopener noreferrer";
-      link.textContent = "View";
-
-      card.append(domain, title, date, link);
-      section.appendChild(card);
-    });
-
-    const disclaimer = document.createElement("div");
-    disclaimer.className = "verity-disclaimer";
-    disclaimer.textContent =
-      "These suggestions are based on topic detection, not personalised search. Always verify before citing.";
-    section.appendChild(disclaimer);
-
-    return section;
   },
 
   // --- Error / empty ---

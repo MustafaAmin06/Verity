@@ -7874,3 +7874,126 @@ For more informati
 19:36:18 [INFO] Scrape+Score done (7866ms): 3 live, 0 dead
 19:36:18 [INFO] Scoring done (7867ms total)
 19:36:18 [INFO] ────────────────────────────────────────────────────────────
+16:30:33 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+16:30:33 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+16:30:33 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+16:30:58 [INFO] ────────────────────────────────────────────────────────────
+16:30:58 [INFO] Extract-stream request: 3 source(s)  |  LLM: on
+16:30:58 [INFO] Prompt: why is cancer bad?
+16:30:58 [INFO]   [1] https://my.clevelandclinic.org/health/diseases/12194-cancer?utm_source=chatgpt.com  |  label: Cleveland Clinic
+16:30:58 [INFO]   [2] https://my.clevelandclinic.org/departments/cancer/patient-education/wellness-prevention/what-is-cancer?utm_source=chatgpt.com  |  label: Cleveland Clinic
+16:30:58 [INFO]   [3] https://www.mayoclinic.org/diseases-conditions/cancer/symptoms-causes/syc-20370588?utm_source=chatgpt.com  |  label: Mayo Clinic
+16:30:58 [INFO] HTTP Request: GET https://my.clevelandclinic.org/health/diseases/12194-cancer?utm_source=chatgpt.com "HTTP/2 200 OK"
+16:30:59 [INFO]   SCRAPED OK   my.clevelandclinic.org                    status=200  words=0  method=beautifulsoup  note=ok
+16:30:59 [INFO]   PLAYWRIGHT   my.clevelandclinic.org                    words=0 → trying JS render
+16:30:59 [INFO] HTTP Request: GET https://my.clevelandclinic.org/departments/cancer/patient-education/wellness-prevention/what-is-cancer?utm_source=chatgpt.com "HTTP/2 200 OK"
+16:30:59 [INFO]   SCRAPED OK   my.clevelandclinic.org                    status=200  words=1206  method=beautifulsoup  note=ok
+16:30:59 [INFO] HTTP Request: GET https://www.mayoclinic.org/diseases-conditions/cancer/symptoms-causes/syc-20370588?utm_source=chatgpt.com "HTTP/2 200 OK"
+16:31:00 [INFO]   SCRAPED OK   mayoclinic.org                            status=200  words=0  method=beautifulsoup  note=ok
+16:31:00 [INFO]   PLAYWRIGHT   mayoclinic.org                            words=0 → trying JS render
+16:31:01 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+16:31:01 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+16:31:02 [INFO]   COOKIE_POPUP dismissed
+16:31:03 [INFO]   CONSENT_DOM  removed 6 consent element(s) via JS
+16:31:04 [INFO]   CONSENT_DOM  removed 1 consent element(s) via JS
+16:31:04 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+16:31:05 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+16:31:05 [INFO] Scrape+Score done (7530ms): 3 live, 0 dead
+16:31:05 [INFO] Scoring done (7531ms total)
+16:31:05 [INFO] ────────────────────────────────────────────────────────────
+16:32:36 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+16:32:36 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+16:32:38 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+16:32:38 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+16:32:40 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+16:32:40 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+16:42:18 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+16:42:18 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+16:43:05 [INFO] ────────────────────────────────────────────────────────────
+16:43:05 [INFO] Extract-stream request: 3 source(s)  |  LLM: on
+16:43:05 [INFO] Prompt: why is cancer bad?
+16:43:05 [INFO]   [1] https://www.mayoclinic.org/diseases-conditions/cancer/symptoms-causes/syc-20370588?utm_source=chatgpt.com  |  label: Mayo Clinic
++1
+16:43:05 [INFO]   [2] https://my.clevelandclinic.org/health/diseases/12194-cancer?utm_source=chatgpt.com  |  label: Cleveland Clinic
+16:43:05 [INFO]   [3] https://www.cancerresearchuk.org/about-cancer/what-is-cancer/how-cancer-starts/cancer-cells?utm_source=chatgpt.com  |  label: Cancer Research UK
++1
+16:43:06 [INFO] HTTP Request: GET https://www.mayoclinic.org/diseases-conditions/cancer/symptoms-causes/syc-20370588?utm_source=chatgpt.com "HTTP/2 200 OK"
+16:43:06 [INFO]   SCRAPED OK   mayoclinic.org                            status=200  words=0  method=beautifulsoup  note=ok
+16:43:06 [INFO]   PLAYWRIGHT   mayoclinic.org                            words=0 → trying JS render
+16:43:06 [INFO] HTTP Request: GET https://www.cancerresearchuk.org/about-cancer/what-is-cancer/how-cancer-starts/cancer-cells?utm_source=chatgpt.com "HTTP/2 301 Moved Permanently"
+16:43:06 [INFO] HTTP Request: GET https://my.clevelandclinic.org/health/diseases/12194-cancer?utm_source=chatgpt.com "HTTP/2 200 OK"
+16:43:06 [INFO]   SCRAPED OK   my.clevelandclinic.org                    status=200  words=0  method=beautifulsoup  note=ok
+16:43:06 [INFO]   PLAYWRIGHT   my.clevelandclinic.org                    words=0 → trying JS render
+16:43:07 [INFO] HTTP Request: GET https://www.cancerresearchuk.org/about-cancer/what-is-cancer/how-cancer-start-grow-spread/cancer-cells?utm_source=chatgpt.com "HTTP/2 200 OK"
+16:43:08 [INFO]   SCRAPED OK   cancerresearchuk.org                      status=200  words=971  method=beautifulsoup  note=ok
+16:43:09 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+16:43:09 [INFO]   CONSENT_DOM  removed 6 consent element(s) via JS
+16:43:09 [INFO]   COOKIE_POPUP dismissed
+16:43:10 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+16:43:11 [INFO]   CONSENT_DOM  removed 1 consent element(s) via JS
+16:43:11 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+16:43:13 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+16:43:13 [INFO] Scrape+Score done (7204ms): 3 live, 0 dead
+16:43:13 [INFO] Scoring done (7205ms total)
+16:43:13 [INFO] ────────────────────────────────────────────────────────────
+16:50:32 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+16:50:37 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+16:50:44 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+16:50:44 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+17:07:40 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+17:08:43 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+17:10:31 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+17:10:31 [INFO] HTTP Request: GET https://api.openalex.org/works/doi:10.48550/arxiv.1706.03762?select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cprimary_location%2Cauthorships%2Ctopics%2Copen_access%2Cgrants "HTTP/2 400 Bad Request"
+17:10:31 [WARNING] OpenAlex error: Client error '400 Bad Request' for url 'https://api.openalex.org/works/doi:10.48550/arxiv.1706.03762?select=id%2Cdoi%2Ct
+17:10:31 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=locations.landing_page_url%3Ahttps%3A%2F%2Farxiv.org%2Fabs%2F1706.03762&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cprimary_location%2Cauthorships%2Ctopics%2Copen_access "HTTP/2 200 OK"
+17:12:11 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+17:12:11 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=doi%3A10.48550%2FarXiv.1706.03762&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cprimary_location%2Cauthorships%2Ctopics%2Cgrants%2Copen_access "HTTP/2 400 Bad Request"
+17:12:11 [WARNING] OpenAlex error: Client error '400 Bad Request' for url 'https://api.openalex.org/works?filter=doi%3A10.48550%2FarXiv.1706.03762&per_page
+17:12:11 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=locations.landing_page_url%3Ahttps%3A%2F%2Farxiv.org%2Fabs%2F1706.03762&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cprimary_location%2Cauthorships%2Ctopics%2Cgrants%2Copen_access "HTTP/2 400 Bad Request"
+17:12:11 [WARNING] OpenAlex error: Client error '400 Bad Request' for url 'https://api.openalex.org/works?filter=locations.landing_page_url%3Ahttps%3A%2F%2
+17:14:53 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+17:14:53 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=doi%3A10.48550%2FarXiv.1706.03762&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cprimary_location%2Cauthorships%2Ctopics%2Cgrants%2Copen_access "HTTP/2 400 Bad Request"
+17:14:53 [WARNING] OpenAlex error: Client error '400 Bad Request' for url 'https://api.openalex.org/works?filter=doi%3A10.48550%2FarXiv.1706.03762&per_page
+17:14:53 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=locations.landing_page_url%3Ahttps%3A%2F%2Farxiv.org%2Fabs%2F1706.03762&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cprimary_location%2Cauthorships%2Ctopics%2Cgrants%2Copen_access "HTTP/2 400 Bad Request"
+17:14:53 [WARNING] OpenAlex error: Client error '400 Bad Request' for url 'https://api.openalex.org/works?filter=locations.landing_page_url%3Ahttps%3A%2F%2
+17:15:13 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+17:15:14 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=doi%3A10.48550%2FarXiv.1706.03762&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cprimary_location%2Cauthorships%2Ctopics%2Cgrants%2Copen_access "HTTP/2 400 Bad Request"
+17:15:14 [WARNING] OpenAlex error: Client error '400 Bad Request' for url 'https://api.openalex.org/works?filter=doi%3A10.48550%2FarXiv.1706.03762&per_page
+17:15:14 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=locations.landing_page_url%3Ahttps%3A%2F%2Farxiv.org%2Fabs%2F1706.03762&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cprimary_location%2Cauthorships%2Ctopics%2Cgrants%2Copen_access "HTTP/2 400 Bad Request"
+17:15:14 [WARNING] OpenAlex error: Client error '400 Bad Request' for url 'https://api.openalex.org/works?filter=locations.landing_page_url%3Ahttps%3A%2F%2
+17:15:41 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+17:15:41 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=doi%3A10.48550%2FarXiv.1706.03762&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cprimary_location%2Cauthorships%2Ctopics%2Copen_access "HTTP/2 200 OK"
+17:15:41 [INFO] HTTP Request: GET https://api.openalex.org/authors/A5103024730?select=id%2Cdisplay_name%2Csummary_stats%2Clast_known_institutions "HTTP/2 200 OK"
+17:16:27 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+17:16:28 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+17:16:28 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+17:19:34 [INFO] ────────────────────────────────────────────────────────────
+17:19:34 [INFO] Extract-stream request: 3 source(s)  |  LLM: on
+17:19:34 [INFO] Prompt: why is cancer bad
+17:19:34 [INFO]   [1] https://my.clevelandclinic.org/health/diseases/12194-cancer?utm_source=chatgpt.com  |  label: Cleveland Clinic
++1
+17:19:34 [INFO]   [2] https://www.merckmanuals.com/en-ca/home/quick-facts-cancer/overview-of-cancer/overview-of-cancer?utm_source=chatgpt.com  |  label: Merck Manuals
++1
+17:19:34 [INFO]   [3] https://www.mayoclinic.org/diseases-conditions/cancer/symptoms-causes/syc-20370588?utm_source=chatgpt.com  |  label: Mayo Clinic
+17:19:34 [INFO] HTTP Request: GET https://www.merckmanuals.com/en-ca/home/quick-facts-cancer/overview-of-cancer/overview-of-cancer?utm_source=chatgpt.com "HTTP/2 200 OK"
+17:19:34 [INFO]   SCRAPED OK   merckmanuals.com                          status=200  words=606  method=beautifulsoup  note=ok
+17:19:34 [INFO] HTTP Request: GET https://www.mayoclinic.org/diseases-conditions/cancer/symptoms-causes/syc-20370588?utm_source=chatgpt.com "HTTP/2 200 OK"
+17:19:34 [INFO]   SCRAPED OK   mayoclinic.org                            status=200  words=0  method=beautifulsoup  note=ok
+17:19:34 [INFO]   PLAYWRIGHT   mayoclinic.org                            words=0 → trying JS render
+17:19:34 [INFO] HTTP Request: GET https://my.clevelandclinic.org/health/diseases/12194-cancer?utm_source=chatgpt.com "HTTP/2 200 OK"
+17:19:34 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=locations.landing_page_url%3Ahttps%3A%2F%2Fwww.merckmanuals.com%2Fen-ca%2Fhome%2Fquick-facts-cancer%2Foverview-of-cancer%2Foverview-of-cancer%3Futm_source%3Dchatgpt.com&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cprimary_location%2Cauthorships%2Ctopics%2Copen_access "HTTP/2 200 OK"
+17:19:35 [INFO]   SCRAPED OK   my.clevelandclinic.org                    status=200  words=0  method=beautifulsoup  note=ok
+17:19:35 [INFO]   PLAYWRIGHT   my.clevelandclinic.org                    words=0 → trying JS render
+17:19:36 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+17:19:37 [INFO]   CONSENT_DOM  removed 6 consent element(s) via JS
+17:19:38 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=doi%3A10.3322%2Fcaac.21591&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cprimary_location%2Cauthorships%2Ctopics%2Copen_access "HTTP/2 200 OK"
+17:19:38 [INFO] HTTP Request: GET https://api.openalex.org/authors/A5054344284?select=id%2Cdisplay_name%2Csummary_stats%2Clast_known_institutions "HTTP/2 200 OK"
+17:19:38 [INFO] HTTP Request: GET https://api.openalex.org/sources/S126094547?select=id%2Cdisplay_name%2Ctype%2Cissn_l%2Cissn%2Chost_organization_name%2Cis_oa%2Csummary_stats "HTTP/2 200 OK"
+17:19:38 [INFO]   COOKIE_POPUP dismissed
+17:19:39 [INFO]   CONSENT_DOM  removed 1 consent element(s) via JS
+17:19:40 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=locations.landing_page_url%3Ahttps%3A%2F%2Fmy.clevelandclinic.org%2Fhealth%2Fdiseases%2F12194-cancer%3Futm_source%3Dchatgpt.com&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cprimary_location%2Cauthorships%2Ctopics%2Copen_access "HTTP/2 200 OK"
+17:19:40 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+17:19:41 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+17:19:41 [INFO] Scrape+Score done (7820ms): 3 live, 0 dead
+17:19:41 [INFO] Scoring done (7820ms total)
+17:19:41 [INFO] ────────────────────────────────────────────────────────────

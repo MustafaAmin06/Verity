@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <div class="verity-popup">
+    <header class="verity-popup-header">
+      <h1>Verity</h1>
+      <span class="verity-version">v1.0.1</span>
+      <a class="verity-external-link" target="_blank" title="Open project">
+        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 9.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3.5"/>
+          <path d="M10 2h4v4"/>
+          <path d="M7 9L14 2"/>
+        </svg>
+      </a>
+    </header>
+
+    <!-- General -->
+    <section class="verity-section">
+      <h2>General</h2>
+
+      <div class="verity-row">
+        <label for="enabled">Enable Verity</label>
+        <input type="checkbox" id="enabled" class="verity-toggle">
+      </div>
+
+      <div class="verity-row">
+        <div class="verity-row-text">
+          <label for="autoCheck">Auto-check sources</label>
+          <p class="verity-hint">Automatically check when ChatGPT finishes responding</p>
+        </div>
+        <input type="checkbox" id="autoCheck" class="verity-toggle">
+      </div>
+    </section>
+
+    <!-- Backend -->
+    <section class="verity-section">
+      <h2>Backend</h2>
+
+      <div class="verity-row verity-row-stacked">
+        <label for="extractorUrl">Server URL</label>
+        <div class="verity-url-row">
+          <input type="url" id="extractorUrl" class="verity-input" placeholder="http://localhost:8001">
+          <span id="serverStatus" class="verity-status-dot" title="Checking..."></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Display -->
+    <section class="verity-section">
+      <h2>Display</h2>
+
+      <div class="verity-row verity-row-stacked">
+        <div class="verity-row-inline">
+          <label for="hoverDelayMs">Hover delay</label>
+          <span class="verity-value" id="hoverDelayMs-value">300ms</span>
+        </div>
+        <input type="range" id="hoverDelayMs" class="verity-range" min="100" max="1000" step="50">
+        <p class="verity-hint">Delay before showing score badge on link hover</p>
+      </div>
+
+      <div class="verity-row">
+        <div class="verity-row-text">
+          <label for="minUrlsToShowButton">Min sources to show button</label>
+          <p class="verity-hint">Only show "Check sources" when at least this many URLs are found</p>
+        </div>
+        <input type="number" id="minUrlsToShowButton" class="verity-input verity-input-sm" min="1" max="10" value="1">
+      </div>
+    </section>
+
+    <footer class="verity-footer">
+      <button id="resetDefaults" class="verity-btn-reset">Reset to defaults</button>
+      <span id="savedIndicator" class="verity-saved">Saved</span>
+    </footer>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>

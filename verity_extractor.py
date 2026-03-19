@@ -12,9 +12,9 @@ import os
 import pathlib
 import re
 import socket
+import sqlite3
 import time
 import unicodedata
-import urllib.parse
 from urllib.parse import urlparse
 
 if not logging.root.handlers:
@@ -65,6 +65,12 @@ ENABLE_PLAYWRIGHT_FALLBACK = (
 )
 EXTRACTOR_PORT = int(os.getenv("EXTRACTOR_PORT", "8001"))
 MAX_REDIRECTS = 5
+
+# ── OpenAlex API configuration ──
+OPENALEX_EMAIL = os.getenv("OPENALEX_EMAIL", "")
+OPENALEX_TIMEOUT_SECONDS = int(os.getenv("OPENALEX_TIMEOUT_SECONDS", "8"))
+OPENALEX_CACHE_TTL_SECONDS = int(os.getenv("OPENALEX_CACHE_TTL_SECONDS", "86400"))  # 24 h
+OPENALEX_ENABLED = os.getenv("OPENALEX_ENABLED", "true").lower() == "true"
 
 BROWSER_USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -273,6 +279,62 @@ def lookup_journal_info(issn: str | None = None, title: str | None = None) -> di
 _load_scimago_data()
 
 
+# ── OpenAlex SQLite cache ──────────────────────────────────────────────
+
+_OPENALEX_DB_PATH = pathlib.Path(__file__).parent / "openalex_cache.db"
+_openalex_db: sqlite3.Connection | None = None
+
+
+def _get_openalex_db() -> sqlite3.Connection:
+    global _openalex_db
+    if _openalex_db is None:
+        _openalex_db = sqlite3.connect(str(_OPENALEX_DB_PATH), check_same_thread=False)
+        _openalex_db.execute("PRAGMA journal_mode=WAL")
+        _openalex_db.execute("PRAGMA synchronous=NORMAL")
+        _openalex_db.executescript("""
+            CREATE TABLE IF NOT EXISTS openalex_works (
+                lookup_key TEXT PRIMARY KEY,
+                data TEXT NOT NULL,
+                fetched_at REAL NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS openalex_sources (
+                openalex_id TEXT PRIMARY KEY,
+                data TEXT NOT NULL,
+                fetched_at REAL NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS openalex_authors (
+                openalex_id TEXT PRIMARY KEY,
+                data TEXT NOT NULL,
+                fetched_at REAL NOT NULL
+            );
+        """)
+    return _openalex_db
+
+
+def _oa_cache_get(table: str, key: str) -> dict | None:
+    db = _get_openalex_db()
+    col = "lookup_key" if table == "openalex_works" else "openalex_id"
+    row = db.execute(
+        f"SELECT data, fetched_at FROM {table} WHERE {col} = ?", (key,)
+    ).fetchone()
+    if row is None:
+        return None
+    data_json, fetched_at = row
+    if time.time() - fetched_at > OPENALEX_CACHE_TTL_SECONDS:
+        return None
+    return json.loads(data_json)
+
+
+def _oa_cache_set(table: str, key: str, data: dict) -> None:
+    db = _get_openalex_db()
+    col = "lookup_key" if table == "openalex_works" else "openalex_id"
+    db.execute(
+        f"INSERT OR REPLACE INTO {table} ({col}, data, fetched_at) VALUES (?, ?, ?)",
+        (key, json.dumps(data), time.time()),
+    )
+    db.commit()
+
+
 TOPIC_KEYWORDS = {
     "climate": [
         "climate",
@@ -458,6 +520,12 @@ class SourceSignals(BaseModel):
     is_peer_reviewed: bool
     claim_aligned: bool | None
     matched_terms: list[str]
+    # OpenAlex enrichment signals
+    oa_source_h_index: int | None = None
+    oa_author_h_index: int | None = None
+    oa_cited_by_count: int | None = None
+    oa_work_type: str | None = None
+    oa_source_type: str | None = None
 
 
 class ScoredSource(BaseModel):
@@ -477,20 +545,15 @@ class ScoredSource(BaseModel):
     author: str | None
     paywalled: bool
     signals: SourceSignals
-
-
-class FurtherReadingItem(BaseModel):
-    url: str
-    domain: str
-    title: str
-    date: str | None
-    tier: str
-    verdict: str
+    # OpenAlex display data
+    publisher: str | None = None
+    topics: list[str] | None = None
+    funders: list[str] | None = None
+    author_institution: str | None = None
 
 
 class ScoredResponse(BaseModel):
     sources: list[ScoredSource]
-    further_reading: list[FurtherReadingItem]
     topic_detected: str
     source_count: int
     reliable_count: int
@@ -522,10 +585,21 @@ VERDICT_MAP = [
 _QUARTILE_SCORES: dict[str, int] = {"Q1": 100, "Q2": 85, "Q3": 70, "Q4": 55}
 
 
-def _compute_domain_score(domain_info: dict) -> int:
+def _compute_domain_score(domain_info: dict, oa: dict | None = None) -> int:
     quartile = domain_info.get("quartile")
     if quartile and quartile in _QUARTILE_SCORES:
         return _QUARTILE_SCORES[quartile]
+    # OpenAlex source h-index fallback when no SCImago quartile
+    if oa:
+        h = oa.get("oa_source_h_index") or 0
+        if h >= 150:
+            return 100  # Q1 equivalent
+        if h >= 75:
+            return 85   # Q2
+        if h >= 30:
+            return 70   # Q3
+        if h > 0:
+            return 55   # Q4
     return DOMAIN_TIER_SCORES.get(domain_info.get("tier", "unknown"), 30)
 
 
@@ -544,8 +618,20 @@ def _compute_recency_score(year: str | None) -> int:
         return 40
 
 
-def _compute_author_score(author: str | None) -> int:
-    return 80 if author else 40
+def _compute_author_score(author: str | None, oa: dict | None = None) -> int:
+    if not author:
+        return 40
+    if oa:
+        h = oa.get("oa_author_h_index") or 0
+        if h >= 50:
+            return 100  # distinguished
+        if h >= 20:
+            return 95   # established
+        if h >= 10:
+            return 90   # active
+        if h > 0:
+            return 85   # published
+    return 80
 
 
 def _verdict_from_score(score: int) -> tuple[str, str, str]:
@@ -591,7 +677,7 @@ def _detect_topic(text: str) -> str:
     return best_topic
 
 
-# ── Ollama scoring ──
+# ── LLM scoring ──
 
 _SCORE_SYSTEM_PROMPT = """\
 You are a rigorous source credibility analyst. You read web content and score \
@@ -634,25 +720,6 @@ Respond with ONLY valid JSON — no text before or after the JSON object:
   "reason": "<1-2 sentences: cite specific evidence from the source content that drove your scores>",
   "implication": "<1 sentence: what the user should do given this source's credibility>"
 }}"""
-
-_FURTHER_READING_PROMPT = """\
-Suggest exactly 3 authoritative sources a reader should consult on this topic.
-Choose from: academic journals, official government/health bodies, established news organisations.
-Do NOT invent URLs. Instead, describe each source so a search engine can find it.
-
-Topic: {topic}
-Original question: {prompt}
-
-Respond with ONLY valid JSON as a list of exactly 3 objects:
-[
-  {{
-    "title": "<descriptive article or report title>",
-    "domain": "<e.g. pubmed.ncbi.nlm.nih.gov or who.int or bbc.com>",
-    "search_query": "<4-8 word search query that would find this source>",
-    "tier": "<academic_journal|official_body|established_news|independent_blog>"
-  }},
-  ...
-]"""
 
 
 _llm_client: httpx.AsyncClient | None = None
@@ -745,43 +812,219 @@ async def score_source_with_llm(scraped: ScrapedSource, prompt: str) -> dict:
     return _parse_json_response(raw, fallback)
 
 
-async def get_further_reading(topic: str, prompt: str) -> list[FurtherReadingItem]:
-    """Ask local LLM for 3 further reading suggestions and build real search URLs."""
-    llm_prompt = _FURTHER_READING_PROMPT.format(topic=topic, prompt=prompt[:500])
-    raw = await _call_llm(llm_prompt)
-    items = _parse_json_response(raw, [])
-    # Model sometimes returns {"sources": [...]} instead of a bare list
-    if isinstance(items, dict):
-        items = next((v for v in items.values() if isinstance(v, list)), [])
-    result = []
-    for item in items[:3]:
+# ── OpenAlex API client ────────────────────────────────────────────────
+
+_openalex_client: httpx.AsyncClient | None = None
+
+
+def _get_openalex_client() -> httpx.AsyncClient:
+    """Reuse a single persistent HTTP client for all OpenAlex calls."""
+    global _openalex_client
+    if _openalex_client is None or _openalex_client.is_closed:
+        ua = "Verity/1.0 (source verification tool)"
+        if OPENALEX_EMAIL:
+            ua += f" (mailto:{OPENALEX_EMAIL})"
+        _openalex_client = httpx.AsyncClient(
+            base_url="https://api.openalex.org",
+            timeout=OPENALEX_TIMEOUT_SECONDS,
+            headers={"User-Agent": ua, "Accept": "application/json"},
+            http2=True,
+        )
+    return _openalex_client
+
+
+async def _openalex_get(path: str, params: dict | None = None) -> dict | None:
+    """GET from OpenAlex with exponential back-off on 429."""
+    client = _get_openalex_client()
+    for attempt in range(3):
         try:
-            domain = item.get("domain", "").strip()
-            search_query = item.get("search_query", item.get("title", topic))
-            tier = item.get("tier", "unknown")
-            encoded = urllib.parse.quote_plus(search_query)
-            if tier == "academic_journal" or "pubmed" in domain or "arxiv" in domain:
-                url = f"https://scholar.google.com/scholar?q={encoded}"
-            elif domain:
-                url = f"https://{domain}/search?q={encoded}"
-            else:
-                url = f"https://www.google.com/search?q={encoded}"
-            result.append(FurtherReadingItem(
-                url=url,
-                domain=domain or extract_domain(url),
-                title=item.get("title", search_query),
-                date=item.get("date"),
-                tier=tier,
-                verdict="reliable",
-            ))
-        except Exception:
-            continue
-    return result
+            resp = await client.get(path, params=params or {})
+            if resp.status_code == 429:
+                wait = 2 ** attempt
+                logging.warning("OpenAlex 429, retry in %ds", wait)
+                await asyncio.sleep(wait)
+                continue
+            if resp.status_code == 404:
+                return None
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.TimeoutException:
+            logging.warning("OpenAlex timeout on %s (attempt %d)", path, attempt + 1)
+            if attempt < 2:
+                await asyncio.sleep(1)
+                continue
+            return None
+        except Exception as exc:
+            logging.warning("OpenAlex error: %s", str(exc)[:120])
+            return None
+    return None
 
 
-def build_scored_source(scraped: ScrapedSource, llm: dict) -> ScoredSource:
-    """Combine scraped metadata + Ollama LLM output into a ScoredSource."""
+_OA_WORK_SELECT = (
+    "id,doi,title,publication_year,cited_by_count,type,"
+    "primary_location,authorships,topics,open_access"
+)
+
+
+async def lookup_openalex_work(doi: str | None, url: str | None) -> dict | None:
+    """Look up a work by DOI (preferred) or URL fallback.
+
+    Always uses the filter/list endpoint to avoid path-encoding issues with
+    DOIs that contain forward slashes (e.g. 10.48550/arXiv.1706.03762).
+    """
+    if not OPENALEX_ENABLED:
+        return None
+
+    # Try DOI via filter (avoids path-slash encoding problems)
+    if doi:
+        key = doi.lower().strip()
+        cached = await asyncio.to_thread(_oa_cache_get, "openalex_works", key)
+        if cached:
+            return cached
+        data = await _openalex_get(
+            "/works",
+            params={
+                "filter": f"doi:{doi}",
+                "per_page": "1",
+                "select": _OA_WORK_SELECT,
+            },
+        )
+        if data and data.get("results"):
+            work = data["results"][0]
+            await asyncio.to_thread(_oa_cache_set, "openalex_works", key, work)
+            return work
+
+    # Fallback: search by landing page URL
+    if url:
+        key = url.lower().strip()
+        cached = await asyncio.to_thread(_oa_cache_get, "openalex_works", key)
+        if cached:
+            return cached
+        data = await _openalex_get(
+            "/works",
+            params={
+                "filter": f"locations.landing_page_url:{url}",
+                "per_page": "1",
+                "select": _OA_WORK_SELECT,
+            },
+        )
+        if data and data.get("results"):
+            work = data["results"][0]
+            await asyncio.to_thread(_oa_cache_set, "openalex_works", key, work)
+            return work
+
+    return None
+
+
+async def lookup_openalex_source(source_id: str) -> dict | None:
+    """Look up an OpenAlex Source (journal/venue) by its OpenAlex ID."""
+    if not OPENALEX_ENABLED or not source_id:
+        return None
+    short_id = source_id.split("/")[-1]
+    cached = await asyncio.to_thread(_oa_cache_get, "openalex_sources", short_id)
+    if cached:
+        return cached
+    data = await _openalex_get(
+        f"/sources/{short_id}",
+        params={"select": "id,display_name,type,issn_l,issn,host_organization_name,is_oa,summary_stats"},
+    )
+    if data:
+        await asyncio.to_thread(_oa_cache_set, "openalex_sources", short_id, data)
+    return data
+
+
+async def lookup_openalex_author(author_id: str) -> dict | None:
+    """Look up an OpenAlex Author by their OpenAlex ID."""
+    if not OPENALEX_ENABLED or not author_id:
+        return None
+    short_id = author_id.split("/")[-1]
+    cached = await asyncio.to_thread(_oa_cache_get, "openalex_authors", short_id)
+    if cached:
+        return cached
+    data = await _openalex_get(
+        f"/authors/{short_id}",
+        params={"select": "id,display_name,summary_stats,last_known_institutions"},
+    )
+    if data:
+        await asyncio.to_thread(_oa_cache_set, "openalex_authors", short_id, data)
+    return data
+
+
+async def _noop_coro():
+    """Placeholder coroutine that returns None."""
+    return None
+
+
+async def enrich_with_openalex(scraped: "ScrapedSource") -> dict:
+    """Enrich a scraped source with OpenAlex metadata. Returns enrichment dict."""
+    if not OPENALEX_ENABLED:
+        return {}
+
+    enrichment: dict = {}
+
+    # Step 1: Look up the Work (DOI preferred, URL fallback)
+    work = await lookup_openalex_work(scraped.doi, scraped.url)
+    if not work:
+        return enrichment
+
+    # Work-level data
+    enrichment["oa_cited_by_count"] = work.get("cited_by_count", 0)
+    enrichment["oa_work_type"] = work.get("type", "")
+    enrichment["oa_publication_year"] = work.get("publication_year")
+
+    # Topics
+    topics = work.get("topics") or []
+    if topics:
+        enrichment["oa_topics"] = [
+            t["display_name"] for t in topics[:5] if t.get("display_name")
+        ]
+
+    # Open access
+    oa_info = work.get("open_access") or {}
+    enrichment["oa_is_open_access"] = oa_info.get("is_oa", False)
+
+    # Step 2: Look up Source + first Author in parallel
+    primary_loc = (work.get("primary_location") or {})
+    source_ref = (primary_loc.get("source") or {})
+    source_id = source_ref.get("id", "")
+
+    authorships = work.get("authorships") or []
+    first_author_id = ""
+    if authorships:
+        first_author_id = (authorships[0].get("author") or {}).get("id", "")
+
+    oa_source, oa_author = await asyncio.gather(
+        lookup_openalex_source(source_id) if source_id else _noop_coro(),
+        lookup_openalex_author(first_author_id) if first_author_id else _noop_coro(),
+    )
+
+    # Source data
+    if oa_source:
+        enrichment["oa_source_type"] = oa_source.get("type", "")
+        enrichment["oa_publisher"] = oa_source.get("host_organization_name", "")
+        summary = oa_source.get("summary_stats") or {}
+        if summary:
+            enrichment["oa_source_h_index"] = summary.get("h_index", 0)
+            enrichment["oa_source_2yr_mean_citedness"] = summary.get("2yr_mean_citedness", 0.0)
+
+    # Author data
+    if oa_author:
+        author_summary = oa_author.get("summary_stats") or {}
+        if author_summary:
+            enrichment["oa_author_h_index"] = author_summary.get("h_index", 0)
+        institutions = oa_author.get("last_known_institutions") or []
+        if institutions:
+            enrichment["oa_author_institution"] = institutions[0].get("display_name", "")
+
+    return enrichment
+
+
+def build_scored_source(
+    scraped: ScrapedSource, llm: dict, oa_enrichment: dict | None = None
+) -> ScoredSource:
+    """Combine scraped metadata + LLM output + OpenAlex enrichment into a ScoredSource."""
     domain_info = get_domain_info(scraped.domain)
+    oa = oa_enrichment or {}
 
     # Enrich with ScimagoJR data when JSON-LD exposes journal metadata
     _journal_meta = lookup_journal_info(
@@ -790,16 +1033,18 @@ def build_scored_source(scraped: ScrapedSource, llm: dict) -> ScoredSource:
     )
     if _journal_meta:
         domain_info = {**domain_info, **_journal_meta}
-        # Promote unknown domains that are indexed journals
         if domain_info.get("tier") == "unknown":
             domain_info = {**domain_info, "tier": "academic_journal"}
-        # Honour open-access flag from Scimago if not already set by registry
         if _journal_meta.get("open_access") and domain_info.get("paywalled"):
             domain_info = {**domain_info, "paywalled": False}
 
-    domain_score  = _compute_domain_score(domain_info)
+    # Promote unknown domains that have an OpenAlex source h-index
+    if domain_info.get("tier") == "unknown" and oa.get("oa_source_h_index"):
+        domain_info = {**domain_info, "tier": "academic_journal"}
+
+    domain_score  = _compute_domain_score(domain_info, oa)
     recency_score = _compute_recency_score(scraped.date)
-    author_score  = _compute_author_score(scraped.author)
+    author_score  = _compute_author_score(scraped.author, oa)
     relevance_score  = int(llm.get("relevance_score", 50))
     alignment_score  = int(llm.get("alignment_score", 50))
 
@@ -808,13 +1053,18 @@ def build_scored_source(scraped: ScrapedSource, llm: dict) -> ScoredSource:
         verdict, verdict_label, color = "unverified", "Couldn't verify", "gray"
     else:
         composite = _composite_score(domain_score, recency_score, author_score, relevance_score, alignment_score)
-        # Flagged domains are capped at skeptical
         if domain_info.get("tier") == "flagged":
             composite = min(composite, 24)
-        # Tertiary reference sources can be useful, but should not be marked reliable.
         if domain_info.get("tier") == "reference_tertiary":
             composite = min(composite, 74)
         verdict, verdict_label, color = _verdict_from_score(composite)
+
+    is_peer_reviewed = (
+        domain_info.get("tier") in TIER_PEER_REVIEWED
+        or bool(domain_info.get("quartile"))
+        or oa.get("oa_source_type") == "journal"
+        or oa.get("oa_work_type") in ("journal-article", "review")
+    )
 
     signals = SourceSignals(
         domain_tier=domain_info.get("tier", "unknown"),
@@ -823,9 +1073,14 @@ def build_scored_source(scraped: ScrapedSource, llm: dict) -> ScoredSource:
         author_score=author_score,
         relevance_score=relevance_score,
         alignment_score=alignment_score,
-        is_peer_reviewed=domain_info.get("tier") in TIER_PEER_REVIEWED or bool(domain_info.get("quartile")),
+        is_peer_reviewed=is_peer_reviewed,
         claim_aligned=llm.get("claim_aligned"),
         matched_terms=llm.get("matched_terms", [])[:5],
+        oa_source_h_index=oa.get("oa_source_h_index"),
+        oa_author_h_index=oa.get("oa_author_h_index"),
+        oa_cited_by_count=oa.get("oa_cited_by_count"),
+        oa_work_type=oa.get("oa_work_type"),
+        oa_source_type=oa.get("oa_source_type"),
     )
 
     return ScoredSource(
@@ -845,6 +1100,10 @@ def build_scored_source(scraped: ScrapedSource, llm: dict) -> ScoredSource:
         author=scraped.author,
         paywalled=scraped.paywalled,
         signals=signals,
+        publisher=oa.get("oa_publisher") or None,
+        topics=oa.get("oa_topics") or None,
+        funders=oa.get("oa_funders") or None,
+        author_institution=oa.get("oa_author_institution") or None,
     )
 
 
@@ -1965,6 +2224,8 @@ async def healthcheck() -> dict:
         "llm_enabled": llm_ok,
         "llm_model": GITHUB_MODEL,
         "llm_backend": "github_models",
+        "openalex_enabled": OPENALEX_ENABLED,
+        "openalex_polite": bool(OPENALEX_EMAIL),
     }
 
 
@@ -1981,24 +2242,20 @@ async def extract(request: ExtractRequest):
 
     # Scrape + score overlap: each source starts LLM scoring as soon as it's scraped
     topic = _detect_topic(request.full_ai_response + " " + request.original_prompt)
-    further_reading_task = (
-        asyncio.create_task(get_further_reading(topic, request.original_prompt))
-        if llm_ok else None
-    )
-
     async def scrape_and_score(source: SourceInput) -> tuple:
         scraped = await scrape_source(source)
-        llm_result = (
-            await score_source_with_llm(scraped, request.original_prompt)
-            if llm_ok else None
+        llm_result, oa_enrichment = await asyncio.gather(
+            score_source_with_llm(scraped, request.original_prompt) if llm_ok else _noop_coro(),
+            enrich_with_openalex(scraped) if OPENALEX_ENABLED else _noop_coro(),
         )
-        return scraped, llm_result
+        return scraped, llm_result or {}, oa_enrichment or {}
 
     results = await asyncio.gather(
         *(scrape_and_score(source) for source in request.sources)
     )
     scraped_sources = [r[0] for r in results]
     llm_results = [r[1] for r in results]
+    oa_results = [r[2] for r in results]
 
     scrape_ms = int((time.perf_counter() - start) * 1000)
     live_count = sum(1 for s in scraped_sources if s.live)
@@ -2026,9 +2283,10 @@ async def extract(request: ExtractRequest):
         )
 
     if llm_ok:
-        further_reading = await further_reading_task
-
-        scored = [build_scored_source(s, llm) for s, llm in zip(scraped_sources, llm_results)]
+        scored = [
+            build_scored_source(s, llm, oa)
+            for s, llm, oa in zip(scraped_sources, llm_results, oa_results)
+        ]
 
         # Sort: reliable first, unverified last
         order = {"reliable": 0, "caution": 1, "skeptical": 2, "unverified": 3}
@@ -2065,7 +2323,6 @@ async def extract(request: ExtractRequest):
 
         return ScoredResponse(
             sources=scored,
-            further_reading=further_reading,
             topic_detected=topic,
             source_count=len(scored),
             reliable_count=reliable_count,
@@ -2105,20 +2362,16 @@ async def extract_stream(request: ExtractRequest):
             logging.info("  [%d] %s  |  label: %s", i, s.url, s.label[:60])
 
         topic = _detect_topic(request.full_ai_response + " " + request.original_prompt)
-        further_reading_task = (
-            asyncio.create_task(get_further_reading(topic, request.original_prompt))
-            if llm_ok else None
-        )
 
         total = len(request.sources)
 
         async def scrape_and_score_indexed(index, source):
             scraped = await scrape_source(source)
-            llm_result = (
-                await score_source_with_llm(scraped, request.original_prompt)
-                if llm_ok else None
+            llm_result, oa_enrichment = await asyncio.gather(
+                score_source_with_llm(scraped, request.original_prompt) if llm_ok else _noop_coro(),
+                enrich_with_openalex(scraped) if OPENALEX_ENABLED else _noop_coro(),
             )
-            return index, scraped, llm_result
+            return index, scraped, llm_result or {}, oa_enrichment or {}
 
         tasks = [
             asyncio.create_task(scrape_and_score_indexed(i, s))
@@ -2128,8 +2381,8 @@ async def extract_stream(request: ExtractRequest):
         results = [None] * total
         completed = 0
         for coro in asyncio.as_completed(tasks):
-            idx, scraped, llm_result = await coro
-            results[idx] = (scraped, llm_result)
+            idx, scraped, llm_result, oa_enrichment = await coro
+            results[idx] = (scraped, llm_result, oa_enrichment)
             completed += 1
             progress = {
                 "completed": completed,
@@ -2140,6 +2393,7 @@ async def extract_stream(request: ExtractRequest):
 
         scraped_sources = [r[0] for r in results]
         llm_results = [r[1] for r in results]
+        oa_results = [r[2] for r in results]
 
         scrape_ms = int((time.perf_counter() - start) * 1000)
         live_count = sum(1 for s in scraped_sources if s.live)
@@ -2147,8 +2401,10 @@ async def extract_stream(request: ExtractRequest):
         logging.info("Scrape+Score done (%dms): %d live, %d dead", scrape_ms, live_count, dead_count)
 
         if llm_ok:
-            further_reading = await further_reading_task
-            scored = [build_scored_source(s, llm) for s, llm in zip(scraped_sources, llm_results)]
+            scored = [
+                build_scored_source(s, llm, oa)
+                for s, llm, oa in zip(scraped_sources, llm_results, oa_results)
+            ]
 
             order = {"reliable": 0, "caution": 1, "skeptical": 2, "unverified": 3}
             scored.sort(key=lambda s: order.get(s.verdict, 4))
@@ -2162,7 +2418,6 @@ async def extract_stream(request: ExtractRequest):
 
             response_obj = ScoredResponse(
                 sources=scored,
-                further_reading=further_reading,
                 topic_detected=topic,
                 source_count=len(scored),
                 reliable_count=reliable_count,

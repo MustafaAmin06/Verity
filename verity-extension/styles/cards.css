@@ -317,6 +317,31 @@
   margin: 0;
 }
 
+/* ---------- OpenAlex topic tags ---------- */
+.verity-topic-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.verity-topic-tag {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: rgba(99, 160, 255, 0.12);
+  color: #8ab4f8;
+  white-space: nowrap;
+}
+
+/* ---------- Funders row ---------- */
+.verity-funders-row {
+  font-size: 11px;
+  color: #999;
+  margin-bottom: 8px;
+}
+
 /* ---------- "More" divider ---------- */
 .verity-more-divider {
   text-align: center;
@@ -389,68 +414,6 @@
   background: rgba(255, 255, 255, 0.08);
   color: #aaa;
   white-space: nowrap;
-}
-
-/* ---------- Further reading ---------- */
-.verity-further-reading {
-  margin-top: 16px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.08);
-}
-
-.verity-fr-header {
-  font-size: 13px;
-  font-weight: 600;
-  color: #ccc;
-  margin-bottom: 8px;
-}
-
-.verity-fr-card {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 0;
-  font-size: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
-}
-
-.verity-fr-domain {
-  font-weight: 500;
-  color: #ccc;
-}
-
-.verity-fr-title {
-  flex: 1;
-  color: #999;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.verity-fr-date {
-  color: #777;
-  flex-shrink: 0;
-}
-
-.verity-fr-link {
-  flex-shrink: 0;
-  padding: 2px 8px;
-  font-size: 11px;
-  color: #7ab3ff;
-  background: rgba(122, 179, 255, 0.08);
-  border-radius: 4px;
-  text-decoration: none;
-}
-
-.verity-fr-link:hover {
-  background: rgba(122, 179, 255, 0.15);
-}
-
-.verity-disclaimer {
-  margin-top: 8px;
-  font-size: 11px;
-  color: #666;
-  line-height: 1.4;
 }
 
 /* ---------- Error state ---------- */

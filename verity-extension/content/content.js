@@ -1,20 +1,4 @@
-// Verity configuration
-const VERITY_CONFIG = {
-  extractorUrl: "http://localhost:8001/extract",
-  hoverDelayMs: 300,
-  maxBodyTextChars: 8000,
-  minContextChars: 30,
-  maxContextChars: 400,
-  minUrlsToShowButton: 1,
-  previewCardSelectors: [
-    '[data-testid*="link-preview"]',
-    '[data-testid*="preview"]',
-    '[class*="LinkPreview"]',
-    '[class*="link-preview"]',
-    '[class*="linkPreview"]',
-  ],
-  previewSearchTimeoutMs: 800,
-};
+// VERITY_CONFIG is declared and loaded from chrome.storage by settings.js
 
 // Platform-specific selectors — multiple fallbacks for each since ChatGPT changes their DOM frequently
 const PLATFORMS = {
@@ -122,7 +106,10 @@ try {
   // Extension context already dead — nothing to listen on
 }
 
-(function () {
+// Expose cleanup so settings.js can call it on live enable/disable toggle
+window.Verity.cleanup = cleanupInjectedUi;
+
+function _initVerity() {
   console.log("[Verity] Content script loaded on", window.location.hostname);
 
   cleanupInjectedUi();
@@ -154,4 +141,16 @@ try {
     console.log("[Verity] Resolved selectors:", resolved.selectors);
     window.Verity.observer.init(resolved);
   }, 2000);
-})();
+}
+
+// Expose reinit so settings.js can re-enable after a live toggle
+window.Verity.reinit = _initVerity;
+
+// Wait for settings to load, then initialize if enabled
+window.Verity.settingsReady.then(() => {
+  if (!VERITY_CONFIG.enabled) {
+    console.log("[Verity] Extension disabled by user settings");
+    return;
+  }
+  _initVerity();
+});

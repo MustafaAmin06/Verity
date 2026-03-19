@@ -1,0 +1,303 @@
+/* ============================================
+   Verity — Popup Dashboard Styles
+   ============================================ */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  width: 380px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-size: 13px;
+  color: #e0e0e0;
+  background: #16161e;
+}
+
+/* ---------- Layout ---------- */
+.verity-popup {
+  padding: 20px;
+}
+
+/* ---------- Header ---------- */
+.verity-popup-header {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.verity-popup-header h1 {
+  font-size: 18px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #7ab8ff, #a78bfa);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.verity-version {
+  font-size: 11px;
+  color: #666;
+}
+
+.verity-external-link {
+  margin-left: auto;
+  color: #666;
+  display: flex;
+  align-items: center;
+  transition: color 0.15s;
+  text-decoration: none;
+}
+
+.verity-external-link:hover {
+  color: #a78bfa;
+}
+
+/* ---------- Sections ---------- */
+.verity-section {
+  margin-bottom: 22px;
+}
+
+.verity-section h2 {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #9a8cbf;
+  margin-bottom: 12px;
+}
+
+/* ---------- Rows ---------- */
+.verity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 0;
+}
+
+.verity-row + .verity-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.verity-row-stacked {
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.verity-row-inline {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.verity-row-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.verity-row label {
+  font-weight: 500;
+  color: #d0d0d0;
+}
+
+.verity-hint {
+  font-size: 11px;
+  color: #777;
+  margin-top: 2px;
+}
+
+/* ---------- Toggle (checkbox) ---------- */
+.verity-toggle {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 40px;
+  height: 22px;
+  border-radius: 11px;
+  background: #333;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.2s;
+  flex-shrink: 0;
+  margin-left: 12px;
+}
+
+.verity-toggle::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #888;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.verity-toggle:checked {
+  background: rgba(88, 66, 186, 0.65);
+}
+
+.verity-toggle:checked::after {
+  transform: translateX(18px);
+  background: #f0f0ff;
+}
+
+/* ---------- Text / URL input ---------- */
+.verity-input {
+  background: #1e1e28;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: #e0e0e0;
+  font-size: 13px;
+  padding: 8px 12px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.verity-input:focus {
+  border-color: rgba(56, 139, 253, 0.5);
+}
+
+.verity-input-sm {
+  width: 62px;
+  text-align: center;
+  margin-left: 12px;
+  flex-shrink: 0;
+}
+
+/* ---------- URL row with status dot ---------- */
+.verity-url-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.verity-url-row .verity-input {
+  flex: 1;
+}
+
+/* ---------- Status dot ---------- */
+.verity-status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  transition: background 0.3s;
+}
+
+.verity-status-checking {
+  background: #facc15;
+  animation: verity-pulse 1s ease-in-out infinite;
+}
+
+.verity-status-live {
+  background: #4ade80;
+  box-shadow: 0 0 6px rgba(74, 222, 128, 0.4);
+}
+
+.verity-status-dead {
+  background: #f87171;
+  box-shadow: 0 0 6px rgba(248, 113, 113, 0.4);
+}
+
+@keyframes verity-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ---------- Range slider ---------- */
+.verity-range {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #7ab8ff, #c471ed var(--range-pct, 50%), #333 var(--range-pct, 50%));
+  outline: none;
+  margin: 10px 0 6px;
+}
+
+.verity-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #7ab8ff;
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 6px rgba(122, 184, 255, 0.4);
+}
+
+.verity-range::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #7ab8ff;
+  cursor: pointer;
+  border: none;
+}
+
+.verity-range::-moz-range-progress {
+  background: linear-gradient(90deg, #7ab8ff, #c471ed);
+  border-radius: 3px;
+  height: 6px;
+}
+
+.verity-range::-moz-range-track {
+  background: #333;
+  border-radius: 3px;
+  height: 6px;
+}
+
+.verity-value {
+  font-size: 12px;
+  color: #7ab8ff;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Footer ---------- */
+.verity-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.verity-btn-reset {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: #999;
+  font-size: 12px;
+  padding: 5px 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.verity-btn-reset:hover {
+  color: #e0e0e0;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+/* ---------- Saved indicator ---------- */
+.verity-saved {
+  font-size: 12px;
+  color: #4ade80;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.verity-saved--visible {
+  opacity: 1;
+}

@@ -18,56 +18,61 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   const tabId = sender.tab?.id;
 
-  fetch("http://localhost:8001/extract-stream", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(message.payload),
-  })
-    .then(async (res) => {
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  // Read backend URL from storage (set via popup dashboard)
+  chrome.storage.local.get({ extractorUrl: "http://localhost:8001" }, (settings) => {
+    const baseUrl = settings.extractorUrl.replace(/\/+$/, "");
 
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder();
-      let buffer = "";
-      let finalData = null;
+    fetch(`${baseUrl}/extract-stream`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(message.payload),
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let finalData = null;
 
-        // Parse SSE events from buffer (events separated by \n\n)
-        const parts = buffer.split("\n\n");
-        buffer = parts.pop(); // last part may be incomplete
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
 
-        for (const part of parts) {
-          if (!part.trim()) continue;
-          const lines = part.split("\n");
-          let eventType = null;
-          let data = null;
-          for (const line of lines) {
-            if (line.startsWith("event: ")) eventType = line.slice(7);
-            if (line.startsWith("data: ")) data = line.slice(6);
-          }
+          // Parse SSE events from buffer (events separated by \n\n)
+          const parts = buffer.split("\n\n");
+          buffer = parts.pop(); // last part may be incomplete
 
-          if (eventType === "progress" && tabId) {
-            chrome.tabs.sendMessage(tabId, {
-              type: "SCRAPE_PROGRESS",
-              ...JSON.parse(data),
-            });
-          } else if (eventType === "result") {
-            finalData = JSON.parse(data);
+          for (const part of parts) {
+            if (!part.trim()) continue;
+            const lines = part.split("\n");
+            let eventType = null;
+            let data = null;
+            for (const line of lines) {
+              if (line.startsWith("event: ")) eventType = line.slice(7);
+              if (line.startsWith("data: ")) data = line.slice(6);
+            }
+
+            if (eventType === "progress" && tabId) {
+              chrome.tabs.sendMessage(tabId, {
+                type: "SCRAPE_PROGRESS",
+                ...JSON.parse(data),
+              });
+            } else if (eventType === "result") {
+              finalData = JSON.parse(data);
+            }
           }
         }
-      }
 
-      if (finalData) {
-        sendResponse({ ok: true, data: finalData });
-      } else {
-        sendResponse({ ok: false, error: "No result received" });
-      }
-    })
-    .catch((err) => sendResponse({ ok: false, error: err.message }));
+        if (finalData) {
+          sendResponse({ ok: true, data: finalData });
+        } else {
+          sendResponse({ ok: false, error: "No result received" });
+        }
+      })
+      .catch((err) => sendResponse({ ok: false, error: err.message }));
+  });
 
   return true; // keep channel open for async response
 });

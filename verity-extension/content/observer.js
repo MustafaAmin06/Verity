@@ -72,7 +72,11 @@ window.Verity.observer = {
     console.log("[Verity] URLs found:", sources.length, sources.map(s => s.url));
 
     if (sources.length >= VERITY_CONFIG.minUrlsToShowButton) {
-      window.Verity.ui.injectButton(latestResponse, sources, this._platformConfig);
+      if (VERITY_CONFIG.autoCheck) {
+        window.Verity.ui.autoCheck(latestResponse, sources, this._platformConfig);
+      } else {
+        window.Verity.ui.injectButton(latestResponse, sources, this._platformConfig);
+      }
     } else {
       console.log("[Verity] No URLs found — button not injected");
     }
