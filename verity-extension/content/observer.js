@@ -7,8 +7,6 @@ window.Verity.observer = {
 
   init(platformConfig) {
     this._platformConfig = platformConfig;
-    console.log("[Verity] Observer started, watching for generation...");
-
     const observer = new MutationObserver(() => {
       this._checkGenerationState();
     });
@@ -26,9 +24,6 @@ window.Verity.observer = {
     const isGenerating = stopButton !== null;
 
     if (isGenerating) {
-      if (!this._wasGenerating) {
-        console.log("[Verity] Generation started");
-      }
       this._wasGenerating = true;
       // Cancel any pending debounce if stop button reappears
       if (this._debounceTimer) {
@@ -43,7 +38,6 @@ window.Verity.observer = {
       if (this._debounceTimer) clearTimeout(this._debounceTimer);
       this._debounceTimer = setTimeout(() => {
         this._debounceTimer = null;
-        console.log("[Verity] Generation complete, scanning for URLs...");
         this._onGenerationComplete();
       }, 500);
     }
@@ -56,20 +50,17 @@ window.Verity.observer = {
     const allResponses = document.querySelectorAll(selectors.assistantMessage);
     const latestResponse = allResponses[allResponses.length - 1];
     if (!latestResponse) {
-      console.warn("[Verity] No assistant message found — selector may have changed:", selectors.assistantMessage);
       return;
     }
 
     // Check if already processed
     const container = latestResponse.closest("[data-message-id]") || latestResponse.parentElement;
     if (container && container.hasAttribute("data-verity-processed")) {
-      console.log("[Verity] Already processed, skipping");
       return;
     }
 
     // Extract sources
     const sources = window.Verity.extractor.extractSources(latestResponse);
-    console.log("[Verity] URLs found:", sources.length, sources.map(s => s.url));
 
     if (sources.length >= VERITY_CONFIG.minUrlsToShowButton) {
       if (VERITY_CONFIG.autoCheck) {
@@ -77,8 +68,6 @@ window.Verity.observer = {
       } else {
         window.Verity.ui.injectButton(latestResponse, sources, this._platformConfig);
       }
-    } else {
-      console.log("[Verity] No URLs found — button not injected");
     }
   },
 };

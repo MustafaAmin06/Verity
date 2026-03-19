@@ -1,7 +1,7 @@
 const DEFAULTS = {
   enabled: true,
   autoCheck: false,
-  extractorUrl: "http://localhost:8001",
+  extractorUrl: "https://YOUR_RAILWAY_URL.up.railway.app",
   hoverDelayMs: 300,
   minUrlsToShowButton: 1,
 };

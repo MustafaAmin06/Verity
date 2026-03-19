@@ -84,7 +84,6 @@ window.Verity.ui = {
       this._renderError(err, panel, () => {
         panel.remove();
         container.removeAttribute("data-verity-processed");
-        this._cleanupAnnotations(responseEl);
         this.injectButton(responseEl, sources, platformConfig);
       });
     }
@@ -140,7 +139,7 @@ window.Verity.ui = {
 
   // --- Main render ---
 
-  _renderScorecard(data, panel, responseEl) {
+  _renderScorecard(data, panel) {
     const sources = data.sources || data.scraped_sources || [];
 
     if (sources.length === 0) {
@@ -161,11 +160,6 @@ window.Verity.ui = {
       panel.appendChild(this._createCard(source));
     });
 
-    // Annotate citation links in the response with hover tooltips
-    if (responseEl) {
-      this._cleanupAnnotations(responseEl);
-      this._annotateLinks(responseEl, sorted);
-    }
   },
 
   // --- Full-size card ---
@@ -424,188 +418,4 @@ window.Verity.ui = {
     return "reliable";
   },
 
-  // --- Inject Verity score into ChatGPT's native link preview card ---
-
-  _annotateLinks(responseEl, enrichedSources) {
-    const urlToSource = new Map();
-    for (const source of enrichedSources) {
-      try {
-        urlToSource.set(new URL(source.url).href, source);
-      } catch {
-        urlToSource.set(source.url, source);
-      }
-    }
-
-    const anchors = responseEl.querySelectorAll("a[href]");
-    for (const a of anchors) {
-      let normalizedHref;
-      try {
-        normalizedHref = new URL(a.href).href;
-      } catch {
-        continue;
-      }
-      const source = urlToSource.get(normalizedHref);
-      if (!source) continue;
-
-      a._veritySource = source;
-      a.setAttribute("data-verity-annotated", "true");
-      this._attachTooltipListeners(a);
-    }
-  },
-
-  _attachTooltipListeners(anchorEl) {
-    anchorEl.addEventListener("mouseenter", () => {
-      if (!anchorEl._veritySource) return;
-      this._startPreviewWatch(anchorEl);
-    });
-    anchorEl.addEventListener("mouseleave", () => {
-      this._stopPreviewWatch();
-    });
-  },
-
-  _startPreviewWatch(anchorEl) {
-    this._stopPreviewWatch();
-
-    const source = anchorEl._veritySource;
-    let sld = "";
-    try {
-      const parts = new URL(anchorEl.href).hostname.split(".");
-      // Extract second-level domain: "mayoclinic" from "www.mayoclinic.org"
-      sld = parts.length >= 2 ? parts[parts.length - 2] : parts[0];
-    } catch {}
-
-    // ChatGPT reuses its preview card element — check if it's already in the DOM.
-    // Only use explicit selectors here (not the heuristic) to avoid matching the
-    // entire ChatGPT app container which also contains the SLD text.
-    for (const node of document.body.children) {
-      const matched = VERITY_CONFIG.previewCardSelectors.some((sel) => {
-        try { return node.matches(sel); } catch { return false; }
-      });
-      if (matched) {
-        this._injectScoreBadge(node, source);
-        return;
-      }
-    }
-
-    this._previewObserver = new MutationObserver((mutations) => {
-      for (const mutation of mutations) {
-        for (const node of mutation.addedNodes) {
-          if (node.nodeType !== Node.ELEMENT_NODE) continue;
-          if (this._tryInjectIntoCard(node, source, sld)) return;
-        }
-      }
-    });
-
-    this._previewObserver.observe(document.documentElement, { childList: true, subtree: true });
-
-    this._previewTimer = setTimeout(() => {
-      this._stopPreviewWatch();
-    }, VERITY_CONFIG.previewSearchTimeoutMs);
-  },
-
-  _tryInjectIntoCard(node, source, sld) {
-
-    // Check against known selector candidates
-    const matched = VERITY_CONFIG.previewCardSelectors.some((sel) => {
-      try { return node.matches(sel); } catch { return false; }
-    });
-
-    // Heuristic: new div whose text contains the SLD with whitespace stripped
-    // e.g. sld="mayoclinic", card text "Mayo Clinic..." → stripped "mayoclinic..." ✓
-    const cardText = node.textContent.replace(/\s+/g, "").toLowerCase();
-    const heuristic = !matched &&
-      node.tagName === "DIV" &&
-      node.childElementCount > 0 &&
-      sld &&
-      cardText.includes(sld.toLowerCase());
-
-    if (!matched && !heuristic) return false;
-
-    this._injectScoreBadge(node, source);
-    this._stopPreviewWatch(/* keepBadge= */ true);
-    return true;
-  },
-
-  _injectScoreBadge(cardEl, source) {
-    const score100 = source.composite_score;
-    const color = this._scoreColor(score100);
-    const signals = source.signals || {};
-
-    const badge = document.createElement("div");
-    badge.className = "verity-score-badge";
-
-    const circle = document.createElement("div");
-    circle.className = "verity-score-circle verity-score-circle--sm";
-    circle.style.setProperty("--verity-score-color", color);
-    circle.textContent = this._toFiveScale(score100) || "—";
-
-    const text = document.createElement("div");
-    text.className = "verity-score-badge-text";
-
-    const domain = document.createElement("span");
-    domain.className = "verity-score-badge-domain";
-    domain.textContent = source.domain || "";
-
-    const tier = document.createElement("span");
-    tier.className = "verity-tier-badge";
-    tier.textContent = this._humanizeTier(signals.domain_tier);
-
-    text.append(domain, tier);
-
-    if (source.author) {
-      const author = document.createElement("span");
-      author.className = "verity-score-badge-author";
-      author.textContent = "by " + source.author;
-      text.append(author);
-    }
-
-    badge.append(circle, text);
-
-    // Read card styles to match
-    const cs = getComputedStyle(cardEl);
-    const radius = cs.borderRadius || "8px";
-
-    // Style badge to continue the card visually
-    badge.style.background = cs.backgroundColor;
-    badge.style.borderRadius = `0 0 ${radius} ${radius}`;
-    badge.style.marginTop = "0";
-
-    // Remove card's bottom rounding so they merge
-    cardEl.style.borderBottomLeftRadius = "0";
-    cardEl.style.borderBottomRightRadius = "0";
-
-    // Place badge as sibling after the card
-    cardEl.setAttribute("data-verity-badge-injected", "true");
-    cardEl.after(badge);
-  },
-
-  _stopPreviewWatch(keepBadge = false) {
-    if (this._previewObserver) {
-      this._previewObserver.disconnect();
-      this._previewObserver = null;
-    }
-    clearTimeout(this._previewTimer);
-    this._previewTimer = null;
-
-    if (!keepBadge) {
-      for (const el of document.querySelectorAll("[data-verity-badge-injected]")) {
-        // Restore card's bottom border-radius
-        el.style.borderBottomLeftRadius = "";
-        el.style.borderBottomRightRadius = "";
-        el.removeAttribute("data-verity-badge-injected");
-        // Badge is now a sibling, not a child
-        const badge = el.nextElementSibling;
-        if (badge && badge.classList.contains("verity-score-badge")) badge.remove();
-      }
-    }
-  },
-
-  _cleanupAnnotations(responseEl) {
-    if (!responseEl) return;
-    for (const a of responseEl.querySelectorAll("[data-verity-annotated]")) {
-      a.removeAttribute("data-verity-annotated");
-      delete a._veritySource;
-    }
-    this._stopPreviewWatch();
-  },
 };

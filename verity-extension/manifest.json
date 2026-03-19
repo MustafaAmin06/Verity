@@ -1,11 +1,12 @@
 {
   "manifest_version": 3,
   "name": "Verity",
-  "version": "1.0.1",
+  "version": "1.1.0",
   "description": "Score the sources behind AI responses.",
   "permissions": ["activeTab", "tabs", "storage"],
   "host_permissions": [
-    "http://localhost:8001/*"
+    "https://YOUR_RAILWAY_URL.up.railway.app/*",
+    "http://localhost:*/*"
   ],
   "action": {
     "default_popup": "popup/popup.html",

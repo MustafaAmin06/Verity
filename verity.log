@@ -7997,3 +7997,34 @@ For more informati
 17:19:41 [INFO] Scrape+Score done (7820ms): 3 live, 0 dead
 17:19:41 [INFO] Scoring done (7820ms total)
 17:19:41 [INFO] ────────────────────────────────────────────────────────────
+17:22:29 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+17:22:30 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+17:22:30 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+17:22:34 [INFO] ────────────────────────────────────────────────────────────
+17:22:34 [INFO] Extract-stream request: 3 source(s)  |  LLM: on
+17:22:34 [INFO] Prompt: what is important for biodiversity?
+17:22:34 [INFO]   [1] https://educate.gori.gov.ge/environmental/biodiversity-importance/?utm_source=chatgpt.com  |  label: educate.gori.gov.ge
+17:22:34 [INFO]   [2] https://iere.org/the-importance-of-biodiversity-in-maintaining-ecosystem-health/?utm_source=chatgpt.com  |  label: Enviro Institute
+17:22:34 [INFO]   [3] https://www.conservation.org/news/why-is-biodiversity-important?utm_source=chatgpt.com  |  label: Conservation International
+17:22:35 [INFO] HTTP Request: GET https://iere.org/the-importance-of-biodiversity-in-maintaining-ecosystem-health/?utm_source=chatgpt.com "HTTP/2 200 OK"
+17:22:35 [INFO]   SCRAPED OK   iere.org                                  status=200  words=1139  method=beautifulsoup  note=ok
+17:22:36 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=locations.landing_page_url%3Ahttps%3A%2F%2Fiere.org%2Fthe-importance-of-biodiversity-in-maintaining-ecosystem-health%2F%3Futm_source%3Dchatgpt.com&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cprimary_location%2Cauthorships%2Ctopics%2Copen_access "HTTP/2 200 OK"
+17:22:37 [INFO] HTTP Request: GET https://www.conservation.org/news/why-is-biodiversity-important?utm_source=chatgpt.com "HTTP/2 200 OK"
+17:22:37 [INFO]   SCRAPED OK   conservation.org                          status=200  words=1242  method=beautifulsoup  note=ok
+17:22:37 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=locations.landing_page_url%3Ahttps%3A%2F%2Fwww.conservation.org%2Fnews%2Fwhy-is-biodiversity-important%3Futm_source%3Dchatgpt.com&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cprimary_location%2Cauthorships%2Ctopics%2Copen_access "HTTP/2 200 OK"
+17:22:38 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+17:22:39 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+17:22:40 [WARNING]   CLIENT fail  https://educate.gori.gov.ge/environmental/biodiversity-importance/?utm_source=chatgpt.com  UnboundLocalError: cannot access local variable 'http_status' where it is not associated with a value
+17:22:40 [WARNING]   SCRAPE FAIL  educate.gori.gov.ge                       status=-     reason=scrape_failed
+17:22:40 [INFO]   PLAYWRIGHT   educate.gori.gov.ge                       words=0 → trying JS render
+17:22:47 [WARNING]   PLAYWRIGHT   https://educate.gori.gov.ge/environmental/biodiversity-importance/?utm_source=chatgpt.com  TimeoutError: Page.goto: Timeout 6000ms exceeded.
+Call log:
+  - navigating to "https://educate.gori.gov.ge/environmental/biodiversity-importance/?utm_source=chatgpt.com", waiting until "domcontentloaded"
+
+17:22:47 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=locations.landing_page_url%3Ahttps%3A%2F%2Feducate.gori.gov.ge%2Fenvironmental%2Fbiodiversity-importance%2F%3Futm_source%3Dchatgpt.com&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cprimary_location%2Cauthorships%2Ctopics%2Copen_access "HTTP/2 200 OK"
+17:22:48 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+17:22:48 [INFO] Scrape+Score done (14336ms): 2 live, 1 dead
+17:22:48 [INFO] Scoring done (14336ms total)
+17:22:48 [INFO] ────────────────────────────────────────────────────────────
+17:32:23 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+17:32:24 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
