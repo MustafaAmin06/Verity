@@ -2310,28 +2310,28 @@ async def healthcheck(request: Request) -> dict:
 
 @app.post("/extract")
 @limiter.limit("10/minute")
-async def extract(http_request: Request, request: ExtractRequest):
+async def extract(request: Request, body: ExtractRequest):
     start = time.perf_counter()
 
     logging.info("─" * 60)
     llm_ok = await _check_llm_available()
-    logging.info("Extract request: %d source(s)  |  LLM: %s", len(request.sources), "on" if llm_ok else "off")
-    logging.info("Prompt: [%d chars]", len(request.original_prompt))
-    for i, s in enumerate(request.sources, 1):
+    logging.info("Extract request: %d source(s)  |  LLM: %s", len(body.sources), "on" if llm_ok else "off")
+    logging.info("Prompt: [%d chars]", len(body.original_prompt))
+    for i, s in enumerate(body.sources, 1):
         logging.info("  [%d] %s  |  label: %s", i, s.url, s.label[:60])
 
     # Scrape + score overlap: each source starts LLM scoring as soon as it's scraped
-    topic = _detect_topic(request.full_ai_response + " " + request.original_prompt)
+    topic = _detect_topic(body.full_ai_response + " " + body.original_prompt)
     async def scrape_and_score(source: SourceInput) -> tuple:
         scraped = await scrape_source(source)
         llm_result, oa_enrichment = await asyncio.gather(
-            score_source_with_llm(scraped, request.original_prompt) if llm_ok else _noop_coro(),
+            score_source_with_llm(scraped, body.original_prompt) if llm_ok else _noop_coro(),
             enrich_with_openalex(scraped) if OPENALEX_ENABLED else _noop_coro(),
         )
         return scraped, llm_result or {}, oa_enrichment or {}
 
     results = await asyncio.gather(
-        *(scrape_and_score(source) for source in request.sources)
+        *(scrape_and_score(source) for source in body.sources)
     )
     scraped_sources = [r[0] for r in results]
     llm_results = [r[1] for r in results]
@@ -2418,8 +2418,8 @@ async def extract(http_request: Request, request: ExtractRequest):
     extraction_time_ms = int((time.perf_counter() - start) * 1000)
     return ExtractResponse(
         scraped_sources=list(scraped_sources),
-        original_prompt=request.original_prompt,
-        full_ai_response=request.full_ai_response,
+        original_prompt=body.original_prompt,
+        full_ai_response=body.full_ai_response,
         source_count=len(scraped_sources),
         live_count=live_count,
         dead_count=dead_count,
@@ -2429,7 +2429,7 @@ async def extract(http_request: Request, request: ExtractRequest):
 
 @app.post("/extract-stream")
 @limiter.limit("10/minute")
-async def extract_stream(http_request: Request, request: ExtractRequest):
+async def extract_stream(request: Request, body: ExtractRequest):
     """SSE endpoint that emits progress events as each source finishes scraping."""
 
     async def event_generator():
@@ -2437,26 +2437,26 @@ async def extract_stream(http_request: Request, request: ExtractRequest):
 
         logging.info("─" * 60)
         llm_ok = await _check_llm_available()
-        logging.info("Extract-stream request: %d source(s)  |  LLM: %s", len(request.sources), "on" if llm_ok else "off")
-        logging.info("Prompt: [%d chars]", len(request.original_prompt))
-        for i, s in enumerate(request.sources, 1):
+        logging.info("Extract-stream request: %d source(s)  |  LLM: %s", len(body.sources), "on" if llm_ok else "off")
+        logging.info("Prompt: [%d chars]", len(body.original_prompt))
+        for i, s in enumerate(body.sources, 1):
             logging.info("  [%d] %s  |  label: %s", i, s.url, s.label[:60])
 
-        topic = _detect_topic(request.full_ai_response + " " + request.original_prompt)
+        topic = _detect_topic(body.full_ai_response + " " + body.original_prompt)
 
-        total = len(request.sources)
+        total = len(body.sources)
 
         async def scrape_and_score_indexed(index, source):
             scraped = await scrape_source(source)
             llm_result, oa_enrichment = await asyncio.gather(
-                score_source_with_llm(scraped, request.original_prompt) if llm_ok else _noop_coro(),
+                score_source_with_llm(scraped, body.original_prompt) if llm_ok else _noop_coro(),
                 enrich_with_openalex(scraped) if OPENALEX_ENABLED else _noop_coro(),
             )
             return index, scraped, llm_result or {}, oa_enrichment or {}
 
         tasks = [
             asyncio.create_task(scrape_and_score_indexed(i, s))
-            for i, s in enumerate(request.sources)
+            for i, s in enumerate(body.sources)
         ]
 
         results = [None] * total
@@ -2509,8 +2509,8 @@ async def extract_stream(http_request: Request, request: ExtractRequest):
             logging.info("─" * 60)
             response_obj = ExtractResponse(
                 scraped_sources=list(scraped_sources),
-                original_prompt=request.original_prompt,
-                full_ai_response=request.full_ai_response,
+                original_prompt=body.original_prompt,
+                full_ai_response=body.full_ai_response,
                 source_count=len(scraped_sources),
                 live_count=live_count,
                 dead_count=dead_count,
