@@ -33,8 +33,13 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 RUN playwright install chromium
 
+RUN groupadd -r verity && useradd -r -g verity -d /app -s /sbin/nologin verity
+
 COPY verity_extractor.py .
 COPY ["scimagojr 2024.csv", "."]
+
+RUN chown -R verity:verity /app
+USER verity
 
 EXPOSE 8001
 

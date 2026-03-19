@@ -4,6 +4,7 @@ Verity source extraction and scraping module.
 
 import asyncio
 import csv
+import hmac
 import ipaddress
 import json
 import logging
@@ -31,10 +32,10 @@ if not logging.root.handlers:
 
 import httpx
 from bs4 import BeautifulSoup
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
-from pydantic import BaseModel, Field
+from fastapi.responses import JSONResponse, StreamingResponse
+from pydantic import BaseModel, Field, field_validator
 
 try:
     from playwright.async_api import async_playwright
@@ -53,23 +54,35 @@ except ImportError:
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN", "")
 GITHUB_MODEL = os.getenv("GITHUB_MODEL", "gpt-4o")
 GITHUB_API_URL = "https://models.inference.ai.azure.com/chat/completions"
+VERITY_API_KEY = os.getenv("VERITY_API_KEY", "")
+VERITY_EXTENSION_ID = os.getenv("VERITY_EXTENSION_ID", "")
 
 
-REQUEST_TIMEOUT_SECONDS = int(os.getenv("REQUEST_TIMEOUT_SECONDS", "5"))
-MAX_BODY_TEXT_CHARS = int(os.getenv("MAX_BODY_TEXT_CHARS", "8000"))
-MAX_RESPONSE_BYTES = int(os.getenv("MAX_RESPONSE_BYTES", str(10 * 1024 * 1024)))  # 10 MB
-MAX_SOURCES_PER_REQUEST = int(os.getenv("MAX_SOURCES_PER_REQUEST", "25"))
-PLAYWRIGHT_TIMEOUT_SECONDS = int(os.getenv("PLAYWRIGHT_TIMEOUT_SECONDS", "6"))
+def _env_int(name: str, default: str, lo: int = 0, hi: int = 2**31 - 1) -> int:
+    raw = os.getenv(name, default)
+    try:
+        val = int(raw)
+    except (ValueError, TypeError):
+        logging.warning("Invalid env var %s=%r, using default %s", name, raw, default)
+        return int(default)
+    return max(lo, min(hi, val))
+
+
+REQUEST_TIMEOUT_SECONDS = _env_int("REQUEST_TIMEOUT_SECONDS", "5", lo=1, hi=120)
+MAX_BODY_TEXT_CHARS = _env_int("MAX_BODY_TEXT_CHARS", "8000", lo=100, hi=500_000)
+MAX_RESPONSE_BYTES = _env_int("MAX_RESPONSE_BYTES", str(10 * 1024 * 1024), lo=1024, hi=100 * 1024 * 1024)
+MAX_SOURCES_PER_REQUEST = _env_int("MAX_SOURCES_PER_REQUEST", "25", lo=1, hi=100)
+PLAYWRIGHT_TIMEOUT_SECONDS = _env_int("PLAYWRIGHT_TIMEOUT_SECONDS", "6", lo=1, hi=60)
 ENABLE_PLAYWRIGHT_FALLBACK = (
     os.getenv("ENABLE_PLAYWRIGHT_FALLBACK", "true").lower() == "true"
 )
-EXTRACTOR_PORT = int(os.getenv("EXTRACTOR_PORT", "8001"))
+EXTRACTOR_PORT = _env_int("EXTRACTOR_PORT", "8001", lo=1, hi=65535)
 MAX_REDIRECTS = 5
 
 # ── OpenAlex API configuration ──
 OPENALEX_EMAIL = os.getenv("OPENALEX_EMAIL", "")
-OPENALEX_TIMEOUT_SECONDS = int(os.getenv("OPENALEX_TIMEOUT_SECONDS", "8"))
-OPENALEX_CACHE_TTL_SECONDS = int(os.getenv("OPENALEX_CACHE_TTL_SECONDS", "86400"))  # 24 h
+OPENALEX_TIMEOUT_SECONDS = _env_int("OPENALEX_TIMEOUT_SECONDS", "8", lo=1, hi=120)
+OPENALEX_CACHE_TTL_SECONDS = _env_int("OPENALEX_CACHE_TTL_SECONDS", "86400", lo=60, hi=604800)
 OPENALEX_ENABLED = os.getenv("OPENALEX_ENABLED", "true").lower() == "true"
 
 BROWSER_USER_AGENT = (
@@ -311,9 +324,18 @@ def _get_openalex_db() -> sqlite3.Connection:
     return _openalex_db
 
 
+_OA_ALLOWED_TABLES: dict[str, str] = {
+    "openalex_works": "lookup_key",
+    "openalex_sources": "openalex_id",
+    "openalex_authors": "openalex_id",
+}
+
+
 def _oa_cache_get(table: str, key: str) -> dict | None:
+    if table not in _OA_ALLOWED_TABLES:
+        raise ValueError(f"Invalid cache table: {table}")
+    col = _OA_ALLOWED_TABLES[table]
     db = _get_openalex_db()
-    col = "lookup_key" if table == "openalex_works" else "openalex_id"
     row = db.execute(
         f"SELECT data, fetched_at FROM {table} WHERE {col} = ?", (key,)
     ).fetchone()
@@ -326,8 +348,10 @@ def _oa_cache_get(table: str, key: str) -> dict | None:
 
 
 def _oa_cache_set(table: str, key: str, data: dict) -> None:
+    if table not in _OA_ALLOWED_TABLES:
+        raise ValueError(f"Invalid cache table: {table}")
+    col = _OA_ALLOWED_TABLES[table]
     db = _get_openalex_db()
-    col = "lookup_key" if table == "openalex_works" else "openalex_id"
     db.execute(
         f"INSERT OR REPLACE INTO {table} ({col}, data, fetched_at) VALUES (?, ?, ?)",
         (key, json.dumps(data), time.time()),
@@ -467,6 +491,13 @@ class SourceInput(BaseModel):
     url: str
     label: str
     context: str
+
+    @field_validator("url")
+    @classmethod
+    def url_must_be_http(cls, v: str) -> str:
+        if not v.startswith(("http://", "https://")):
+            raise ValueError("URL must use http or https protocol")
+        return v
 
 
 class ExtractRequest(BaseModel):
@@ -2198,7 +2229,15 @@ async def scrape_source(source: SourceInput) -> ScrapedSource:
     return result
 
 
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
 app = FastAPI(title="Verity Extractor", version="1.0.0")
+
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 _ALLOWED_ORIGINS = [
     origin.strip()
@@ -2206,38 +2245,78 @@ _ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 
+_origin_regex = (
+    rf"chrome-extension://{re.escape(VERITY_EXTENSION_ID)}"
+    if VERITY_EXTENSION_ID
+    else r"chrome-extension://.*"
+)
+if not VERITY_EXTENSION_ID:
+    logging.warning("VERITY_EXTENSION_ID not set — CORS allows any Chrome extension")
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_ALLOWED_ORIGINS,
-    allow_origin_regex=r"chrome-extension://.*",
+    allow_origin_regex=_origin_regex,
     allow_credentials=True,
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type", "Authorization"],
 )
 
 
+def _is_authenticated(request: Request) -> bool:
+    if not VERITY_API_KEY:
+        return True
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        return False
+    return hmac.compare_digest(auth[7:], VERITY_API_KEY)
+
+
+@app.middleware("http")
+async def verify_api_key(request: Request, call_next):
+    if request.url.path == "/health":
+        return await call_next(request)
+    if not _is_authenticated(request):
+        return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
+    return await call_next(request)
+
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    response = await call_next(request)
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = "geolocation=(), camera=(), microphone=()"
+    return response
+
+
 @app.get("/health")
-async def healthcheck() -> dict:
-    llm_ok = await _check_llm_available()
-    return {
-        "status": "ok",
-        "playwright_enabled": ENABLE_PLAYWRIGHT_FALLBACK and PLAYWRIGHT_AVAILABLE,
-        "llm_enabled": llm_ok,
-        "llm_model": GITHUB_MODEL,
-        "llm_backend": "github_models",
-        "openalex_enabled": OPENALEX_ENABLED,
-        "openalex_polite": bool(OPENALEX_EMAIL),
-    }
+async def healthcheck(request: Request) -> dict:
+    if _is_authenticated(request):
+        llm_ok = await _check_llm_available()
+        return {
+            "status": "ok",
+            "playwright_enabled": ENABLE_PLAYWRIGHT_FALLBACK and PLAYWRIGHT_AVAILABLE,
+            "llm_enabled": llm_ok,
+            "llm_model": GITHUB_MODEL,
+            "llm_backend": "github_models",
+            "openalex_enabled": OPENALEX_ENABLED,
+            "openalex_polite": bool(OPENALEX_EMAIL),
+        }
+    return {"status": "ok"}
 
 
 @app.post("/extract")
-async def extract(request: ExtractRequest):
+@limiter.limit("10/minute")
+async def extract(http_request: Request, request: ExtractRequest):
     start = time.perf_counter()
 
     logging.info("─" * 60)
     llm_ok = await _check_llm_available()
     logging.info("Extract request: %d source(s)  |  LLM: %s", len(request.sources), "on" if llm_ok else "off")
-    logging.info("Prompt: %s", request.original_prompt[:120] or "(none)")
+    logging.info("Prompt: [%d chars]", len(request.original_prompt))
     for i, s in enumerate(request.sources, 1):
         logging.info("  [%d] %s  |  label: %s", i, s.url, s.label[:60])
 
@@ -2349,7 +2428,8 @@ async def extract(request: ExtractRequest):
 
 
 @app.post("/extract-stream")
-async def extract_stream(request: ExtractRequest):
+@limiter.limit("10/minute")
+async def extract_stream(http_request: Request, request: ExtractRequest):
     """SSE endpoint that emits progress events as each source finishes scraping."""
 
     async def event_generator():
@@ -2358,7 +2438,7 @@ async def extract_stream(request: ExtractRequest):
         logging.info("─" * 60)
         llm_ok = await _check_llm_available()
         logging.info("Extract-stream request: %d source(s)  |  LLM: %s", len(request.sources), "on" if llm_ok else "off")
-        logging.info("Prompt: %s", request.original_prompt[:120] or "(none)")
+        logging.info("Prompt: [%d chars]", len(request.original_prompt))
         for i, s in enumerate(request.sources, 1):
             logging.info("  [%d] %s  |  label: %s", i, s.url, s.label[:60])
 

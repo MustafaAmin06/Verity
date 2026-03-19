@@ -2,6 +2,7 @@ const DEFAULTS = {
   enabled: true,
   autoCheck: false,
   extractorUrl: "https://verity-production-e8f2.up.railway.app",
+  apiKey: "",
   hoverDelayMs: 300,
   minUrlsToShowButton: 1,
 };

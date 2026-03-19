@@ -16,63 +16,90 @@ chrome.runtime.onInstalled.addListener(async () => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type !== "EXTRACT_SOURCES") return false;
 
+  // Only accept messages from our own extension's content scripts
+  if (sender.id !== chrome.runtime.id) return false;
+  if (!sender.tab?.url?.match(/^https:\/\/(chat\.openai\.com|chatgpt\.com)\//)) return false;
+
   const tabId = sender.tab?.id;
 
-  // Read backend URL from storage (set via popup dashboard)
-  chrome.storage.local.get({ extractorUrl: "https://verity-production-e8f2.up.railway.app" }, (settings) => {
-    const baseUrl = settings.extractorUrl.replace(/\/+$/, "");
+  // Read backend URL and API key from storage (set via popup dashboard)
+  chrome.storage.local.get(
+    { extractorUrl: "https://verity-production-e8f2.up.railway.app", apiKey: "" },
+    (settings) => {
+      const baseUrl = settings.extractorUrl.replace(/\/+$/, "");
 
-    fetch(`${baseUrl}/extract-stream`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(message.payload),
-    })
-      .then(async (res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      // Enforce HTTPS (allow http://localhost for dev only)
+      if (!baseUrl.startsWith("https://") && !baseUrl.startsWith("http://localhost")) {
+        sendResponse({ ok: false, error: "Backend URL must use HTTPS" });
+        return;
+      }
 
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = "";
-        let finalData = null;
+      const headers = { "Content-Type": "application/json" };
+      if (settings.apiKey) {
+        headers["Authorization"] = `Bearer ${settings.apiKey}`;
+      }
 
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
+      fetch(`${baseUrl}/extract-stream`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify(message.payload),
+        signal: AbortSignal.timeout(120000),
+      })
+        .then(async (res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-          // Parse SSE events from buffer (events separated by \n\n)
-          const parts = buffer.split("\n\n");
-          buffer = parts.pop(); // last part may be incomplete
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = "";
+          let finalData = null;
 
-          for (const part of parts) {
-            if (!part.trim()) continue;
-            const lines = part.split("\n");
-            let eventType = null;
-            let data = null;
-            for (const line of lines) {
-              if (line.startsWith("event: ")) eventType = line.slice(7);
-              if (line.startsWith("data: ")) data = line.slice(6);
-            }
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
 
-            if (eventType === "progress" && tabId) {
-              chrome.tabs.sendMessage(tabId, {
-                type: "SCRAPE_PROGRESS",
-                ...JSON.parse(data),
-              });
-            } else if (eventType === "result") {
-              finalData = JSON.parse(data);
+            // Parse SSE events from buffer (events separated by \n\n)
+            const parts = buffer.split("\n\n");
+            buffer = parts.pop(); // last part may be incomplete
+
+            for (const part of parts) {
+              if (!part.trim()) continue;
+              const lines = part.split("\n");
+              let eventType = null;
+              let data = null;
+              for (const line of lines) {
+                if (line.startsWith("event: ")) eventType = line.slice(7);
+                if (line.startsWith("data: ")) data = line.slice(6);
+              }
+
+              if (eventType === "progress" && tabId) {
+                try {
+                  chrome.tabs.sendMessage(tabId, {
+                    type: "SCRAPE_PROGRESS",
+                    ...JSON.parse(data),
+                  });
+                } catch (e) {
+                  console.warn("Verity: failed to parse progress event", e);
+                }
+              } else if (eventType === "result") {
+                try {
+                  finalData = JSON.parse(data);
+                } catch (e) {
+                  console.error("Verity: failed to parse result event", e);
+                }
+              }
             }
           }
-        }
 
-        if (finalData) {
-          sendResponse({ ok: true, data: finalData });
-        } else {
-          sendResponse({ ok: false, error: "No result received" });
-        }
-      })
-      .catch((err) => sendResponse({ ok: false, error: err.message }));
-  });
+          if (finalData) {
+            sendResponse({ ok: true, data: finalData });
+          } else {
+            sendResponse({ ok: false, error: "No result received" });
+          }
+        })
+        .catch((err) => sendResponse({ ok: false, error: err.message }));
+    }
+  );
 
   return true; // keep channel open for async response
 });

@@ -5,9 +5,11 @@
   "description": "Score the sources behind AI responses.",
   "permissions": ["activeTab", "tabs", "storage"],
   "host_permissions": [
-    "https://verity-production-e8f2.up.railway.app/*",
-    "http://localhost:*/*"
+    "https://verity-production-e8f2.up.railway.app/*"
   ],
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; object-src 'none'"
+  },
   "action": {
     "default_popup": "popup/popup.html",
     "default_title": "Verity Settings"
