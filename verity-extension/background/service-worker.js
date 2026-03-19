@@ -19,7 +19,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   const tabId = sender.tab?.id;
 
   // Read backend URL from storage (set via popup dashboard)
-  chrome.storage.local.get({ extractorUrl: "https://YOUR_RAILWAY_URL.up.railway.app" }, (settings) => {
+  chrome.storage.local.get({ extractorUrl: "https://verity-production-e8f2.up.railway.app" }, (settings) => {
     const baseUrl = settings.extractorUrl.replace(/\/+$/, "");
 
     fetch(`${baseUrl}/extract-stream`, {

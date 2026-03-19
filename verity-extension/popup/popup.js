@@ -1,7 +1,7 @@
 const DEFAULTS = {
   enabled: true,
   autoCheck: false,
-  extractorUrl: "https://YOUR_RAILWAY_URL.up.railway.app",
+  extractorUrl: "https://verity-production-e8f2.up.railway.app",
   hoverDelayMs: 300,
   minUrlsToShowButton: 1,
 };

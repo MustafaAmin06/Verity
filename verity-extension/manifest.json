@@ -5,7 +5,7 @@
   "description": "Score the sources behind AI responses.",
   "permissions": ["activeTab", "tabs", "storage"],
   "host_permissions": [
-    "https://YOUR_RAILWAY_URL.up.railway.app/*",
+    "https://verity-production-e8f2.up.railway.app/*",
     "http://localhost:*/*"
   ],
   "action": {
