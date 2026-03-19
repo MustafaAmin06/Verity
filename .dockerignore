@@ -1,0 +1,16 @@
+venv/
+.env
+openalex_cache.db
+openalex_cache.db-shm
+openalex_cache.db-wal
+verity.log
+verity-extension/
+public/
+Image/
+index.html
+test_*.py
+*.md
+.git/
+.vscode/
+__pycache__/
+*.pyc
