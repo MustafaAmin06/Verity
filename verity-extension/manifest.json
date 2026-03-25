@@ -3,7 +3,7 @@
   "name": "Verity",
   "version": "1.1.0",
   "description": "Score the sources behind AI responses.",
-  "permissions": ["activeTab", "tabs", "storage"],
+  "permissions": ["tabs", "storage"],
   "host_permissions": [
     "https://verity-production-e8f2.up.railway.app/*"
   ],
@@ -15,6 +15,15 @@
     "default_title": "Verity Settings"
   },
   "content_scripts": [
+    {
+      "matches": [
+        "https://chat.openai.com/*",
+        "https://chatgpt.com/*"
+      ],
+      "js": ["content/interceptor.js"],
+      "run_at": "document_start",
+      "world": "MAIN"
+    },
     {
       "matches": [
         "https://chat.openai.com/*",

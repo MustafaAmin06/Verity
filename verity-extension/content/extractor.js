@@ -1,13 +1,35 @@
 window.Verity = window.Verity || {};
 
+// --- Intercepted citation cache (filled by MAIN-world interceptor.js) ---
+window.Verity._interceptedCitations = null;
+window.Verity._interceptedTimestamp = 0;
+
+document.addEventListener("verity-citations", (e) => {
+  if (e.detail && Array.isArray(e.detail.citations)) {
+    window.Verity._interceptedCitations = e.detail.citations;
+    window.Verity._interceptedTimestamp = e.detail.timestamp || Date.now();
+  }
+});
+
 window.Verity.extractor = {
   /**
    * Extract all sources (url, label, context) from a response element.
+   * Uses intercepted API data as primary source, DOM extraction as fallback.
    */
   extractSources(element) {
+    const intercepted = this._getInterceptedCitations(element);
+
+    const pills = this._extractFromCitationPills(element);
     const anchors = this._extractFromAnchors(element);
     const bare = this._extractFromText(element, anchors);
-    const all = [...anchors, ...bare];
+    const footnotes = this._extractFromFootnotes(element);
+    const citationEls = this._extractFromCitationElements(element);
+
+    const domSources = [...pills, ...anchors, ...bare, ...footnotes, ...citationEls];
+    const all = intercepted.length > 0
+      ? [...intercepted, ...domSources]
+      : domSources;
+
     return this._deduplicate(all);
   },
 
@@ -85,6 +107,125 @@ window.Verity.extractor = {
     } catch {
       return url.slice(0, 40);
     }
+  },
+
+  // --- DOM fallback: ChatGPT citation pills ---
+
+  _extractFromCitationPills(element) {
+    const sources = [];
+    // ChatGPT renders citation pills with data-testid="webpage-citation-pill"
+    // Each pill contains a single <a> with the visible source URL.
+    // For grouped citations ("+1"), only the first URL is in the DOM.
+    const pills = element.querySelectorAll('[data-testid="webpage-citation-pill"] a[href]');
+    for (const a of pills) {
+      const url = a.href || a.getAttribute("alt") || "";
+      if (!url || !url.startsWith("http")) continue;
+      // Strip utm_source=chatgpt.com for cleaner URLs
+      let cleanUrl = url;
+      try {
+        const u = new URL(url);
+        u.searchParams.delete("utm_source");
+        cleanUrl = u.toString();
+      } catch {}
+      const label = a.innerText.trim() || this._domainFromUrl(cleanUrl);
+      const context = this._getContextForNode(a, element);
+      sources.push({ url: cleanUrl, label, context });
+    }
+    return sources;
+  },
+
+  // --- Intercepted API citation helpers ---
+
+  _getInterceptedCitations(element) {
+    const data = window.Verity._interceptedCitations;
+    const ts = window.Verity._interceptedTimestamp;
+    // Only use if data exists and is recent (< 15 seconds old)
+    if (!data || !Array.isArray(data) || data.length === 0) return [];
+    if (Date.now() - ts > 15000) return [];
+
+    const fullText = element.innerText || "";
+    return data.map((c) => ({
+      url: c.url,
+      label: c.title || c.domain || this._domainFromUrl(c.url),
+      context: this._findContextForUrl(fullText, c.url, c.domain),
+    }));
+  },
+
+  _findContextForUrl(fullText, url, domain) {
+    // Try to find the URL or domain in the response text for context
+    const searchTerms = [url, domain].filter(Boolean);
+    for (const term of searchTerms) {
+      const pos = fullText.indexOf(term);
+      if (pos >= 0) {
+        return this._getContextFromPosition(fullText, pos, "");
+      }
+    }
+    // Fallback: use the beginning of the response
+    if (fullText.length >= 30) {
+      return fullText.slice(0, 400).trim();
+    }
+    return "Source citation from AI response";
+  },
+
+  // --- DOM fallback: footnote lists ---
+
+  _extractFromFootnotes(element) {
+    const sources = [];
+    // ChatGPT sometimes renders a numbered source list at the end
+    const orderedLists = element.querySelectorAll("ol");
+    for (const ol of orderedLists) {
+      const items = ol.querySelectorAll("li");
+      for (const li of items) {
+        const links = li.querySelectorAll("a[href]");
+        for (const a of links) {
+          const url = a.href;
+          if (!url || !url.startsWith("http")) continue;
+          const label = a.innerText.trim() || this._domainFromUrl(url);
+          const context = li.innerText.trim().slice(0, 400) || "Source citation";
+          sources.push({ url, label, context });
+        }
+      }
+    }
+    return sources;
+  },
+
+  // --- DOM fallback: citation elements with data attributes ---
+
+  _extractFromCitationElements(element) {
+    const sources = [];
+
+    // Check elements with data-href or data-url attributes
+    const dataAttrSelectors = "[data-href], [data-url]";
+    const elements = element.querySelectorAll(dataAttrSelectors);
+    for (const el of elements) {
+      const url = el.getAttribute("data-href") || el.getAttribute("data-url");
+      if (!url || !url.startsWith("http")) continue;
+      const label = el.innerText.trim() || this._domainFromUrl(url);
+      const context = this._getContextForNode(el, element);
+      sources.push({ url, label, context });
+    }
+
+    // Check preview card selectors from config
+    if (typeof VERITY_CONFIG !== "undefined" && VERITY_CONFIG.previewCardSelectors) {
+      for (const selector of VERITY_CONFIG.previewCardSelectors) {
+        try {
+          const cards = element.querySelectorAll(selector);
+          for (const card of cards) {
+            const a = card.querySelector("a[href]");
+            if (!a) continue;
+            const url = a.href;
+            if (!url || !url.startsWith("http")) continue;
+            const label = a.innerText.trim() || card.innerText.trim().slice(0, 80) || this._domainFromUrl(url);
+            const context = card.innerText.trim().slice(0, 400) || "Source citation";
+            sources.push({ url, label, context });
+          }
+        } catch {
+          // Invalid selector — skip
+        }
+      }
+    }
+
+    return sources;
   },
 
   _deduplicate(sources) {
