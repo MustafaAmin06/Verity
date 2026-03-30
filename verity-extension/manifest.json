@@ -10,9 +10,15 @@
   "content_security_policy": {
     "extension_pages": "script-src 'self'; object-src 'none'"
   },
+  "icons": {
+    "128": "icons/icon128.png"
+  },
   "action": {
     "default_popup": "popup/popup.html",
-    "default_title": "Verity Settings"
+    "default_title": "Verity Settings",
+    "default_icon": {
+      "128": "icons/icon128.png"
+    }
   },
   "content_scripts": [
     {
