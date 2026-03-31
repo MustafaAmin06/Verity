@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Verity",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "Score the sources behind AI responses.",
   "permissions": ["tabs", "storage"],
   "host_permissions": [

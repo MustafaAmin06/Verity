@@ -8028,3 +8028,16 @@ Call log:
 17:22:48 [INFO] ────────────────────────────────────────────────────────────
 17:32:23 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
 17:32:24 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+23:27:07 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+23:27:15 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+23:27:15 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+23:27:21 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+23:27:21 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+23:27:35 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+23:27:35 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+23:27:35 [INFO] HTTP Request: GET https://en.wikipedia.org/wiki/Microplastics "HTTP/2 200 OK"
+23:27:35 [INFO]   SCRAPED OK   en.wikipedia.org                          status=200  words=1224  method=beautifulsoup  note=ok
+23:27:46 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+23:27:46 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+23:27:53 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+23:27:53 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension

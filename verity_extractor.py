@@ -2293,7 +2293,7 @@ async def add_security_headers(request: Request, call_next):
 
 
 @app.get("/health")
-async def healthcheck(request: Request) -> dict:
+async def healthcheck(request: Request) -> dict: 
     if _is_authenticated(request):
         llm_ok = await _check_llm_available()
         return {
