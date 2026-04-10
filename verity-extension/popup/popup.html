@@ -8,8 +8,8 @@
   <div class="verity-popup">
     <header class="verity-popup-header">
       <h1>Verity</h1>
-      <span class="verity-version">v1.0.1</span>
-      <a class="verity-external-link" target="_blank" title="Open project">
+      <span class="verity-version" id="versionLabel"></span>
+      <a class="verity-external-link" id="projectLink" target="_blank" rel="noopener noreferrer" title="Open project">
         <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
           <path d="M12 9.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3.5"/>
           <path d="M10 2h4v4"/>
@@ -58,15 +58,6 @@
     <!-- Display -->
     <section class="verity-section">
       <h2>Display</h2>
-
-      <div class="verity-row verity-row-stacked">
-        <div class="verity-row-inline">
-          <label for="hoverDelayMs">Hover delay</label>
-          <span class="verity-value" id="hoverDelayMs-value">300ms</span>
-        </div>
-        <input type="range" id="hoverDelayMs" class="verity-range" min="100" max="1000" step="50">
-        <p class="verity-hint">Delay before showing score badge on link hover</p>
-      </div>
 
       <div class="verity-row">
         <div class="verity-row-text">

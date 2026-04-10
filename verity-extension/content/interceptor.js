@@ -18,28 +18,85 @@
 (function () {
   "use strict";
 
+  if (window.__VERITY_FETCH_PATCHED__) {
+    return;
+  }
+  window.__VERITY_FETCH_PATCHED__ = true;
+
   // Accumulated citations across all chunks for the current response
   let sessionCitations = [];
   let sessionSeenUrls = new Set();
   let sessionTimer = null;
+  let currentSessionId = 0;
+
+  function getRequestUrl(resource) {
+    try {
+      return typeof resource === "string"
+        ? resource
+        : resource instanceof Request
+          ? resource.url
+          : "";
+    } catch {
+      return "";
+    }
+  }
+
+  function getRequestMethod(resource, init) {
+    const explicit = init && init.method ? init.method : null;
+    if (explicit) return explicit.toUpperCase();
+    try {
+      if (resource instanceof Request && resource.method) {
+        return resource.method.toUpperCase();
+      }
+    } catch {}
+    return "GET";
+  }
+
+  function parseRequestPath(resource) {
+    try {
+      const url = new URL(getRequestUrl(resource), window.location.origin);
+      return url.pathname;
+    } catch {
+      return "";
+    }
+  }
 
   function isConversationRequest(resource) {
     try {
-      const url =
-        typeof resource === "string"
-          ? resource
-          : resource instanceof Request
-            ? resource.url
-            : null;
-      if (!url) return false;
+      const path = parseRequestPath(resource);
+      if (!path) return false;
       return (
-        url.includes("backend-api/f/conversation") ||
-        url.includes("/ces/v1/t") ||
-        url.includes("/ces/v1/p")
+        path.includes("/conversation") ||
+        path.startsWith("/ces/v1/")
       );
     } catch {
       return false;
     }
+  }
+
+  function isConversationStart(resource, init) {
+    return parseRequestPath(resource).includes("/conversation") && getRequestMethod(resource, init) === "POST";
+  }
+
+  function beginSession() {
+    currentSessionId += 1;
+    resetSession();
+    document.dispatchEvent(
+      new CustomEvent("verity-generation-start", {
+        detail: {
+          sessionId: currentSessionId,
+          timestamp: Date.now(),
+        },
+      })
+    );
+    return currentSessionId;
+  }
+
+  function ensureSession() {
+    if (!currentSessionId) {
+      return beginSession();
+    }
+    return currentSessionId;
   }
 
   /**
@@ -172,7 +229,7 @@
    * Uses a debounce timer so we dispatch once after a burst of chunks,
    * not on every single chunk.
    */
-  function addToSession(newCitations) {
+  function addToSession(sessionId, newCitations) {
     let added = false;
     for (const c of newCitations) {
       if (!sessionSeenUrls.has(c.url)) {
@@ -191,6 +248,7 @@
         document.dispatchEvent(
           new CustomEvent("verity-citations", {
             detail: {
+              sessionId,
               citations: [...sessionCitations],
               timestamp: Date.now(),
             },
@@ -218,26 +276,26 @@
 
   window.fetch = async function (...args) {
     const resource = args[0];
-    let url = "";
-    try {
-      url = typeof resource === "string" ? resource : resource instanceof Request ? resource.url : "";
-    } catch {}
+    const url = getRequestUrl(resource);
+    const method = getRequestMethod(resource, args[1]);
 
     // Reset session on a new conversation POST
-    if (url.includes("backend-api/f/conversation") && args[1]?.method?.toUpperCase() === "POST") {
-      resetSession();
+    let sessionId = currentSessionId;
+    if (isConversationStart(resource, args[1])) {
+      sessionId = beginSession();
     }
 
     const response = await originalFetch.apply(this, args);
 
     if (isConversationRequest(resource)) {
+      sessionId = sessionId || ensureSession();
       try {
         const cloned = response.clone();
         // Fire-and-forget — never block the original response
         parseResponseForCitations(cloned.body)
           .then((citations) => {
             if (citations.length > 0) {
-              addToSession(citations);
+              addToSession(sessionId, citations);
             }
           })
           .catch(() => {

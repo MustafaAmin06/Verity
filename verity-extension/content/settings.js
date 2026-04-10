@@ -7,7 +7,6 @@ var VERITY_CONFIG = {
   enabled: true,
   autoCheck: false,
   extractorUrl: "https://verity-production-e8f2.up.railway.app",
-  hoverDelayMs: 300,
   maxBodyTextChars: 8000,
   minContextChars: 30,
   maxContextChars: 400,

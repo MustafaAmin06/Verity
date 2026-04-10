@@ -1,23 +1,89 @@
 window.Verity = window.Verity || {};
 
-// --- Intercepted citation cache (filled by MAIN-world interceptor.js) ---
-window.Verity._interceptedCitations = null;
-window.Verity._interceptedTimestamp = 0;
+const MAX_INTERCEPTED_SESSIONS = 8;
+
+// --- Session-aware intercepted citation cache (filled by MAIN-world interceptor.js) ---
+window.Verity._interceptedSessions = window.Verity._interceptedSessions || [];
+
+document.addEventListener("verity-generation-start", (e) => {
+  const detail = e.detail || {};
+  if (detail.sessionId == null) return;
+  if (window.Verity.extractor) {
+    window.Verity.extractor.beginInterceptedSession(detail.sessionId, detail.timestamp);
+  }
+});
 
 document.addEventListener("verity-citations", (e) => {
-  if (e.detail && Array.isArray(e.detail.citations)) {
-    window.Verity._interceptedCitations = e.detail.citations;
-    window.Verity._interceptedTimestamp = e.detail.timestamp || Date.now();
+  const detail = e.detail || {};
+  if (!Array.isArray(detail.citations) || detail.sessionId == null) return;
+  if (window.Verity.extractor) {
+    window.Verity.extractor.storeInterceptedCitations(detail);
   }
 });
 
 window.Verity.extractor = {
+  beginInterceptedSession(sessionId, timestamp) {
+    const sessions = window.Verity._interceptedSessions;
+    const existing = sessions.find((session) => session.id === sessionId);
+    if (existing) {
+      existing.startedAt = timestamp || existing.startedAt || Date.now();
+      existing.updatedAt = Date.now();
+      return existing;
+    }
+
+    const session = {
+      id: sessionId,
+      citations: [],
+      startedAt: timestamp || Date.now(),
+      updatedAt: timestamp || Date.now(),
+      consumed: false,
+    };
+    sessions.push(session);
+    this._trimInterceptedSessions();
+    return session;
+  },
+
+  storeInterceptedCitations(detail) {
+    const session = this.beginInterceptedSession(detail.sessionId, detail.timestamp);
+    const wasConsumed = session.consumed;
+    session.citations = Array.isArray(detail.citations) ? detail.citations.slice() : [];
+    session.updatedAt = detail.timestamp || Date.now();
+    session.consumed = wasConsumed;
+    this._trimInterceptedSessions();
+  },
+
+  peekPendingInterceptedSession() {
+    this._trimInterceptedSessions();
+    return window.Verity._interceptedSessions.find(
+      (session) => !session.consumed && Array.isArray(session.citations) && session.citations.length > 0
+    ) || null;
+  },
+
+  claimPendingInterceptedSession() {
+    const session = this.peekPendingInterceptedSession();
+    if (!session) return null;
+    session.consumed = true;
+    session.updatedAt = Date.now();
+    return session;
+  },
+
+  clearInterceptedSessions() {
+    window.Verity._interceptedSessions = [];
+  },
+
+  _trimInterceptedSessions() {
+    const now = Date.now();
+    window.Verity._interceptedSessions = window.Verity._interceptedSessions
+      .filter((session) => (now - (session.updatedAt || session.startedAt || 0)) < 30000)
+      .slice(-MAX_INTERCEPTED_SESSIONS);
+  },
+
   /**
    * Extract all sources (url, label, context) from a response element.
    * Uses intercepted API data as primary source, DOM extraction as fallback.
    */
-  extractSources(element) {
-    const intercepted = this._getInterceptedCitations(element);
+  extractSources(element, interceptedSession) {
+    const intercepted = this._getInterceptedCitations(element, interceptedSession);
 
     const pills = this._extractFromCitationPills(element);
     const anchors = this._extractFromAnchors(element);
@@ -64,12 +130,15 @@ window.Verity.extractor = {
   },
 
   _getContextForNode(node, responseElement) {
+    const maxContextChars = VERITY_CONFIG.maxContextChars || 400;
+    const minContextChars = VERITY_CONFIG.minContextChars || 30;
+
     // Walk up to find a containing paragraph or list item
     let container = node.closest("p, li, div");
     if (container && container !== responseElement) {
       let text = container.innerText.trim();
-      if (text.length >= 30 && text.length <= 400) return text;
-      if (text.length > 400) return text.slice(0, 400);
+      if (text.length >= minContextChars && text.length <= maxContextChars) return text;
+      if (text.length > maxContextChars) return text.slice(0, maxContextChars);
     }
     // Fallback: get text around the link position in full response
     const fullText = responseElement.innerText || "";
@@ -83,6 +152,8 @@ window.Verity.extractor = {
   },
 
   _getContextFromPosition(fullText, position, urlToRemove) {
+    const maxContextChars = VERITY_CONFIG.maxContextChars || 400;
+    const minContextChars = VERITY_CONFIG.minContextChars || 30;
     const start = Math.max(0, position - 150);
     const end = Math.min(fullText.length, position + 150);
     let context = fullText.slice(start, end).trim();
@@ -94,9 +165,12 @@ window.Verity.extractor = {
     if (firstDot > 0 && firstDot < 30 && start > 0) {
       context = context.slice(firstDot + 2);
     }
-    if (context.length > 400) context = context.slice(0, 400);
-    if (context.length < 30) context = fullText.slice(start, Math.min(fullText.length, position + 300)).trim();
-    if (context.length < 30) context = "Source citation from AI response";
+    if (context.length > maxContextChars) context = context.slice(0, maxContextChars);
+    if (context.length < minContextChars) {
+      context = fullText.slice(start, Math.min(fullText.length, position + 300)).trim();
+    }
+    if (context.length > maxContextChars) context = context.slice(0, maxContextChars);
+    if (context.length < minContextChars) context = "Source citation from AI response";
     return context;
   },
 
@@ -136,12 +210,9 @@ window.Verity.extractor = {
 
   // --- Intercepted API citation helpers ---
 
-  _getInterceptedCitations(element) {
-    const data = window.Verity._interceptedCitations;
-    const ts = window.Verity._interceptedTimestamp;
-    // Only use if data exists and is recent (< 15 seconds old)
-    if (!data || !Array.isArray(data) || data.length === 0) return [];
-    if (Date.now() - ts > 15000) return [];
+  _getInterceptedCitations(element, session) {
+    const data = session && Array.isArray(session.citations) ? session.citations : [];
+    if (data.length === 0) return [];
 
     const fullText = element.innerText || "";
     return data.map((c) => ({

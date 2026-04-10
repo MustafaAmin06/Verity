@@ -80,10 +80,10 @@ Composite scores are mapped to one of four trust levels:
 - **0 — Unverified:** The link is dead or the source content cannot be retrieved.
 
 ### Stage 4: LLM-Based Scoring and Plain-English Generation
-A locally executed Ollama model (default: `qwen3.5:2b`) evaluates each source against the original claim. It scores both relevance (how well the source addresses the user's query) and alignment (how well the source content supports the specific claim asserted). Scores are guided by explicit rubrics to prevent the model from defaulting to neutral mid-range values. Each source also receives a plain-English rationale and a one-sentence implication for the user. If Ollama is unavailable, the pipeline falls back gracefully to neutral scores and a manual-check notice.
+An optional GitHub Models call evaluates each source against the original claim. It scores both relevance (how well the source addresses the user's query) and alignment (how well the source content supports the specific claim asserted). Scores are guided by explicit rubrics to prevent the model from defaulting to neutral mid-range values. Each source also receives a plain-English rationale and a one-sentence implication for the user. If no GitHub Models token is configured, the pipeline falls back gracefully to extraction-only output.
 
 ### Stages 5 and 6: Topic Detection and Further Reading
-Once verdicts are established, the system identifies the overarching topic using keyword clusters derived from the prompt and AI response. The local LLM then recommends three authoritative sources for further reading — specified by title, domain, and search query rather than direct URL (to eliminate hallucination risk). The backend constructs functional, deterministic search URLs from these suggestions (Google Scholar for academic sources; site-specific search for known domains).
+Once verdicts are established, the system identifies the overarching topic using keyword clusters derived from the prompt and AI response. The current backend returns that topic label alongside the scored sources; further-reading recommendations remain a planned extension rather than an active production feature.
 
 ### Stage 7: Assembly and Delivery
 All verdicts are sorted with reliable sources first and packaged into a structured object alongside summary counts. This object is transmitted to the extension front end, which renders results inline within the user's active browser session.
@@ -117,7 +117,7 @@ Content extraction employs a two-step fallback chain, designed to maximize cover
 
 ## 5. Design Principles
 
-- **Local inference only** — all scoring is performed using a locally hosted Ollama model; no user data or query content leaves the machine.
+- **Configurable scoring backend** — extraction always runs locally in the Verity service; claim scoring is enabled when a GitHub Models token is configured.
 - **Transparency over false confidence** — limitations are surfaced explicitly; unknown or unverifiable signals are flagged rather than silently passed.
 - **Speed through architecture, not shortcuts** — HTTP GET is attempted first; Playwright is invoked only when required, ensuring responsiveness without sacrificing coverage.
 - **Plain language over raw numbers** — verdicts are written to communicate intent clearly, not merely to report a score.
@@ -131,7 +131,7 @@ The following steps describe how to run VerifyAI locally.
 
 ### Prerequisites
 - **Python 3.10 or later**
-- **[Ollama](https://ollama.com/)** — required for local LLM scoring
+- **Optional: GitHub Models token** — required only if you want claim-level LLM scoring
 
 ### Backend Setup (Python)
 The backend is responsible for source extraction, web scraping, and verification scoring.
@@ -146,17 +146,18 @@ The backend is responsible for source extraction, web scraping, and verification
    playwright install chromium
    ```
 
-3. **Pull the Ollama model:**
+3. **Configure optional GitHub Models scoring:**
    ```bash
-   ollama pull qwen3.5:2b
+   export GITHUB_TOKEN=your_token_here
+   export GITHUB_MODEL=gpt-4o
    ```
-   Any Ollama-compatible model may be used by setting the `OLLAMA_MODEL` variable in `.env`. Larger models (e.g. `llama3.2:3b`, `phi4-mini`) will produce more accurate scoring results.
+   If `GITHUB_TOKEN` is not set, the backend still works, but it returns extraction results without LLM-based relevance/alignment scoring.
 
 4. **Start the extractor server:**
    ```bash
    python verity_extractor.py
    ```
-   *The server will start on `http://localhost:8001`. Ollama must also be running (`ollama serve`) for LLM scoring to be active.*
+   *The server will start on `http://localhost:8001`. Install Playwright browsers if you want JavaScript-rendered page fallback, and set `GITHUB_TOKEN` if you want LLM scoring enabled.*
 
 ### Extension Installation
 1. Open Chrome and navigate to `chrome://extensions/`.
@@ -167,3 +168,7 @@ The backend is responsible for source extraction, web scraping, and verification
 ---
 
 > **VerifyAI** — Reducing AI misinformation risk through rigorous, claim-level citation verification.
+
+## Changelog
+
+- **2026-04-09:** Improved scoring for trusted medical and institutional sources that do not expose named authors, so pages like `cancer.org` and `clevelandclinic.org` are not unfairly dragged down. These sources now render as institutional pages instead of showing `Unknown` authorship by default.

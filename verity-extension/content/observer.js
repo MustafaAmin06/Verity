@@ -1,24 +1,53 @@
 window.Verity = window.Verity || {};
 
 window.Verity.observer = {
+  _observer: null,
   _wasGenerating: false,
   _debounceTimer: null,
+  _stabilityTimer: null,
   _platformConfig: null,
+  _lastResponseSignature: "",
+  _responseSettledDelayMs: 1200,
 
   init(platformConfig) {
+    this.stop();
     this._platformConfig = platformConfig;
-    const observer = new MutationObserver(() => {
+    if (!document.body) {
+      return;
+    }
+
+    this._observer = new MutationObserver(() => {
       this._checkGenerationState();
     });
 
-    observer.observe(document.body, {
+    this._observer.observe(document.body, {
       childList: true,
       subtree: true,
       attributes: true,
     });
+
+    this._checkGenerationState();
+  },
+
+  stop() {
+    if (this._observer) {
+      this._observer.disconnect();
+      this._observer = null;
+    }
+    if (this._debounceTimer) {
+      clearTimeout(this._debounceTimer);
+      this._debounceTimer = null;
+    }
+    if (this._stabilityTimer) {
+      clearTimeout(this._stabilityTimer);
+      this._stabilityTimer = null;
+    }
+    this._wasGenerating = false;
+    this._lastResponseSignature = "";
   },
 
   _checkGenerationState() {
+    if (!this._platformConfig) return;
     const selectors = this._platformConfig.selectors;
     const stopButton = document.querySelector(selectors.stopButton);
     const isGenerating = stopButton !== null;
@@ -30,31 +59,78 @@ window.Verity.observer = {
         clearTimeout(this._debounceTimer);
         this._debounceTimer = null;
       }
+      if (this._stabilityTimer) {
+        clearTimeout(this._stabilityTimer);
+        this._stabilityTimer = null;
+      }
     }
 
     if (this._wasGenerating && !isGenerating) {
       this._wasGenerating = false;
-      // 500ms debounce to handle stop button flickering
-      if (this._debounceTimer) clearTimeout(this._debounceTimer);
-      this._debounceTimer = setTimeout(() => {
-        this._debounceTimer = null;
-        this._onGenerationComplete();
-      }, 500);
+      this._scheduleGenerationComplete(500);
+      return;
+    }
+
+    if (!isGenerating) {
+      this._watchForSettledResponse();
     }
   },
 
-  _onGenerationComplete() {
-    const selectors = this._platformConfig.selectors;
+  _scheduleGenerationComplete(delayMs) {
+    if (this._debounceTimer) clearTimeout(this._debounceTimer);
+    this._debounceTimer = setTimeout(() => {
+      this._debounceTimer = null;
+      this._onGenerationComplete();
+    }, delayMs);
+  },
 
-    // Get the latest assistant message
+  _getLatestResponse() {
+    if (!this._platformConfig) return null;
+    const selectors = this._platformConfig.selectors;
     const allResponses = document.querySelectorAll(selectors.assistantMessage);
-    const latestResponse = allResponses[allResponses.length - 1];
+    return allResponses[allResponses.length - 1] || null;
+  },
+
+  _getResponseContainer(responseEl) {
+    return responseEl.closest("[data-message-id]") || responseEl.parentElement;
+  },
+
+  _watchForSettledResponse() {
+    const latestResponse = this._getLatestResponse();
+    if (!latestResponse) return;
+
+    const container = this._getResponseContainer(latestResponse);
+    if (!container || container.hasAttribute("data-verity-processed")) return;
+
+    const signature = this._buildResponseSignature(latestResponse);
+    if (!signature || signature.length < 80) return;
+    if (signature === this._lastResponseSignature) return;
+
+    this._lastResponseSignature = signature;
+    if (this._stabilityTimer) clearTimeout(this._stabilityTimer);
+    this._stabilityTimer = setTimeout(() => {
+      this._stabilityTimer = null;
+      const currentStopButton = document.querySelector(this._platformConfig.selectors.stopButton);
+      if (!currentStopButton) {
+        this._onGenerationComplete();
+      }
+    }, this._responseSettledDelayMs);
+  },
+
+  _buildResponseSignature(responseEl) {
+    const text = (responseEl.innerText || "").trim();
+    const tail = text.slice(-400);
+    return `${text.length}:${tail}`;
+  },
+
+  _onGenerationComplete() {
+    const latestResponse = this._getLatestResponse();
     if (!latestResponse) {
       return;
     }
 
     // Check if already processed
-    const container = latestResponse.closest("[data-message-id]") || latestResponse.parentElement;
+    const container = this._getResponseContainer(latestResponse);
     if (container && container.hasAttribute("data-verity-processed")) {
       return;
     }
@@ -71,17 +147,13 @@ window.Verity.observer = {
     let elapsed = 0;
 
     const tryExtract = () => {
-      const hasFreshData =
-        window.Verity._interceptedCitations &&
-        window.Verity._interceptedCitations.length > 0 &&
-        Date.now() - window.Verity._interceptedTimestamp < 15000;
+      const interceptedSession = window.Verity.extractor.peekPendingInterceptedSession();
 
-      if (hasFreshData || elapsed >= maxWaitMs) {
-        const sources = window.Verity.extractor.extractSources(responseEl);
-
-        // Clear the intercepted cache so it's not reused for the next message
-        window.Verity._interceptedCitations = null;
-        window.Verity._interceptedTimestamp = 0;
+      if (interceptedSession || elapsed >= maxWaitMs) {
+        const claimedSession = interceptedSession
+          ? window.Verity.extractor.claimPendingInterceptedSession()
+          : null;
+        const sources = window.Verity.extractor.extractSources(responseEl, claimedSession);
 
         if (sources.length >= VERITY_CONFIG.minUrlsToShowButton) {
           if (VERITY_CONFIG.autoCheck) {

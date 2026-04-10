@@ -24,16 +24,26 @@ const PLATFORMS = {
   },
 };
 
-// Resolve the first matching selector from an array of candidates
+// Keep all candidate selectors active, with currently matching ones ordered first.
 function resolveSelector(candidates) {
   if (typeof candidates === "string") return candidates;
+  const matching = [];
+  const fallback = [];
   for (const sel of candidates) {
-    if (document.querySelector(sel) !== null) return sel;
+    try {
+      if (document.querySelector(sel) !== null) {
+        matching.push(sel);
+      } else {
+        fallback.push(sel);
+      }
+    } catch {
+      fallback.push(sel);
+    }
   }
-  return candidates[0]; // fall back to first even if not found yet
+  return [...new Set([...matching, ...fallback])].join(", ");
 }
 
-// Flatten selectors to the first matching one, updating config in place
+// Flatten selectors into comma-separated selector queries.
 function resolveAllSelectors(config) {
   const resolved = {};
   for (const [key, candidates] of Object.entries(config.selectors)) {
@@ -43,6 +53,13 @@ function resolveAllSelectors(config) {
 }
 
 function cleanupInjectedUi() {
+  if (window.Verity.observer && typeof window.Verity.observer.stop === "function") {
+    window.Verity.observer.stop();
+  }
+  if (window.Verity.extractor && typeof window.Verity.extractor.clearInterceptedSessions === "function") {
+    window.Verity.extractor.clearInterceptedSessions();
+  }
+
   let removedLegacyPanel = false;
 
   for (const host of document.querySelectorAll('[data-verity-host]')) {
@@ -66,20 +83,6 @@ function cleanupInjectedUi() {
   return removedLegacyPanel;
 }
 
-// Detect platform and initialize
-// Listen for extension reload notifications from the service worker.
-// When the extension is reloaded/updated, the service worker broadcasts
-// VERITY_RELOAD so we refresh the page and get fresh content scripts.
-try {
-  chrome.runtime.onMessage.addListener((message) => {
-    if (message.type === "VERITY_RELOAD") {
-      window.location.reload();
-    }
-  });
-} catch {
-  // Extension context already dead — nothing to listen on
-}
-
 // Expose cleanup so settings.js can call it on live enable/disable toggle
 window.Verity.cleanup = cleanupInjectedUi;
 
@@ -100,11 +103,18 @@ function _initVerity() {
     return;
   }
 
-  // Give the SPA a moment to render before resolving selectors
-  setTimeout(() => {
+  const startObserver = (attemptsRemaining) => {
+    if (!document.body) {
+      if (attemptsRemaining > 0) {
+        setTimeout(() => startObserver(attemptsRemaining - 1), 100);
+      }
+      return;
+    }
     const resolved = resolveAllSelectors(matchedPlatform);
     window.Verity.observer.init(resolved);
-  }, 2000);
+  };
+
+  startObserver(20);
 }
 
 // Expose reinit so settings.js can re-enable after a live toggle

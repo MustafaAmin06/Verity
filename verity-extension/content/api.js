@@ -25,6 +25,15 @@ function isContextAlive() {
   }
 }
 
+function hashString(value) {
+  let hash = 5381;
+  for (let i = 0; i < value.length; i++) {
+    hash = ((hash << 5) + hash) + value.charCodeAt(i);
+    hash &= hash;
+  }
+  return Math.abs(hash).toString(36);
+}
+
 window.Verity.api = {
   /** Expose for other modules that need to guard chrome.runtime calls */
   isContextAlive,
@@ -37,14 +46,23 @@ window.Verity.api = {
     _progressCallback = null;
   },
 
-  computeCacheKey(sources) {
-    const joined = sources.map((source) => source.url).sort().join('|');
-    let hash = 5381;
-    for (let i = 0; i < joined.length; i++) {
-      hash = ((hash << 5) + hash) + joined.charCodeAt(i);
-      hash &= hash;
-    }
-    return 'verity_' + Math.abs(hash).toString(36);
+  computeCacheKey(payload) {
+    const normalized = {
+      original_prompt: (payload.original_prompt || "").trim(),
+      full_ai_response: (payload.full_ai_response || "").trim(),
+      sources: (payload.sources || [])
+        .map((source) => ({
+          url: source.url || "",
+          label: source.label || "",
+          context: source.context || "",
+        }))
+        .sort((a, b) => {
+          const left = `${a.url}\n${a.context}\n${a.label}`;
+          const right = `${b.url}\n${b.context}\n${b.label}`;
+          return left.localeCompare(right);
+        }),
+    };
+    return `verity_${hashString(JSON.stringify(normalized))}`;
   },
 
   async fetchWithDedup(cacheKey, payload) {

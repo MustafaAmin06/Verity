@@ -1,0 +1,82 @@
+{
+  "description": "Diverse URL coverage test — spans academic, news, government, blogs, and known-problematic sites",
+  "original_prompt": "What are the health effects of microplastics in drinking water?",
+  "full_ai_response": "Research published in Nature and by the WHO suggests that microplastics are present in most drinking water sources. A 2024 study found that certain plastic particles can cross biological barriers. The CDC notes that while research is ongoing, current evidence does not indicate a significant public health concern at typical exposure levels. However, some independent researchers on Medium have raised concerns about long-term bioaccumulation effects.",
+  "sources": [
+    {
+      "url": "https://www.nature.com/articles/s41893-023-01253-4",
+      "label": "Nature sustainability article",
+      "context": "Research published in Nature suggests that microplastics are present in most drinking water sources"
+    },
+    {
+      "url": "https://www.who.int/news-room/fact-sheets/detail/drinking-water",
+      "label": "WHO drinking water fact sheet",
+      "context": "WHO suggests that microplastics are present in most drinking water sources"
+    },
+    {
+      "url": "https://www.cdc.gov/environmental-health/about/index.html",
+      "label": "CDC environmental health",
+      "context": "The CDC notes that current evidence does not indicate a significant public health concern"
+    },
+    {
+      "url": "https://arxiv.org/abs/2312.00001",
+      "label": "ArXiv preprint",
+      "context": "A 2024 study found that certain plastic particles can cross biological barriers"
+    },
+    {
+      "url": "https://www.bbc.com/news/science-environment-68123456",
+      "label": "BBC science article",
+      "context": "microplastics found in drinking water across multiple countries"
+    },
+    {
+      "url": "https://en.wikipedia.org/wiki/Microplastics",
+      "label": "Wikipedia microplastics",
+      "context": "Microplastics are present in most drinking water sources"
+    },
+    {
+      "url": "https://medium.com/@researcher/microplastics-danger-abc123",
+      "label": "Medium blog post",
+      "context": "independent researchers have raised concerns about long-term bioaccumulation effects"
+    },
+    {
+      "url": "https://www.reuters.com/business/environment/microplastics-water-2024-01-15/",
+      "label": "Reuters environment article",
+      "context": "microplastics detected in tap water samples worldwide"
+    },
+    {
+      "url": "https://pubmed.ncbi.nlm.nih.gov/38000000/",
+      "label": "PubMed abstract",
+      "context": "study on health effects of microplastic ingestion"
+    },
+    {
+      "url": "https://www.sciencedirect.com/science/article/pii/S0048969724000001",
+      "label": "ScienceDirect article",
+      "context": "comprehensive review of microplastic contamination in water"
+    },
+    {
+      "url": "https://www.epa.gov/water-research/microplastics-research",
+      "label": "EPA microplastics research",
+      "context": "EPA research on microplastics in water systems"
+    },
+    {
+      "url": "https://www.theguardian.com/environment/2024/jan/01/microplastics-drinking-water",
+      "label": "Guardian environment article",
+      "context": "new study reveals extent of microplastic contamination"
+    },
+    {
+      "url": "https://www.example-dead-link.com/article/12345",
+      "label": "Known dead link",
+      "context": "testing dead URL handling"
+    },
+    {
+      "url": "https://www.reddit.com/r/science/comments/abc123/microplastics_study/",
+      "label": "Reddit science discussion",
+      "context": "community discussion about microplastics research"
+    },
+    {
+      "url": "https://scholar.google.com/scholar?q=microplastics+drinking+water",
+      "label": "Google Scholar search",
+      "context": "academic search results for microplastics"
+    }
+  ]
+}

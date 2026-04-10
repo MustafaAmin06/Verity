@@ -3,18 +3,27 @@ const DEFAULTS = {
   autoCheck: false,
   extractorUrl: "https://verity-production-e8f2.up.railway.app",
   apiKey: "",
-  hoverDelayMs: 300,
   minUrlsToShowButton: 1,
 };
 
 const FIELDS = Object.keys(DEFAULTS);
+const manifest = chrome.runtime.getManifest();
 
 // ---- DOM refs ----
 const els = {};
 FIELDS.forEach((id) => (els[id] = document.getElementById(id)));
 const savedIndicator = document.getElementById("savedIndicator");
 const serverStatus = document.getElementById("serverStatus");
-const hoverValue = document.getElementById("hoverDelayMs-value");
+const versionLabel = document.getElementById("versionLabel");
+const projectLink = document.getElementById("projectLink");
+
+if (versionLabel) {
+  versionLabel.textContent = `v${manifest.version}`;
+}
+
+if (projectLink && manifest.homepage_url) {
+  projectLink.href = manifest.homepage_url;
+}
 
 // ---- Load settings into form ----
 chrome.storage.local.get(DEFAULTS, (settings) => {
@@ -32,17 +41,6 @@ function populateForm(settings) {
       el.value = settings[key];
     }
   }
-  updateHoverLabel();
-}
-
-function updateRangeFill(el) {
-  const pct = ((el.value - el.min) / (el.max - el.min)) * 100;
-  el.style.setProperty('--range-pct', pct + '%');
-}
-
-function updateHoverLabel() {
-  hoverValue.textContent = els.hoverDelayMs.value + "ms";
-  updateRangeFill(els.hoverDelayMs);
 }
 
 // ---- Auto-save on change ----
@@ -50,12 +48,6 @@ for (const key of FIELDS) {
   const el = els[key];
   if (!el) continue;
   el.addEventListener("change", save);
-  if (el.type === "range") {
-    el.addEventListener("input", () => {
-      updateHoverLabel();
-      save();
-    });
-  }
 }
 
 let saveTimeout = null;

@@ -16,7 +16,9 @@ import socket
 import sqlite3
 import time
 import unicodedata
-from urllib.parse import urlparse
+import uuid
+from difflib import SequenceMatcher
+from urllib.parse import parse_qs, quote, urlparse
 
 if not logging.root.handlers:
     _log_formatter = logging.Formatter("%(asctime)s [%(levelname)s] %(message)s", datefmt="%H:%M:%S")
@@ -36,6 +38,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
+from devtools.triage_catalog import create_capture_run, get_db as get_triage_db, record_observation as triage_record_observation
 
 try:
     from playwright.async_api import async_playwright
@@ -81,9 +84,28 @@ MAX_REDIRECTS = 5
 
 # ── OpenAlex API configuration ──
 OPENALEX_EMAIL = os.getenv("OPENALEX_EMAIL", "")
+OPENALEX_API_KEY = os.getenv("OPENALEX_API_KEY", "")
 OPENALEX_TIMEOUT_SECONDS = _env_int("OPENALEX_TIMEOUT_SECONDS", "8", lo=1, hi=120)
 OPENALEX_CACHE_TTL_SECONDS = _env_int("OPENALEX_CACHE_TTL_SECONDS", "86400", lo=60, hi=604800)
 OPENALEX_ENABLED = os.getenv("OPENALEX_ENABLED", "true").lower() == "true"
+CROSSREF_MAILTO = os.getenv("CROSSREF_MAILTO", "")
+CROSSREF_USER_AGENT = os.getenv("CROSSREF_USER_AGENT", "Verity/1.0")
+CROSSREF_TIMEOUT_SECONDS = _env_int("CROSSREF_TIMEOUT_SECONDS", "4", lo=1, hi=120)
+CROSSREF_ENABLED = os.getenv("CROSSREF_ENABLED", "true").lower() == "true"
+ROR_CLIENT_ID = os.getenv("ROR_CLIENT_ID", "")
+ROR_TIMEOUT_SECONDS = _env_int("ROR_TIMEOUT_SECONDS", "3", lo=1, hi=120)
+ROR_ENABLED = os.getenv("ROR_ENABLED", "true").lower() == "true"
+WIKIDATA_TIMEOUT_SECONDS = _env_int("WIKIDATA_TIMEOUT_SECONDS", "3", lo=1, hi=120)
+WIKIDATA_ENABLED = os.getenv("WIKIDATA_ENABLED", "true").lower() == "true"
+AUTHORITY_LOOKUP_BUDGET_MS = _env_int("AUTHORITY_LOOKUP_BUDGET_MS", "800", lo=100, hi=10_000)
+AUTHORITY_POSITIVE_TTL_SECONDS = _env_int("AUTHORITY_POSITIVE_TTL_SECONDS", str(14 * 86400), lo=300, hi=90 * 86400)
+AUTHORITY_SCHOLARLY_TTL_SECONDS = _env_int("AUTHORITY_SCHOLARLY_TTL_SECONDS", str(30 * 86400), lo=300, hi=180 * 86400)
+AUTHORITY_NEGATIVE_TTL_SECONDS = _env_int("AUTHORITY_NEGATIVE_TTL_SECONDS", str(3 * 86400), lo=300, hi=30 * 86400)
+TRIAGE_CAPTURE_ENABLED = os.getenv("TRIAGE_CAPTURE_ENABLED", "true").lower() == "true"
+TRIAGE_DB_PATH = os.getenv(
+    "TRIAGE_DB_PATH",
+    str(pathlib.Path(__file__).resolve().parent / "devtools" / "verity_bench.db"),
+)
 
 BROWSER_USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
@@ -104,6 +126,9 @@ BROWSER_HEADERS = {
 }
 
 DOI_PATTERN = re.compile(r"10\.\d{4,}/[^\s\"<>&]+", re.IGNORECASE)
+PMID_PATTERN = re.compile(r"\b(?:pmid[:\s]*)?(\d{5,9})\b", re.IGNORECASE)
+PMCID_PATTERN = re.compile(r"\b(PMC\d{4,10})\b", re.IGNORECASE)
+ISSN_PATTERN = re.compile(r"\b(\d{4}-?\d{3}[\dxX])\b")
 YEAR_PATTERN = re.compile(r"(19|20)\d{2}")
 
 # ── URL result cache (TTL-based, keyed by URL) ──
@@ -162,8 +187,17 @@ DOMAIN_REGISTRY = {
     "federalreserve.gov": {"tier": "official_body", "paywalled": False},
     "bis.org": {"tier": "official_body", "paywalled": False},
     "stats.oecd.org": {"tier": "official_body", "paywalled": False},
-    "mayoclinic.org": {"tier": "official_body", "paywalled": False},
-    "cancer.org": {"tier": "established_news", "paywalled": False},
+    "medlineplus.gov": {"tier": "official_body", "paywalled": False},
+    "mayoclinic.org": {"tier": "medical_authority", "paywalled": False},
+    "clevelandclinic.org": {"tier": "medical_authority", "paywalled": False},
+    "cancer.org": {"tier": "medical_authority", "paywalled": False},
+    "heart.org": {"tier": "medical_authority", "paywalled": False},
+    "diabetes.org": {"tier": "medical_authority", "paywalled": False},
+    "hopkinsmedicine.org": {"tier": "medical_authority", "paywalled": False},
+    "mdanderson.org": {"tier": "medical_authority", "paywalled": False},
+    "merckmanuals.com": {"tier": "medical_authority", "paywalled": False},
+    "msdmanuals.com": {"tier": "medical_authority", "paywalled": False},
+    "cancerresearchuk.org": {"tier": "medical_authority", "paywalled": False},
     "bbc.com": {"tier": "established_news", "paywalled": False},
     "bbc.co.uk": {"tier": "established_news", "paywalled": False},
     "reuters.com": {"tier": "established_news", "paywalled": False},
@@ -211,7 +245,13 @@ def get_domain_info(domain: str) -> dict:
     clean = domain.lower().replace("www.", "").strip("/")
     if clean == "wikipedia.org" or clean.endswith(".wikipedia.org"):
         return {"tier": "reference_tertiary", "paywalled": False}
-    return DOMAIN_REGISTRY.get(clean, {"tier": "unknown", "paywalled": False})
+    exact = DOMAIN_REGISTRY.get(clean)
+    if exact:
+        return exact
+    for registered_domain in sorted(DOMAIN_REGISTRY.keys(), key=len, reverse=True):
+        if clean.endswith(f".{registered_domain}"):
+            return DOMAIN_REGISTRY[registered_domain]
+    return {"tier": "unknown", "paywalled": False}
 
 
 # ── ScimagoJR journal lookup ──
@@ -296,6 +336,8 @@ _load_scimago_data()
 
 _OPENALEX_DB_PATH = pathlib.Path(__file__).parent / "openalex_cache.db"
 _openalex_db: sqlite3.Connection | None = None
+_AUTHORITY_DB_PATH = pathlib.Path(__file__).parent / "authority_cache.db"
+_authority_db: sqlite3.Connection | None = None
 
 
 def _get_openalex_db() -> sqlite3.Connection:
@@ -324,11 +366,74 @@ def _get_openalex_db() -> sqlite3.Connection:
     return _openalex_db
 
 
+def _get_authority_db() -> sqlite3.Connection:
+    global _authority_db
+    if _authority_db is None:
+        _authority_db = sqlite3.connect(str(_AUTHORITY_DB_PATH), check_same_thread=False)
+        _authority_db.execute("PRAGMA journal_mode=WAL")
+        _authority_db.execute("PRAGMA synchronous=NORMAL")
+        _authority_db.executescript("""
+            CREATE TABLE IF NOT EXISTS authority_cache (
+                cache_key TEXT PRIMARY KEY,
+                scope TEXT NOT NULL,
+                authority_profile_json TEXT NOT NULL,
+                authority_source TEXT,
+                confidence TEXT,
+                negative INTEGER NOT NULL DEFAULT 0,
+                fetched_at REAL NOT NULL,
+                expires_at REAL NOT NULL
+            );
+        """)
+    return _authority_db
+
+
 _OA_ALLOWED_TABLES: dict[str, str] = {
     "openalex_works": "lookup_key",
     "openalex_sources": "openalex_id",
     "openalex_authors": "openalex_id",
 }
+
+
+def _authority_cache_get(cache_key: str) -> dict | None:
+    db = _get_authority_db()
+    row = db.execute(
+        "SELECT authority_profile_json, expires_at FROM authority_cache WHERE cache_key = ?",
+        (cache_key,),
+    ).fetchone()
+    if row is None:
+        return None
+    payload_json, expires_at = row
+    if time.time() > expires_at:
+        return None
+    return json.loads(payload_json)
+
+
+def _authority_cache_set(
+    cache_key: str,
+    scope: str,
+    profile: dict,
+    *,
+    ttl_seconds: int,
+    negative: bool = False,
+) -> None:
+    db = _get_authority_db()
+    now = time.time()
+    db.execute(
+        """INSERT OR REPLACE INTO authority_cache
+           (cache_key, scope, authority_profile_json, authority_source, confidence, negative, fetched_at, expires_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
+        (
+            cache_key,
+            scope,
+            json.dumps(profile),
+            profile.get("authority_source"),
+            profile.get("confidence"),
+            int(negative),
+            now,
+            now + ttl_seconds,
+        ),
+    )
+    db.commit()
 
 
 def _oa_cache_get(table: str, key: str) -> dict | None:
@@ -519,6 +624,13 @@ class ScrapedSource(BaseModel):
     date: str | None
     author: str | None
     doi: str | None
+    pmid: str | None = None
+    pmcid: str | None = None
+    issn: str | None = None
+    journal_name: str | None = None
+    publisher_hint: str | None = None
+    organization_hint: str | None = None
+    site_name: str | None = None
     paywalled: bool
     is_pdf: bool
     json_ld: dict | None
@@ -539,7 +651,7 @@ class ExtractResponse(BaseModel):
     extraction_time_ms: int
 
 
-# ── Scored response models (returned by /extract when Ollama is available) ──
+# ── Scored response models (returned by /extract when GitHub Models is available) ──
 
 class SourceSignals(BaseModel):
     domain_tier: str
@@ -557,6 +669,9 @@ class SourceSignals(BaseModel):
     oa_cited_by_count: int | None = None
     oa_work_type: str | None = None
     oa_source_type: str | None = None
+    authority_source: str | None = None
+    authority_confidence: str | None = None
+    authority_label: str | None = None
 
 
 class ScoredSource(BaseModel):
@@ -574,6 +689,12 @@ class ScoredSource(BaseModel):
     flags: list[str]
     date: str | None
     author: str | None
+    authorship_type: str = "unknown"
+    author_label: str | None = None
+    authority_name: str | None = None
+    authority_source: str | None = None
+    authority_confidence: str | None = None
+    matched_ids: dict[str, str] | None = None
     paywalled: bool
     signals: SourceSignals
     # OpenAlex display data
@@ -591,11 +712,23 @@ class ScoredResponse(BaseModel):
     flagged_count: int
 
 
+class AuthorityProfile(BaseModel):
+    authority_kind: str
+    authority_name: str | None = None
+    authority_source: str
+    confidence: str
+    is_peer_reviewed: bool = False
+    is_institutional: bool = False
+    matched_ids: dict[str, str] = Field(default_factory=dict)
+    evidence: list[str] = Field(default_factory=list)
+
+
 # ── Scoring helpers ──
 
 DOMAIN_TIER_SCORES: dict[str, int] = {
     "academic_journal": 100,
     "official_body":    95,
+    "medical_authority": 92,
     "established_news": 80,
     "reference_tertiary": 35,
     "independent_blog": 50,
@@ -604,6 +737,26 @@ DOMAIN_TIER_SCORES: dict[str, int] = {
 }
 
 TIER_PEER_REVIEWED: set[str] = {"academic_journal"}
+INSTITUTIONAL_AUTHORSHIP_TIERS: set[str] = {"academic_journal", "official_body", "medical_authority"}
+AUTHORITY_OVERRIDE_PROTECTED_TIERS: set[str] = {"flagged", "reference_tertiary"}
+GOVERNMENT_DOMAIN_SUFFIXES: tuple[str, ...] = (
+    ".gov",
+    ".gov.uk",
+    ".gc.ca",
+    ".gouv.fr",
+    ".gov.au",
+    ".europa.eu",
+)
+REGISTERED_DOMAIN_THIRD_LEVEL_SUFFIXES: tuple[str, ...] = (
+    "co.uk",
+    "org.uk",
+    "ac.uk",
+    "gov.uk",
+    "com.au",
+    "org.au",
+    "gov.au",
+    "co.jp",
+)
 
 VERDICT_MAP = [
     (75, "reliable",   "Looks reliable",     "green"),
@@ -649,8 +802,18 @@ def _compute_recency_score(year: str | None) -> int:
         return 40
 
 
-def _compute_author_score(author: str | None, oa: dict | None = None) -> int:
+def _classify_authorship(author: str | None, domain_info: dict) -> tuple[str, str]:
+    if author:
+        return "named", author
+    if domain_info.get("tier") in INSTITUTIONAL_AUTHORSHIP_TIERS:
+        return "institutional", "Institutional page"
+    return "unknown", "Unknown"
+
+
+def _compute_author_score(author: str | None, domain_info: dict, oa: dict | None = None) -> int:
     if not author:
+        if domain_info.get("tier") in INSTITUTIONAL_AUTHORSHIP_TIERS:
+            return 80
         return 40
     if oa:
         h = oa.get("oa_author_h_index") or 0
@@ -846,6 +1009,9 @@ async def score_source_with_llm(scraped: ScrapedSource, prompt: str) -> dict:
 # ── OpenAlex API client ────────────────────────────────────────────────
 
 _openalex_client: httpx.AsyncClient | None = None
+_crossref_client: httpx.AsyncClient | None = None
+_ror_client: httpx.AsyncClient | None = None
+_wikidata_client: httpx.AsyncClient | None = None
 
 
 def _get_openalex_client() -> httpx.AsyncClient:
@@ -864,12 +1030,57 @@ def _get_openalex_client() -> httpx.AsyncClient:
     return _openalex_client
 
 
+def _get_crossref_client() -> httpx.AsyncClient:
+    global _crossref_client
+    if _crossref_client is None or _crossref_client.is_closed:
+        ua = CROSSREF_USER_AGENT
+        if CROSSREF_MAILTO:
+            ua += f" (mailto:{CROSSREF_MAILTO})"
+        _crossref_client = httpx.AsyncClient(
+            base_url="https://api.crossref.org",
+            timeout=CROSSREF_TIMEOUT_SECONDS,
+            headers={"User-Agent": ua, "Accept": "application/json"},
+            http2=True,
+        )
+    return _crossref_client
+
+
+def _get_ror_client() -> httpx.AsyncClient:
+    global _ror_client
+    if _ror_client is None or _ror_client.is_closed:
+        headers = {"Accept": "application/json", "User-Agent": "Verity/1.0"}
+        if ROR_CLIENT_ID:
+            headers["Client-Id"] = ROR_CLIENT_ID
+        _ror_client = httpx.AsyncClient(
+            base_url="https://api.ror.org/v2",
+            timeout=ROR_TIMEOUT_SECONDS,
+            headers=headers,
+            http2=True,
+        )
+    return _ror_client
+
+
+def _get_wikidata_client() -> httpx.AsyncClient:
+    global _wikidata_client
+    if _wikidata_client is None or _wikidata_client.is_closed:
+        _wikidata_client = httpx.AsyncClient(
+            base_url="https://www.wikidata.org",
+            timeout=WIKIDATA_TIMEOUT_SECONDS,
+            headers={"Accept": "application/json", "User-Agent": "Verity/1.0"},
+            http2=True,
+        )
+    return _wikidata_client
+
+
 async def _openalex_get(path: str, params: dict | None = None) -> dict | None:
     """GET from OpenAlex with exponential back-off on 429."""
     client = _get_openalex_client()
+    merged_params = dict(params or {})
+    if OPENALEX_API_KEY:
+        merged_params.setdefault("api_key", OPENALEX_API_KEY)
     for attempt in range(3):
         try:
-            resp = await client.get(path, params=params or {})
+            resp = await client.get(path, params=merged_params)
             if resp.status_code == 429:
                 wait = 2 ** attempt
                 logging.warning("OpenAlex 429, retry in %ds", wait)
@@ -892,12 +1103,18 @@ async def _openalex_get(path: str, params: dict | None = None) -> dict | None:
 
 
 _OA_WORK_SELECT = (
-    "id,doi,title,publication_year,cited_by_count,type,"
-    "primary_location,authorships,topics,open_access"
+    "id,doi,title,publication_year,cited_by_count,type,ids,"
+    "primary_location,best_oa_location,authorships,topics,primary_topic,open_access"
 )
 
 
-async def lookup_openalex_work(doi: str | None, url: str | None) -> dict | None:
+async def lookup_openalex_work(
+    doi: str | None,
+    url: str | None,
+    *,
+    pmid: str | None = None,
+    pmcid: str | None = None,
+) -> dict | None:
     """Look up a work by DOI (preferred) or URL fallback.
 
     Always uses the filter/list endpoint to avoid path-encoding issues with
@@ -906,42 +1123,31 @@ async def lookup_openalex_work(doi: str | None, url: str | None) -> dict | None:
     if not OPENALEX_ENABLED:
         return None
 
-    # Try DOI via filter (avoids path-slash encoding problems)
+    lookup_attempts: list[tuple[str, str, str]] = []
     if doi:
-        key = doi.lower().strip()
-        cached = await asyncio.to_thread(_oa_cache_get, "openalex_works", key)
-        if cached:
-            return cached
-        data = await _openalex_get(
-            "/works",
-            params={
-                "filter": f"doi:{doi}",
-                "per_page": "1",
-                "select": _OA_WORK_SELECT,
-            },
-        )
-        if data and data.get("results"):
-            work = data["results"][0]
-            await asyncio.to_thread(_oa_cache_set, "openalex_works", key, work)
-            return work
-
-    # Fallback: search by landing page URL
+        lookup_attempts.append((doi.lower().strip(), "doi", doi))
+    if pmid:
+        lookup_attempts.append((f"pmid:{pmid}", "ids.pmid", pmid))
+    if pmcid:
+        lookup_attempts.append((f"pmcid:{pmcid.upper()}", "ids.pmcid", pmcid.upper()))
     if url:
-        key = url.lower().strip()
-        cached = await asyncio.to_thread(_oa_cache_get, "openalex_works", key)
+        lookup_attempts.append((url.lower().strip(), "locations.landing_page_url", url))
+
+    for key, filter_name, filter_value in lookup_attempts:
+        cached = _oa_cache_get("openalex_works", key)
         if cached:
             return cached
         data = await _openalex_get(
             "/works",
             params={
-                "filter": f"locations.landing_page_url:{url}",
+                "filter": f"{filter_name}:{filter_value}",
                 "per_page": "1",
                 "select": _OA_WORK_SELECT,
             },
         )
         if data and data.get("results"):
             work = data["results"][0]
-            await asyncio.to_thread(_oa_cache_set, "openalex_works", key, work)
+            _oa_cache_set("openalex_works", key, work)
             return work
 
     return None
@@ -952,7 +1158,7 @@ async def lookup_openalex_source(source_id: str) -> dict | None:
     if not OPENALEX_ENABLED or not source_id:
         return None
     short_id = source_id.split("/")[-1]
-    cached = await asyncio.to_thread(_oa_cache_get, "openalex_sources", short_id)
+    cached = _oa_cache_get("openalex_sources", short_id)
     if cached:
         return cached
     data = await _openalex_get(
@@ -960,7 +1166,7 @@ async def lookup_openalex_source(source_id: str) -> dict | None:
         params={"select": "id,display_name,type,issn_l,issn,host_organization_name,is_oa,summary_stats"},
     )
     if data:
-        await asyncio.to_thread(_oa_cache_set, "openalex_sources", short_id, data)
+        _oa_cache_set("openalex_sources", short_id, data)
     return data
 
 
@@ -969,7 +1175,7 @@ async def lookup_openalex_author(author_id: str) -> dict | None:
     if not OPENALEX_ENABLED or not author_id:
         return None
     short_id = author_id.split("/")[-1]
-    cached = await asyncio.to_thread(_oa_cache_get, "openalex_authors", short_id)
+    cached = _oa_cache_get("openalex_authors", short_id)
     if cached:
         return cached
     data = await _openalex_get(
@@ -977,7 +1183,7 @@ async def lookup_openalex_author(author_id: str) -> dict | None:
         params={"select": "id,display_name,summary_stats,last_known_institutions"},
     )
     if data:
-        await asyncio.to_thread(_oa_cache_set, "openalex_authors", short_id, data)
+        _oa_cache_set("openalex_authors", short_id, data)
     return data
 
 
@@ -986,7 +1192,428 @@ async def _noop_coro():
     return None
 
 
-async def enrich_with_openalex(scraped: "ScrapedSource") -> dict:
+def _authority_cache_keys(scraped: "ScrapedSource") -> list[tuple[str, str]]:
+    keys: list[tuple[str, str]] = []
+    if scraped.doi:
+        keys.append(("work", f"doi:{scraped.doi.lower()}"))
+    if scraped.pmid:
+        keys.append(("work", f"pmid:{scraped.pmid}"))
+    if scraped.pmcid:
+        keys.append(("work", f"pmcid:{scraped.pmcid.upper()}"))
+    if scraped.issn:
+        keys.append(("journal", f"issn:{scraped.issn.lower()}"))
+    reg_domain = registered_domain(scraped.domain)
+    if reg_domain:
+        keys.append(("domain", f"domain:{reg_domain}"))
+    return keys
+
+
+def _bootstrap_authority_profile(scraped: "ScrapedSource") -> AuthorityProfile:
+    domain_info = get_domain_info(scraped.domain)
+    tier = domain_info.get("tier", "unknown")
+    return AuthorityProfile(
+        authority_kind=tier,
+        authority_name=scraped.publisher_hint or scraped.site_name or registered_domain(scraped.domain) or scraped.domain,
+        authority_source="registry",
+        confidence="medium" if tier != "unknown" else "low",
+        is_peer_reviewed=tier == "academic_journal",
+        is_institutional=tier in INSTITUTIONAL_AUTHORSHIP_TIERS,
+        matched_ids={"domain": registered_domain(scraped.domain)} if scraped.domain else {},
+        evidence=[f"registry:{tier}"],
+    )
+
+
+def _profile_ttl_seconds(profile: AuthorityProfile, scope: str) -> int:
+    if scope in {"work", "journal"} and profile.authority_kind == "academic_journal":
+        return AUTHORITY_SCHOLARLY_TTL_SECONDS
+    if profile.confidence == "low":
+        return AUTHORITY_NEGATIVE_TTL_SECONDS
+    return AUTHORITY_POSITIVE_TTL_SECONDS
+
+
+def _time_left_seconds(deadline: float) -> float:
+    return max(0.0, deadline - time.perf_counter())
+
+
+def _remaining_timeout(deadline: float, provider_default: int) -> float | None:
+    remaining = _time_left_seconds(deadline)
+    if remaining <= 0:
+        return None
+    return max(0.1, min(float(provider_default), remaining))
+
+
+async def _crossref_get(path: str, params: dict | None = None, timeout_s: float | None = None) -> dict | None:
+    if not CROSSREF_ENABLED:
+        return None
+    client = _get_crossref_client()
+    query = dict(params or {})
+    if CROSSREF_MAILTO:
+        query.setdefault("mailto", CROSSREF_MAILTO)
+    try:
+        resp = await client.get(path, params=query, timeout=timeout_s or CROSSREF_TIMEOUT_SECONDS)
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as exc:
+        logging.warning("Crossref error: %s", str(exc)[:120])
+        return None
+
+
+async def _ror_search(query: str, timeout_s: float | None = None) -> dict | None:
+    if not ROR_ENABLED or not query:
+        return None
+    client = _get_ror_client()
+    try:
+        resp = await client.get(
+            "/organizations",
+            params={"query": query, "page": 1, "affiliation": "false"},
+            timeout=timeout_s or ROR_TIMEOUT_SECONDS,
+        )
+        if resp.status_code == 404:
+            return None
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as exc:
+        logging.warning("ROR error: %s", str(exc)[:120])
+        return None
+
+
+async def _wikidata_search(query: str, timeout_s: float | None = None) -> dict | None:
+    if not WIKIDATA_ENABLED or not query:
+        return None
+    client = _get_wikidata_client()
+    try:
+        resp = await client.get(
+            "/w/api.php",
+            params={
+                "action": "wbsearchentities",
+                "search": query,
+                "language": "en",
+                "limit": 5,
+                "format": "json",
+                "origin": "*",
+            },
+            timeout=timeout_s or WIKIDATA_TIMEOUT_SECONDS,
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as exc:
+        logging.warning("Wikidata search error: %s", str(exc)[:120])
+        return None
+
+
+async def _wikidata_entities(ids: list[str], timeout_s: float | None = None) -> dict | None:
+    if not WIKIDATA_ENABLED or not ids:
+        return None
+    client = _get_wikidata_client()
+    try:
+        resp = await client.get(
+            "/w/api.php",
+            params={
+                "action": "wbgetentities",
+                "ids": "|".join(ids),
+                "props": "claims|labels|descriptions",
+                "languages": "en",
+                "format": "json",
+                "origin": "*",
+            },
+            timeout=timeout_s or WIKIDATA_TIMEOUT_SECONDS,
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except Exception as exc:
+        logging.warning("Wikidata entity error: %s", str(exc)[:120])
+        return None
+
+
+async def lookup_openalex_source_by_issn(issn: str) -> dict | None:
+    if not OPENALEX_ENABLED or not issn:
+        return None
+    clean = issn.strip().replace("-", "")
+    cache_key = f"issn:{clean}"
+    cached = _oa_cache_get("openalex_sources", cache_key)
+    if cached:
+        return cached
+    data = await _openalex_get(
+        "/sources",
+        params={
+            "filter": f"issn:{issn}",
+            "per_page": "1",
+            "select": "id,display_name,type,issn_l,issn,host_organization_name,is_oa,summary_stats",
+        },
+    )
+    if data and data.get("results"):
+        source = data["results"][0]
+        _oa_cache_set("openalex_sources", cache_key, source)
+        return source
+    return None
+
+
+async def lookup_crossref_work(doi: str, timeout_s: float | None = None) -> dict | None:
+    if not doi:
+        return None
+    return await _crossref_get(f"/works/{quote(doi, safe='')}", timeout_s=timeout_s)
+
+
+async def lookup_crossref_journal(issn: str, timeout_s: float | None = None) -> dict | None:
+    if not issn:
+        return None
+    return await _crossref_get(f"/journals/{quote(issn, safe='')}", timeout_s=timeout_s)
+
+
+def _domain_is_government(domain: str) -> bool:
+    reg = registered_domain(domain)
+    return any(reg.endswith(suffix.lstrip(".")) or reg == suffix.lstrip(".") for suffix in GOVERNMENT_DOMAIN_SUFFIXES)
+
+
+def _wikidata_official_website_domain(entity: dict) -> str | None:
+    claims = entity.get("claims") or {}
+    website_claims = claims.get("P856") or []
+    for claim in website_claims:
+        try:
+            website = claim["mainsnak"]["datavalue"]["value"]
+        except Exception:
+            continue
+        website_domain = extract_domain(website)
+        if website_domain:
+            return registered_domain(website_domain)
+    return None
+
+
+def _wikidata_description(entity: dict) -> str:
+    descriptions = entity.get("descriptions") or {}
+    for lang in ("en", "en-gb", "en-us"):
+        if lang in descriptions:
+            return descriptions[lang].get("value", "")
+    return ""
+
+
+def _wikidata_is_institutional(entity: dict) -> bool:
+    description = _wikidata_description(entity).lower()
+    return any(
+        token in description
+        for token in ("hospital", "medical", "health", "clinic", "research institute", "charity", "nonprofit", "government")
+    )
+
+
+def _merge_evidence(*parts: str) -> list[str]:
+    return [part for part in parts if part]
+
+
+def _profile_from_openalex(scraped: "ScrapedSource", enrichment: dict) -> AuthorityProfile | None:
+    if not enrichment:
+        return None
+    matched_ids = {}
+    if scraped.doi:
+        matched_ids["doi"] = scraped.doi
+    if scraped.pmid:
+        matched_ids["pmid"] = scraped.pmid
+    if scraped.pmcid:
+        matched_ids["pmcid"] = scraped.pmcid
+    if enrichment.get("oa_work_id"):
+        matched_ids["openalex_work_id"] = enrichment["oa_work_id"]
+    if enrichment.get("oa_source_id"):
+        matched_ids["openalex_source_id"] = enrichment["oa_source_id"]
+    if enrichment.get("oa_source_type") == "journal" or enrichment.get("oa_work_type") in {"journal-article", "review"}:
+        return AuthorityProfile(
+            authority_kind="academic_journal",
+            authority_name=enrichment.get("oa_source_display_name") or enrichment.get("oa_publisher") or scraped.journal_name,
+            authority_source="openalex",
+            confidence="high" if scraped.doi or scraped.pmid or scraped.pmcid else "medium",
+            is_peer_reviewed=True,
+            is_institutional=True,
+            matched_ids=matched_ids,
+            evidence=_merge_evidence("openalex:work", enrichment.get("oa_work_type"), enrichment.get("oa_source_type")),
+        )
+    return None
+
+
+def _profile_from_crossref(scraped: "ScrapedSource", message: dict) -> AuthorityProfile | None:
+    if not message:
+        return None
+    publisher = message.get("publisher") or scraped.publisher_hint or scraped.site_name
+    work_type = message.get("type") or ""
+    is_journal = bool(message.get("container-title")) or work_type in {"journal-article", "journal-issue", "journal-volume"}
+    if is_journal:
+        matched_ids = {}
+        if scraped.doi:
+            matched_ids["doi"] = scraped.doi
+        if scraped.issn:
+            matched_ids["issn"] = scraped.issn
+        return AuthorityProfile(
+            authority_kind="academic_journal",
+            authority_name=publisher or scraped.journal_name,
+            authority_source="crossref",
+            confidence="high" if scraped.doi else "medium",
+            is_peer_reviewed=True,
+            is_institutional=True,
+            matched_ids=matched_ids,
+            evidence=_merge_evidence("crossref:work", work_type),
+        )
+    return None
+
+
+async def _resolve_institutional_profile(scraped: "ScrapedSource", deadline: float) -> AuthorityProfile | None:
+    org_hint = scraped.organization_hint or scraped.publisher_hint or scraped.site_name
+    if not org_hint:
+        return None
+
+    reg_domain = registered_domain(scraped.domain)
+
+    ror_timeout = _remaining_timeout(deadline, ROR_TIMEOUT_SECONDS)
+    if ror_timeout is not None:
+        ror_payload = await _ror_search(org_hint, timeout_s=ror_timeout)
+        items = (ror_payload or {}).get("items") or []
+        best_match = None
+        best_score = 0.0
+        for item in items:
+            org = item.get("organization") or item
+            names = [org.get("name", "")] + (org.get("aliases") or []) + (org.get("acronyms") or [])
+            similarity = max((_name_similarity(org_hint, name) for name in names if name), default=0.0)
+            domains = [
+                registered_domain(extract_domain(link.get("value", "")) or link.get("value", ""))
+                for link in (org.get("links") or [])
+                if link.get("value")
+            ]
+            domain_match = reg_domain in domains
+            score = similarity + (0.5 if domain_match else 0.0)
+            if score > best_score:
+                best_score = score
+                best_match = (org, similarity, domain_match)
+        if best_match and best_match[2] and best_match[1] >= 0.72:
+            org, similarity, _domain_match = best_match
+            type_text = " ".join(org.get("types") or []).lower()
+            name_text = (org.get("name", "") or "").lower()
+            is_medical = any(token in type_text or token in name_text for token in ("health", "healthcare", "hospital", "medical", "clinic"))
+            if not is_medical and not _domain_is_government(reg_domain):
+                return None
+            authority_kind = "official_body" if _domain_is_government(reg_domain) else "medical_authority"
+            return AuthorityProfile(
+                authority_kind=authority_kind,
+                authority_name=org.get("name") or org_hint,
+                authority_source="ror",
+                confidence="high",
+                is_peer_reviewed=False,
+                is_institutional=True,
+                matched_ids={"ror": org.get("id", ""), "domain": reg_domain},
+                evidence=[f"ror:similarity:{similarity:.2f}", "ror:domain_match"],
+            )
+
+    wikidata_timeout = _remaining_timeout(deadline, WIKIDATA_TIMEOUT_SECONDS)
+    if wikidata_timeout is not None:
+        search_payload = await _wikidata_search(org_hint, timeout_s=wikidata_timeout)
+        results = (search_payload or {}).get("search") or []
+        ids = [item.get("id") for item in results if item.get("id")]
+        if ids:
+            entity_payload = await _wikidata_entities(ids[:5], timeout_s=wikidata_timeout)
+            entities = (entity_payload or {}).get("entities") or {}
+            for item in results:
+                entity = entities.get(item.get("id", "")) or {}
+                website_domain = _wikidata_official_website_domain(entity)
+                similarity = _name_similarity(org_hint, item.get("label"))
+                if website_domain and website_domain == reg_domain and similarity >= 0.72 and _wikidata_is_institutional(entity):
+                    description = _wikidata_description(entity).lower()
+                    is_medical = any(token in description for token in ("hospital", "medical", "health", "clinic"))
+                    if not is_medical and not _domain_is_government(reg_domain):
+                        continue
+                    authority_kind = "official_body" if _domain_is_government(reg_domain) else "medical_authority"
+                    return AuthorityProfile(
+                        authority_kind=authority_kind,
+                        authority_name=item.get("label") or org_hint,
+                        authority_source="wikidata",
+                        confidence="high",
+                        is_peer_reviewed=False,
+                        is_institutional=True,
+                        matched_ids={"wikidata": item.get("id", ""), "domain": reg_domain},
+                        evidence=[f"wikidata:similarity:{similarity:.2f}", "wikidata:website_match"],
+                    )
+
+    return None
+
+
+async def resolve_authority(scraped: "ScrapedSource") -> dict:
+    deadline = time.perf_counter() + (AUTHORITY_LOOKUP_BUDGET_MS / 1000.0)
+    cache_keys = _authority_cache_keys(scraped)
+    for _scope, cache_key in cache_keys:
+        cached = _authority_cache_get(cache_key)
+        if cached:
+            return {"authority_profile": cached}
+
+    bootstrap = _bootstrap_authority_profile(scraped)
+    if bootstrap.authority_kind in AUTHORITY_OVERRIDE_PROTECTED_TIERS:
+        return {"authority_profile": bootstrap.model_dump()}
+
+    enrichment: dict = {}
+    profile: AuthorityProfile | None = None
+
+    scholarly_candidate = bool(
+        scraped.doi or scraped.pmid or scraped.pmcid or scraped.issn or scraped.journal_name
+        or (scraped.json_ld and str(scraped.json_ld.get("type", "")).lower() == "scholarlyarticle")
+    )
+
+    if scholarly_candidate:
+        openalex_timeout = _remaining_timeout(deadline, OPENALEX_TIMEOUT_SECONDS)
+        if openalex_timeout is not None and OPENALEX_ENABLED:
+            enrichment = await enrich_with_openalex(scraped, timeout_s=openalex_timeout)
+            profile = _profile_from_openalex(scraped, enrichment)
+
+        if not profile or profile.confidence != "high":
+            crossref_timeout = _remaining_timeout(deadline, CROSSREF_TIMEOUT_SECONDS)
+            if crossref_timeout is not None and CROSSREF_ENABLED:
+                crossref_payload = None
+                if scraped.doi:
+                    crossref_payload = await lookup_crossref_work(scraped.doi, timeout_s=crossref_timeout)
+                    message = (crossref_payload or {}).get("message") or {}
+                    if message:
+                        enrichment["cr_publisher"] = message.get("publisher")
+                        enrichment["cr_work_type"] = message.get("type")
+                        funders = [f.get("name") for f in (message.get("funder") or []) if f.get("name")]
+                        if funders:
+                            enrichment["cr_funders"] = funders[:5]
+                        profile = profile or _profile_from_crossref(scraped, message)
+                elif scraped.issn:
+                    journal_payload = await lookup_crossref_journal(scraped.issn, timeout_s=crossref_timeout)
+                    message = (journal_payload or {}).get("message") or {}
+                    if message and not profile:
+                        profile = AuthorityProfile(
+                            authority_kind="academic_journal",
+                            authority_name=message.get("title") or scraped.journal_name,
+                            authority_source="crossref",
+                            confidence="medium",
+                            is_peer_reviewed=True,
+                            is_institutional=True,
+                            matched_ids={"issn": scraped.issn},
+                            evidence=["crossref:journal"],
+                        )
+
+    if not profile or profile.confidence != "high":
+        institutional_profile = await _resolve_institutional_profile(scraped, deadline)
+        if institutional_profile:
+            profile = institutional_profile
+
+    if not profile:
+        profile = bootstrap
+
+    profile_dict = profile.model_dump()
+    merged = {**enrichment, "authority_profile": profile_dict}
+    for scope, cache_key in cache_keys:
+        ttl = _profile_ttl_seconds(profile, scope)
+        _authority_cache_set(cache_key, scope, profile_dict, ttl_seconds=ttl, negative=profile.confidence == "low")
+    if profile.authority_source in {"ror", "wikidata"}:
+        reg_domain = registered_domain(scraped.domain)
+        if reg_domain:
+            _authority_cache_set(
+                f"domain:{reg_domain}",
+                "domain",
+                profile_dict,
+                ttl_seconds=_profile_ttl_seconds(profile, "domain"),
+                negative=profile.confidence == "low",
+            )
+    return merged
+
+
+async def enrich_with_openalex(scraped: "ScrapedSource", timeout_s: float | None = None) -> dict:
     """Enrich a scraped source with OpenAlex metadata. Returns enrichment dict."""
     if not OPENALEX_ENABLED:
         return {}
@@ -994,14 +1621,36 @@ async def enrich_with_openalex(scraped: "ScrapedSource") -> dict:
     enrichment: dict = {}
 
     # Step 1: Look up the Work (DOI preferred, URL fallback)
-    work = await lookup_openalex_work(scraped.doi, scraped.url)
+    work = await lookup_openalex_work(
+        scraped.doi,
+        scraped.url,
+        pmid=scraped.pmid,
+        pmcid=scraped.pmcid,
+    )
     if not work:
+        if scraped.issn:
+            oa_source = await lookup_openalex_source_by_issn(scraped.issn)
+            if oa_source:
+                enrichment["oa_source_id"] = oa_source.get("id", "")
+                enrichment["oa_source_display_name"] = oa_source.get("display_name", "")
+                enrichment["oa_source_type"] = oa_source.get("type", "")
+                enrichment["oa_publisher"] = oa_source.get("host_organization_name", "")
+                summary = oa_source.get("summary_stats") or {}
+                if summary:
+                    enrichment["oa_source_h_index"] = summary.get("h_index", 0)
+                    enrichment["oa_source_2yr_mean_citedness"] = summary.get("2yr_mean_citedness", 0.0)
         return enrichment
 
     # Work-level data
+    enrichment["oa_work_id"] = work.get("id", "")
     enrichment["oa_cited_by_count"] = work.get("cited_by_count", 0)
     enrichment["oa_work_type"] = work.get("type", "")
     enrichment["oa_publication_year"] = work.get("publication_year")
+    work_ids = work.get("ids") or {}
+    if work_ids.get("pmid"):
+        enrichment["oa_pmid"] = str(work_ids["pmid"]).split("/")[-1]
+    if work_ids.get("pmcid"):
+        enrichment["oa_pmcid"] = str(work_ids["pmcid"]).split("/")[-1]
 
     # Topics
     topics = work.get("topics") or []
@@ -1009,6 +1658,9 @@ async def enrich_with_openalex(scraped: "ScrapedSource") -> dict:
         enrichment["oa_topics"] = [
             t["display_name"] for t in topics[:5] if t.get("display_name")
         ]
+    primary_topic = work.get("primary_topic") or {}
+    if primary_topic.get("display_name"):
+        enrichment["oa_primary_topic"] = primary_topic["display_name"]
 
     # Open access
     oa_info = work.get("open_access") or {}
@@ -1031,6 +1683,8 @@ async def enrich_with_openalex(scraped: "ScrapedSource") -> dict:
 
     # Source data
     if oa_source:
+        enrichment["oa_source_id"] = oa_source.get("id", "")
+        enrichment["oa_source_display_name"] = oa_source.get("display_name", "")
         enrichment["oa_source_type"] = oa_source.get("type", "")
         enrichment["oa_publisher"] = oa_source.get("host_organization_name", "")
         summary = oa_source.get("summary_stats") or {}
@@ -1054,28 +1708,34 @@ def build_scored_source(
     scraped: ScrapedSource, llm: dict, oa_enrichment: dict | None = None
 ) -> ScoredSource:
     """Combine scraped metadata + LLM output + OpenAlex enrichment into a ScoredSource."""
-    domain_info = get_domain_info(scraped.domain)
     oa = oa_enrichment or {}
+    authority_profile = AuthorityProfile.model_validate(
+        oa.get("authority_profile") or _bootstrap_authority_profile(scraped).model_dump()
+    )
+    domain_info = {
+        **get_domain_info(scraped.domain),
+        "tier": authority_profile.authority_kind,
+    }
 
     # Enrich with ScimagoJR data when JSON-LD exposes journal metadata
     _journal_meta = lookup_journal_info(
-        issn=scraped.json_ld.get("journal_issn") if scraped.json_ld else None,
-        title=scraped.json_ld.get("journal_name") if scraped.json_ld else None,
+        issn=scraped.issn or (scraped.json_ld.get("journal_issn") if scraped.json_ld else None),
+        title=scraped.journal_name or (scraped.json_ld.get("journal_name") if scraped.json_ld else None),
     )
     if _journal_meta:
         domain_info = {**domain_info, **_journal_meta}
-        if domain_info.get("tier") == "unknown":
+        if domain_info.get("tier") == "unknown" and authority_profile.authority_kind == "unknown":
             domain_info = {**domain_info, "tier": "academic_journal"}
         if _journal_meta.get("open_access") and domain_info.get("paywalled"):
             domain_info = {**domain_info, "paywalled": False}
 
-    # Promote unknown domains that have an OpenAlex source h-index
-    if domain_info.get("tier") == "unknown" and oa.get("oa_source_h_index"):
-        domain_info = {**domain_info, "tier": "academic_journal"}
+    if authority_profile.authority_kind != "unknown":
+        domain_info["tier"] = authority_profile.authority_kind
 
     domain_score  = _compute_domain_score(domain_info, oa)
     recency_score = _compute_recency_score(scraped.date)
-    author_score  = _compute_author_score(scraped.author, oa)
+    authorship_type, author_label = _classify_authorship(scraped.author, domain_info)
+    author_score  = _compute_author_score(scraped.author, domain_info, oa)
     relevance_score  = int(llm.get("relevance_score", 50))
     alignment_score  = int(llm.get("alignment_score", 50))
 
@@ -1091,7 +1751,8 @@ def build_scored_source(
         verdict, verdict_label, color = _verdict_from_score(composite)
 
     is_peer_reviewed = (
-        domain_info.get("tier") in TIER_PEER_REVIEWED
+        authority_profile.is_peer_reviewed
+        or domain_info.get("tier") in TIER_PEER_REVIEWED
         or bool(domain_info.get("quartile"))
         or oa.get("oa_source_type") == "journal"
         or oa.get("oa_work_type") in ("journal-article", "review")
@@ -1112,6 +1773,9 @@ def build_scored_source(
         oa_cited_by_count=oa.get("oa_cited_by_count"),
         oa_work_type=oa.get("oa_work_type"),
         oa_source_type=oa.get("oa_source_type"),
+        authority_source=authority_profile.authority_source,
+        authority_confidence=authority_profile.confidence,
+        authority_label=authority_profile.authority_name,
     )
 
     return ScoredSource(
@@ -1129,11 +1793,17 @@ def build_scored_source(
         flags=_build_flags(scraped),
         date=scraped.date,
         author=scraped.author,
+        authorship_type=authorship_type,
+        author_label=author_label,
+        authority_name=authority_profile.authority_name,
+        authority_source=authority_profile.authority_source,
+        authority_confidence=authority_profile.confidence,
+        matched_ids=authority_profile.matched_ids or None,
         paywalled=scraped.paywalled,
         signals=signals,
-        publisher=oa.get("oa_publisher") or None,
+        publisher=oa.get("cr_publisher") or oa.get("oa_publisher") or scraped.publisher_hint or None,
         topics=oa.get("oa_topics") or None,
-        funders=oa.get("oa_funders") or None,
+        funders=oa.get("cr_funders") or oa.get("oa_funders") or None,
         author_institution=oa.get("oa_author_institution") or None,
     )
 
@@ -1146,6 +1816,46 @@ def extract_domain(url: str) -> str:
         return netloc
     except Exception:
         return ""
+
+
+def registered_domain(domain: str) -> str:
+    clean = (domain or "").lower().strip().strip(".")
+    if not clean:
+        return ""
+    parts = clean.split(".")
+    if len(parts) <= 2:
+        return clean
+    tail = ".".join(parts[-2:])
+    tail3 = ".".join(parts[-3:])
+    if tail in REGISTERED_DOMAIN_THIRD_LEVEL_SUFFIXES:
+        return tail3
+    return tail
+
+
+def _domain_matches(candidate: str | None, domain: str | None) -> bool:
+    if not candidate or not domain:
+        return False
+    candidate_domain = extract_domain(candidate) if "://" in candidate else candidate
+    return registered_domain(candidate_domain) == registered_domain(domain)
+
+
+def _normalize_entity_name(value: str | None) -> str:
+    if not value:
+        return ""
+    text = unicodedata.normalize("NFKD", value).encode("ascii", "ignore").decode("ascii")
+    text = re.sub(r"[^a-z0-9]+", " ", text.lower()).strip()
+    text = re.sub(r"\b(the|inc|llc|ltd|foundation|society|association|hospital|health system)\b", " ", text)
+    return re.sub(r"\s+", " ", text).strip()
+
+
+def _name_similarity(a: str | None, b: str | None) -> float:
+    na = _normalize_entity_name(a)
+    nb = _normalize_entity_name(b)
+    if not na or not nb:
+        return 0.0
+    if na == nb:
+        return 1.0
+    return SequenceMatcher(None, na, nb).ratio()
 
 
 def is_pdf_url(url: str, content_type: str = "") -> bool:
@@ -1557,6 +2267,71 @@ def extract_doi(soup: BeautifulSoup, html: str) -> str | None:
     return None
 
 
+def _extract_identifier_from_meta(soup: BeautifulSoup, names: tuple[str, ...], pattern: re.Pattern[str]) -> str | None:
+    for meta_name in names:
+        content = _get_meta_content(soup, names=(meta_name,), properties=(meta_name,))
+        if not content:
+            continue
+        match = pattern.search(content)
+        if match:
+            return match.group(1) if match.groups() else match.group(0)
+    return None
+
+
+def extract_pmid(soup: BeautifulSoup, html: str, url: str) -> str | None:
+    match = _extract_identifier_from_meta(
+        soup,
+        ("citation_pmid", "pmid", "dc.identifier"),
+        PMID_PATTERN,
+    )
+    if match:
+        return match
+    url_match = re.search(r"/(?:pubmed|articles|medgen)/(\d{5,9})(?:[/?#]|$)", url, re.IGNORECASE)
+    if url_match:
+        return url_match.group(1)
+    html_match = re.search(r'"pmid"\s*:\s*"?(?:\D*?)(\d{5,9})"?', html, re.IGNORECASE)
+    if html_match:
+        return html_match.group(1)
+    return None
+
+
+def extract_pmcid(soup: BeautifulSoup, html: str, url: str) -> str | None:
+    match = _extract_identifier_from_meta(
+        soup,
+        ("citation_pmcid", "pmcid", "dc.identifier"),
+        PMCID_PATTERN,
+    )
+    if match:
+        return match.upper()
+    url_match = re.search(r"/(?:pmc/articles/)?(PMC\d{4,10})(?:[/?#]|$)", url, re.IGNORECASE)
+    if url_match:
+        return url_match.group(1).upper()
+    html_match = PMCID_PATTERN.search(html or "")
+    if html_match:
+        return html_match.group(1).upper()
+    return None
+
+
+def extract_issn(soup: BeautifulSoup) -> str | None:
+    content = _get_meta_content(soup, names=("citation_issn", "issn", "prism.issn"))
+    if content:
+        match = ISSN_PATTERN.search(content)
+        if match:
+            return match.group(1)
+    return None
+
+
+def extract_site_name(soup: BeautifulSoup) -> str | None:
+    return _truncate(
+        _get_meta_content(
+            soup,
+            names=("application-name", "twitter:site"),
+            properties=("og:site_name",),
+        ),
+        150,
+    )
+
+
 _SOFT_404_TITLE_PATTERNS = (
     "page not found", "404 not found", "error 404",
     "not found", "page doesn't exist", "page does not exist",
@@ -1802,7 +2577,7 @@ def detect_paywall(soup: BeautifulSoup, body_text: str | None, domain_info: dict
     return False
 
 
-def _extract_page_fields(html: str, label: str, domain_info: dict) -> dict:
+def _extract_page_fields(html: str, label: str, url: str, domain_info: dict) -> dict:
     soup = BeautifulSoup(html, "lxml")
 
     json_ld = extract_json_ld(soup)
@@ -1815,8 +2590,14 @@ def _extract_page_fields(html: str, label: str, domain_info: dict) -> dict:
     date = extract_date(soup)
     author = extract_author(soup)
     doi = extract_doi(soup, html)
+    pmid = extract_pmid(soup, html, url)
+    pmcid = extract_pmcid(soup, html, url)
+    issn = extract_issn(soup)
+    site_name = extract_site_name(soup)
     keywords = extract_keywords(soup)
     paywalled = detect_paywall(soup, body_text, domain_info)
+    publisher_hint = None
+    journal_name = None
 
     if json_ld:
         if not title and json_ld.get("headline"):
@@ -1827,6 +2608,14 @@ def _extract_page_fields(html: str, label: str, domain_info: dict) -> dict:
             date = _extract_year(str(json_ld["datePublished"]))
         if not author and json_ld.get("author"):
             author = _validate_author(_coerce_json_ld_name(json_ld["author"]))
+        if not publisher_hint and json_ld.get("publisher"):
+            publisher_hint = _truncate(_normalize_whitespace(str(json_ld["publisher"])), 150)
+        if not journal_name and json_ld.get("journal_name"):
+            journal_name = _truncate(_normalize_whitespace(str(json_ld["journal_name"])), 150)
+        if not issn and json_ld.get("journal_issn"):
+            match = ISSN_PATTERN.search(str(json_ld["journal_issn"]))
+            if match:
+                issn = match.group(1)
         if not keywords:
             keywords = _extract_keywords_from_json_ld(json_ld)
         if json_ld.get("isAccessibleForFree") is False:
@@ -1839,6 +2628,11 @@ def _extract_page_fields(html: str, label: str, domain_info: dict) -> dict:
     author = _truncate(author, 150)
     keywords = _normalize_keywords(keywords)
     word_count = len(body_text.split()) if body_text else 0
+    publisher_hint = publisher_hint or _truncate(
+        _get_meta_content(soup, names=("publisher", "citation_publisher", "dc.publisher")),
+        150,
+    )
+    organization_hint = publisher_hint or site_name or title
 
     return {
         "title": title,
@@ -1847,6 +2641,13 @@ def _extract_page_fields(html: str, label: str, domain_info: dict) -> dict:
         "date": date,
         "author": author,
         "doi": doi,
+        "pmid": pmid,
+        "pmcid": pmcid,
+        "issn": issn,
+        "journal_name": journal_name,
+        "publisher_hint": publisher_hint,
+        "organization_hint": _truncate(organization_hint, 150),
+        "site_name": site_name,
         "paywalled": paywalled,
         "json_ld": json_ld,
         "keywords": keywords,
@@ -1870,6 +2671,7 @@ def _is_private_ip(hostname: str) -> bool:
 async def scrape_with_beautifulsoup(source: SourceInput) -> ScrapedSource:
     domain = extract_domain(source.url)
     domain_info = get_domain_info(domain)
+    http_status = None
 
     # SSRF protection: block private/internal IPs
     parsed = urlparse(source.url)
@@ -1966,7 +2768,7 @@ async def scrape_with_beautifulsoup(source: SourceInput) -> ScrapedSource:
         return build_failure_result(source, "scrape_failed")
 
     try:
-        extracted = _extract_page_fields(html, source.label, domain_info)
+        extracted = _extract_page_fields(html, source.label, source.url, domain_info)
         if _is_soft_404(extracted["title"]):
             logging.warning("  SOFT 404     %-40s  title=%r", domain, extracted["title"])
             return build_failure_result(source, "soft_404", http_status=http_status)
@@ -1993,6 +2795,13 @@ async def scrape_with_beautifulsoup(source: SourceInput) -> ScrapedSource:
             date=extracted["date"],
             author=extracted["author"],
             doi=extracted["doi"],
+            pmid=extracted["pmid"],
+            pmcid=extracted["pmcid"],
+            issn=extracted["issn"],
+            journal_name=extracted["journal_name"],
+            publisher_hint=extracted["publisher_hint"],
+            organization_hint=extracted["organization_hint"],
+            site_name=extracted["site_name"],
             paywalled=extracted["paywalled"],
             is_pdf=False,
             json_ld=extracted["json_ld"],
@@ -2143,7 +2952,7 @@ async def scrape_with_playwright(
             if http_status and http_status >= 400:
                 return baseline
 
-            extracted = _extract_page_fields(html, source.label, domain_info)
+            extracted = _extract_page_fields(html, source.label, source.url, domain_info)
             if _is_soft_404(extracted["title"]):
                 logging.warning("  SOFT 404     %-40s  title=%r  (playwright)", domain, extracted["title"])
                 return build_failure_result(source, "soft_404", http_status=http_status)
@@ -2171,6 +2980,13 @@ async def scrape_with_playwright(
                 date=extracted["date"],
                 author=extracted["author"],
                 doi=extracted["doi"],
+                pmid=extracted["pmid"],
+                pmcid=extracted["pmcid"],
+                issn=extracted["issn"],
+                journal_name=extracted["journal_name"],
+                publisher_hint=extracted["publisher_hint"],
+                organization_hint=extracted["organization_hint"],
+                site_name=extracted["site_name"],
                 paywalled=extracted["paywalled"],
                 is_pdf=False,
                 json_ld=extracted["json_ld"],
@@ -2227,6 +3043,56 @@ async def scrape_source(source: SourceInput) -> ScrapedSource:
         logging.info("  PLAYWRIGHT   %-40s  words=%s → trying JS render", result.domain, result.word_count)
         result = await scrape_with_playwright(source, result)
     return result
+
+
+async def _record_live_triage_batch(
+    *,
+    source_kind: str,
+    prompt: str,
+    response: str,
+    topic: str,
+    llm_enabled: bool,
+    observations: list[dict],
+) -> None:
+    if not TRIAGE_CAPTURE_ENABLED or not observations:
+        return
+
+    try:
+        db = get_triage_db(TRIAGE_DB_PATH)
+        try:
+            capture_id = str(uuid.uuid4())[:8]
+            live_count = sum(1 for item in observations if item["scraped"].live)
+            dead_count = len(observations) - live_count
+            create_capture_run(
+                db,
+                capture_id=capture_id,
+                source_kind=source_kind,
+                prompt=prompt,
+                response=response,
+                topic=topic,
+                source_count=len(observations),
+                live_count=live_count,
+                dead_count=dead_count,
+                llm_enabled=llm_enabled,
+            )
+            for item in observations:
+                triage_record_observation(
+                    db,
+                    source_kind=source_kind,
+                    source_run_id=capture_id,
+                    prompt=prompt,
+                    response=response,
+                    topic=topic,
+                    scraped=item["scraped"],
+                    llm=item.get("llm"),
+                    scored=item.get("scored"),
+                    playwright_attempted=item.get("playwright_attempted"),
+                    playwright_improved=item.get("playwright_improved"),
+                )
+        finally:
+            db.close()
+    except Exception as exc:
+        logging.warning("Triage capture write failed: %s", str(exc)[:120])
 
 
 from slowapi import Limiter, _rate_limit_exceeded_handler
@@ -2304,6 +3170,11 @@ async def healthcheck(request: Request) -> dict:
             "llm_backend": "github_models",
             "openalex_enabled": OPENALEX_ENABLED,
             "openalex_polite": bool(OPENALEX_EMAIL),
+            "crossref_enabled": CROSSREF_ENABLED,
+            "crossref_polite": bool(CROSSREF_MAILTO),
+            "ror_enabled": ROR_ENABLED,
+            "ror_identified": bool(ROR_CLIENT_ID),
+            "wikidata_enabled": WIKIDATA_ENABLED,
         }
     return {"status": "ok"}
 
@@ -2326,7 +3197,7 @@ async def extract(request: Request, body: ExtractRequest):
         scraped = await scrape_source(source)
         llm_result, oa_enrichment = await asyncio.gather(
             score_source_with_llm(scraped, body.original_prompt) if llm_ok else _noop_coro(),
-            enrich_with_openalex(scraped) if OPENALEX_ENABLED else _noop_coro(),
+            resolve_authority(scraped),
         )
         return scraped, llm_result or {}, oa_enrichment or {}
 
@@ -2363,10 +3234,28 @@ async def extract(request: Request, body: ExtractRequest):
         )
 
     if llm_ok:
-        scored = [
+        scored_unsorted = [
             build_scored_source(s, llm, oa)
             for s, llm, oa in zip(scraped_sources, llm_results, oa_results)
         ]
+        await _record_live_triage_batch(
+            source_kind="live_extract",
+            prompt=body.original_prompt,
+            response=body.full_ai_response,
+            topic=topic,
+            llm_enabled=True,
+            observations=[
+                {
+                    "scraped": s,
+                    "llm": llm,
+                    "scored": scored,
+                    "playwright_attempted": s.scrape_method == "playwright",
+                    "playwright_improved": s.scrape_method == "playwright",
+                }
+                for s, llm, scored in zip(scraped_sources, llm_results, scored_unsorted)
+            ],
+        )
+        scored = list(scored_unsorted)
 
         # Sort: reliable first, unverified last
         order = {"reliable": 0, "caution": 1, "skeptical": 2, "unverified": 3}
@@ -2409,11 +3298,28 @@ async def extract(request: Request, body: ExtractRequest):
             flagged_count=flagged_count,
         )
 
-    # Fallback: return raw scraped data if Ollama is not configured
+    # Fallback: return raw scraped data if GitHub Models is not configured
     for s in scraped_sources:
         status = "✓ live" if s.live else "✗ dead"
         logging.info("  %s  %-40s  method=%-14s  words=%s", status, s.domain, s.scrape_method or "-", s.word_count or 0)
     logging.info("─" * 60)
+    await _record_live_triage_batch(
+        source_kind="live_extract",
+        prompt=body.original_prompt,
+        response=body.full_ai_response,
+        topic=topic,
+        llm_enabled=False,
+        observations=[
+            {
+                "scraped": scraped,
+                "llm": {},
+                "scored": None,
+                "playwright_attempted": scraped.scrape_method == "playwright",
+                "playwright_improved": scraped.scrape_method == "playwright",
+            }
+            for scraped in scraped_sources
+        ],
+    )
 
     extraction_time_ms = int((time.perf_counter() - start) * 1000)
     return ExtractResponse(
@@ -2450,7 +3356,7 @@ async def extract_stream(request: Request, body: ExtractRequest):
             scraped = await scrape_source(source)
             llm_result, oa_enrichment = await asyncio.gather(
                 score_source_with_llm(scraped, body.original_prompt) if llm_ok else _noop_coro(),
-                enrich_with_openalex(scraped) if OPENALEX_ENABLED else _noop_coro(),
+                resolve_authority(scraped),
             )
             return index, scraped, llm_result or {}, oa_enrichment or {}
 
@@ -2482,10 +3388,28 @@ async def extract_stream(request: Request, body: ExtractRequest):
         logging.info("Scrape+Score done (%dms): %d live, %d dead", scrape_ms, live_count, dead_count)
 
         if llm_ok:
-            scored = [
+            scored_unsorted = [
                 build_scored_source(s, llm, oa)
                 for s, llm, oa in zip(scraped_sources, llm_results, oa_results)
             ]
+            await _record_live_triage_batch(
+                source_kind="live_stream",
+                prompt=body.original_prompt,
+                response=body.full_ai_response,
+                topic=topic,
+                llm_enabled=True,
+                observations=[
+                    {
+                        "scraped": s,
+                        "llm": llm,
+                        "scored": scored,
+                        "playwright_attempted": s.scrape_method == "playwright",
+                        "playwright_improved": s.scrape_method == "playwright",
+                    }
+                    for s, llm, scored in zip(scraped_sources, llm_results, scored_unsorted)
+                ],
+            )
+            scored = list(scored_unsorted)
 
             order = {"reliable": 0, "caution": 1, "skeptical": 2, "unverified": 3}
             scored.sort(key=lambda s: order.get(s.verdict, 4))
@@ -2507,6 +3431,23 @@ async def extract_stream(request: Request, body: ExtractRequest):
         else:
             extraction_time_ms = int((time.perf_counter() - start) * 1000)
             logging.info("─" * 60)
+            await _record_live_triage_batch(
+                source_kind="live_stream",
+                prompt=body.original_prompt,
+                response=body.full_ai_response,
+                topic=topic,
+                llm_enabled=False,
+                observations=[
+                    {
+                        "scraped": scraped,
+                        "llm": {},
+                        "scored": None,
+                        "playwright_attempted": scraped.scrape_method == "playwright",
+                        "playwright_improved": scraped.scrape_method == "playwright",
+                    }
+                    for scraped in scraped_sources
+                ],
+            )
             response_obj = ExtractResponse(
                 scraped_sources=list(scraped_sources),
                 original_prompt=body.original_prompt,

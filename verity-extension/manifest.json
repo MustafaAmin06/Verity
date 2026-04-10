@@ -3,6 +3,7 @@
   "name": "Verity",
   "version": "1.1.1",
   "description": "Score the sources behind AI responses.",
+  "homepage_url": "https://github.com/MustafaAmin06/Verity",
   "permissions": ["tabs", "storage"],
   "host_permissions": [
     "https://verity-production-e8f2.up.railway.app/*"

@@ -69,7 +69,7 @@ window.Verity.ui = {
     };
 
     try {
-      const cacheKey = window.Verity.api.computeCacheKey(sources);
+      const cacheKey = window.Verity.api.computeCacheKey(payload);
       const data = await window.Verity.api.fetchWithDedup(cacheKey, payload);
       window.Verity.api.clearProgress();
       btn.remove();
@@ -129,12 +129,41 @@ window.Verity.ui = {
     const map = {
       academic_journal: 'Academic / Research',
       official_body: 'Official / Government',
+      medical_authority: 'Medical Authority',
       established_news: 'Established News',
       independent_blog: 'Independent / Blog',
       reference_tertiary: 'Reference / Tertiary',
       flagged: 'Flagged Source',
     };
     return map[tier] || 'Unknown';
+  },
+
+  _authorDisplay(source) {
+    const signals = source.signals || {};
+    if (source.author) {
+      const hIndex = signals.oa_author_h_index;
+      return hIndex ? `${source.author} · h-index ${hIndex}` : source.author;
+    }
+    if (source.author_label) return source.author_label;
+    if (
+      source.authorship_type === "institutional" ||
+      ['academic_journal', 'official_body', 'medical_authority'].includes(signals.domain_tier)
+    ) {
+      return 'Institutional page';
+    }
+    return 'Unknown';
+  },
+
+  _humanizeAuthoritySource(source) {
+    const map = {
+      registry: 'Curated registry',
+      openalex: 'OpenAlex',
+      crossref: 'Crossref',
+      ror: 'ROR',
+      wikidata: 'Wikidata',
+      learned_domain: 'Learned domain cache',
+    };
+    return map[source] || source || 'Unknown';
   },
 
   // --- Main render ---
@@ -256,11 +285,15 @@ window.Verity.ui = {
     grid.appendChild(this._detailCell("Relevance", relevanceText));
 
     // Row 3: Author | Publication
-    const authorLabel = source.author || "Unknown";
-    const hIndex = signals.oa_author_h_index;
-    const authorText = hIndex ? `${authorLabel} · h-index ${hIndex}` : authorLabel;
+    const authorText = this._authorDisplay(source);
     grid.appendChild(this._detailCell("Author", authorText));
     grid.appendChild(this._detailCell("Publication", source.domain || ""));
+
+    const authorityLabel = signals.authority_label || source.authority_name || this._humanizeTier(signals.domain_tier);
+    grid.appendChild(this._detailCell("Authority", authorityLabel));
+    const provenance = this._humanizeAuthoritySource(source.authority_source || signals.authority_source);
+    const authorityConfidence = source.authority_confidence || signals.authority_confidence;
+    grid.appendChild(this._detailCell("Verified Via", authorityConfidence ? `${provenance} · ${authorityConfidence}` : provenance));
 
     // Row 4: Publisher | Citations (OpenAlex, conditional)
     if (source.publisher) {
