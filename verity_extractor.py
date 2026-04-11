@@ -130,6 +130,7 @@ PMID_PATTERN = re.compile(r"\b(?:pmid[:\s]*)?(\d{5,9})\b", re.IGNORECASE)
 PMCID_PATTERN = re.compile(r"\b(PMC\d{4,10})\b", re.IGNORECASE)
 ISSN_PATTERN = re.compile(r"\b(\d{4}-?\d{3}[\dxX])\b")
 YEAR_PATTERN = re.compile(r"(19|20)\d{2}")
+HTML_PARSER = "html.parser"
 
 # ── URL result cache (TTL-based, keyed by URL) ──
 
@@ -2375,7 +2376,7 @@ def _is_consent_text(text: str | None) -> bool:
 
 
 def extract_body_text(soup: BeautifulSoup) -> str | None:
-    working_soup = BeautifulSoup(str(soup), "lxml")
+    working_soup = BeautifulSoup(str(soup), HTML_PARSER)
     for tag in working_soup(
         ["script", "style", "nav", "header", "footer", "aside", "form", "noscript"]
     ):
@@ -2578,7 +2579,7 @@ def detect_paywall(soup: BeautifulSoup, body_text: str | None, domain_info: dict
 
 
 def _extract_page_fields(html: str, label: str, url: str, domain_info: dict) -> dict:
-    soup = BeautifulSoup(html, "lxml")
+    soup = BeautifulSoup(html, HTML_PARSER)
 
     json_ld = extract_json_ld(soup)
     title = extract_title(soup)
