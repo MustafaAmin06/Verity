@@ -36,6 +36,7 @@ RUN playwright install chromium
 RUN groupadd -r verity && useradd -r -g verity -d /app -s /sbin/nologin verity
 
 COPY verity_extractor.py .
+COPY devtools ./devtools
 COPY ["scimagojr 2024.csv", "."]
 
 RUN chown -R verity:verity /app
@@ -43,4 +44,4 @@ USER verity
 
 EXPOSE 8001
 
-CMD uvicorn verity_extractor:app --host 0.0.0.0 --port ${PORT:-8001}
+CMD ["sh", "-c", "uvicorn verity_extractor:app --host 0.0.0.0 --port ${PORT:-8001}"]
