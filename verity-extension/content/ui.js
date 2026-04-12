@@ -336,7 +336,55 @@ window.Verity.ui = {
       detail.appendChild(p);
     }
 
+    const contextSection = this._createContextSection(source);
+    if (contextSection) {
+      detail.appendChild(contextSection);
+    }
+
     return detail;
+  },
+
+  _createContextSection(source) {
+    const contextText = typeof source.context === "string" ? source.context : "";
+    if (!contextText.trim()) {
+      return null;
+    }
+
+    const section = document.createElement("div");
+    section.className = "verity-context-section";
+    section.addEventListener("click", (e) => e.stopPropagation());
+    section.addEventListener("mousedown", (e) => e.stopPropagation());
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "verity-context-toggle";
+    button.textContent = "Show exact context";
+    button.setAttribute("aria-expanded", "false");
+
+    const panel = document.createElement("div");
+    panel.className = "verity-context-panel";
+    panel.hidden = true;
+
+    const label = document.createElement("div");
+    label.className = "verity-context-label";
+    label.textContent = "Exact context picked up";
+
+    const body = document.createElement("pre");
+    body.className = "verity-context-text";
+    body.textContent = contextText;
+
+    panel.append(label, body);
+
+    button.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isOpen = !panel.hidden;
+      panel.hidden = isOpen;
+      button.textContent = isOpen ? "Show exact context" : "Hide exact context";
+      button.setAttribute("aria-expanded", String(!isOpen));
+    });
+
+    section.append(button, panel);
+    return section;
   },
 
   _detailCell(label, value) {

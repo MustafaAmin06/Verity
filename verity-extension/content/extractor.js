@@ -1,6 +1,7 @@
 window.Verity = window.Verity || {};
 
 const MAX_INTERCEPTED_SESSIONS = 8;
+const TRACKING_PARAMS = new Set(["fbclid", "gclid", "mc_cid", "mc_eid", "ref", "ref_src"]);
 
 // --- Session-aware intercepted citation cache (filled by MAIN-world interceptor.js) ---
 window.Verity._interceptedSessions = window.Verity._interceptedSessions || [];
@@ -99,6 +100,103 @@ window.Verity.extractor = {
     return this._deduplicate(all);
   },
 
+  _canonicalizeUrl(url) {
+    const raw = typeof url === "string" ? url.trim() : "";
+    if (!raw) return "";
+
+    try {
+      const parsed = new URL(raw);
+      parsed.hash = "";
+      parsed.protocol = parsed.protocol.toLowerCase();
+      parsed.hostname = parsed.hostname.toLowerCase().replace(/^www\./, "");
+      if (
+        (parsed.protocol === "https:" && parsed.port === "443") ||
+        (parsed.protocol === "http:" && parsed.port === "80")
+      ) {
+        parsed.port = "";
+      }
+
+      const path = parsed.pathname || "/";
+      parsed.pathname = path !== "/" && path.endsWith("/") ? path.slice(0, -1) : path;
+
+      const keptParams = [];
+      for (const [key, value] of parsed.searchParams.entries()) {
+        const lower = key.toLowerCase();
+        if (lower.startsWith("utm_") || TRACKING_PARAMS.has(lower)) {
+          continue;
+        }
+        keptParams.push([key, value]);
+      }
+
+      keptParams.sort((a, b) => {
+        if (a[0] === b[0]) return a[1].localeCompare(b[1]);
+        return a[0].localeCompare(b[0]);
+      });
+
+      parsed.search = "";
+      for (const [key, value] of keptParams) {
+        parsed.searchParams.append(key, value);
+      }
+
+      return parsed.toString();
+    } catch {
+      return raw;
+    }
+  },
+
+  _buildSource(url, label, context, options = {}) {
+    const source = {
+      url: this._canonicalizeUrl(url),
+      label: typeof label === "string" ? label.trim() : "",
+      context: typeof context === "string" ? context.trim() : "",
+    };
+
+    source._contextQuality = options.contextQuality ?? this._inferContextQuality(source.context);
+    return source;
+  },
+
+  _inferContextQuality(context) {
+    const text = typeof context === "string" ? context.trim() : "";
+    if (!text) return 0;
+    if (text === "Source citation" || text === "Source citation from AI response") {
+      return 0;
+    }
+    return 1;
+  },
+
+  _isDomainLabel(label, url) {
+    const cleanLabel = (label || "").trim().toLowerCase();
+    if (!cleanLabel) return true;
+    try {
+      const hostname = new URL(url).hostname.toLowerCase();
+      const normalizedHost = hostname.replace(/^www\./, "");
+      return cleanLabel === hostname || cleanLabel === normalizedHost;
+    } catch {
+      return false;
+    }
+  },
+
+  _mergeSource(existing, candidate) {
+    if ((!existing.label || this._isDomainLabel(existing.label, existing.url)) && candidate.label && !this._isDomainLabel(candidate.label, candidate.url)) {
+      existing.label = candidate.label;
+    }
+
+    const existingQuality = existing._contextQuality ?? this._inferContextQuality(existing.context);
+    const candidateQuality = candidate._contextQuality ?? this._inferContextQuality(candidate.context);
+    const existingLength = (existing.context || "").trim().length;
+    const candidateLength = (candidate.context || "").trim().length;
+
+    if (
+      candidateQuality > existingQuality ||
+      (candidateQuality === existingQuality && candidateLength > existingLength)
+    ) {
+      existing.context = candidate.context;
+      existing._contextQuality = candidateQuality;
+    }
+
+    return existing;
+  },
+
   _extractFromAnchors(element) {
     const sources = [];
     const links = element.querySelectorAll('a[href]');
@@ -107,24 +205,25 @@ window.Verity.extractor = {
       if (!url || !url.startsWith("http")) continue;
       const label = a.innerText.trim() || this._domainFromUrl(url);
       const context = this._getContextForNode(a, element);
-      sources.push({ url, label, context });
+      sources.push(this._buildSource(url, label, context));
     }
     return sources;
   },
 
   _extractFromText(element, existingAnchors) {
-    const existingUrls = new Set(existingAnchors.map((s) => s.url));
+    const existingUrls = new Set(existingAnchors.map((s) => this._canonicalizeUrl(s.url)));
     const fullText = element.innerText || "";
     const urlRegex = /https?:\/\/[^\s<>"')\]]+/g;
     const sources = [];
     let match;
     while ((match = urlRegex.exec(fullText)) !== null) {
       let url = match[0].replace(/[.,;:!?)\]>]+$/, "");
-      if (existingUrls.has(url)) continue;
+      const canonicalUrl = this._canonicalizeUrl(url);
+      if (existingUrls.has(canonicalUrl)) continue;
       const label = this._domainFromUrl(url);
       const context = this._getContextFromPosition(fullText, match.index, url);
-      sources.push({ url, label, context });
-      existingUrls.add(url);
+      sources.push(this._buildSource(url, label, context));
+      existingUrls.add(canonicalUrl);
     }
     return sources;
   },
@@ -194,16 +293,9 @@ window.Verity.extractor = {
     for (const a of pills) {
       const url = a.href || a.getAttribute("alt") || "";
       if (!url || !url.startsWith("http")) continue;
-      // Strip utm_source=chatgpt.com for cleaner URLs
-      let cleanUrl = url;
-      try {
-        const u = new URL(url);
-        u.searchParams.delete("utm_source");
-        cleanUrl = u.toString();
-      } catch {}
-      const label = a.innerText.trim() || this._domainFromUrl(cleanUrl);
+      const label = a.innerText.trim() || this._domainFromUrl(url);
       const context = this._getContextForNode(a, element);
-      sources.push({ url: cleanUrl, label, context });
+      sources.push(this._buildSource(url, label, context));
     }
     return sources;
   },
@@ -215,11 +307,15 @@ window.Verity.extractor = {
     if (data.length === 0) return [];
 
     const fullText = element.innerText || "";
-    return data.map((c) => ({
-      url: c.url,
-      label: c.title || c.domain || this._domainFromUrl(c.url),
-      context: this._findContextForUrl(fullText, c.url, c.domain),
-    }));
+    return data.map((c) => {
+      const contextMatch = this._findContextForUrl(fullText, c.url, c.domain);
+      return this._buildSource(
+        c.url,
+        c.title || c.domain || this._domainFromUrl(c.url),
+        contextMatch.text,
+        { contextQuality: contextMatch.quality }
+      );
+    });
   },
 
   _findContextForUrl(fullText, url, domain) {
@@ -228,14 +324,23 @@ window.Verity.extractor = {
     for (const term of searchTerms) {
       const pos = fullText.indexOf(term);
       if (pos >= 0) {
-        return this._getContextFromPosition(fullText, pos, "");
+        return {
+          text: this._getContextFromPosition(fullText, pos, ""),
+          quality: 2,
+        };
       }
     }
     // Fallback: use the beginning of the response
     if (fullText.length >= 30) {
-      return fullText.slice(0, 400).trim();
+      return {
+        text: fullText.slice(0, 400).trim(),
+        quality: 0,
+      };
     }
-    return "Source citation from AI response";
+    return {
+      text: "Source citation from AI response",
+      quality: 0,
+    };
   },
 
   // --- DOM fallback: footnote lists ---
@@ -253,7 +358,7 @@ window.Verity.extractor = {
           if (!url || !url.startsWith("http")) continue;
           const label = a.innerText.trim() || this._domainFromUrl(url);
           const context = li.innerText.trim().slice(0, 400) || "Source citation";
-          sources.push({ url, label, context });
+          sources.push(this._buildSource(url, label, context));
         }
       }
     }
@@ -273,7 +378,7 @@ window.Verity.extractor = {
       if (!url || !url.startsWith("http")) continue;
       const label = el.innerText.trim() || this._domainFromUrl(url);
       const context = this._getContextForNode(el, element);
-      sources.push({ url, label, context });
+      sources.push(this._buildSource(url, label, context));
     }
 
     // Check preview card selectors from config
@@ -288,7 +393,7 @@ window.Verity.extractor = {
             if (!url || !url.startsWith("http")) continue;
             const label = a.innerText.trim() || card.innerText.trim().slice(0, 80) || this._domainFromUrl(url);
             const context = card.innerText.trim().slice(0, 400) || "Source citation";
-            sources.push({ url, label, context });
+            sources.push(this._buildSource(url, label, context));
           }
         } catch {
           // Invalid selector — skip
@@ -300,12 +405,31 @@ window.Verity.extractor = {
   },
 
   _deduplicate(sources) {
-    const seen = new Set();
-    return sources.filter((s) => {
-      if (seen.has(s.url)) return false;
-      seen.add(s.url);
-      return true;
-    });
+    const deduped = [];
+    const byUrl = new Map();
+
+    for (const source of sources) {
+      const canonicalUrl = this._canonicalizeUrl(source.url);
+      if (!canonicalUrl) continue;
+
+      const normalized = {
+        url: canonicalUrl,
+        label: typeof source.label === "string" ? source.label.trim() : "",
+        context: typeof source.context === "string" ? source.context.trim() : "",
+        _contextQuality: source._contextQuality ?? this._inferContextQuality(source.context),
+      };
+
+      const existing = byUrl.get(canonicalUrl);
+      if (!existing) {
+        byUrl.set(canonicalUrl, normalized);
+        deduped.push(normalized);
+        continue;
+      }
+
+      this._mergeSource(existing, normalized);
+    }
+
+    return deduped.map(({ url, label, context }) => ({ url, label, context }));
   },
 
   /**

@@ -317,6 +317,64 @@
   margin: 0;
 }
 
+.verity-context-section {
+  margin-top: 12px;
+}
+
+.verity-context-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #d9e6ff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.verity-context-toggle:hover {
+  background: rgba(255, 255, 255, 0.09);
+  border-color: rgba(122, 184, 255, 0.35);
+  color: #ffffff;
+}
+
+.verity-context-toggle:focus-visible {
+  outline: 2px solid rgba(122, 184, 255, 0.7);
+  outline-offset: 2px;
+}
+
+.verity-context-panel {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(12, 18, 28, 0.55);
+}
+
+.verity-context-label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #888;
+  margin-bottom: 6px;
+}
+
+.verity-context-text {
+  margin: 0;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1.55;
+  color: #d5d9e0;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
 /* ---------- OpenAlex topic tags ---------- */
 .verity-topic-tags {
   display: flex;

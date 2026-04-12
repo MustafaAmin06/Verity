@@ -100,6 +100,7 @@ class VerityApiContractTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsInstance(response, ve.ExtractResponse)
         self.assertEqual(response.source_count, 1)
         self.assertEqual(response.scraped_sources[0].url, scraped.url)
+        self.assertEqual(response.scraped_sources[0].context, scraped.context)
 
     async def test_extract_stream_emits_progress_and_scored_result(self):
         scraped = make_scraped_source()
@@ -168,6 +169,7 @@ class VerityApiContractTests(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(result_payload)
         self.assertEqual(result_payload["source_count"], 1)
         self.assertEqual(result_payload["sources"][0]["verdict"], "reliable")
+        self.assertEqual(result_payload["sources"][0]["context"], scraped.context)
         self.assertEqual(result_payload["sources"][0]["signals"]["alignment_score"], 88)
         self.assertEqual(result_payload["sources"][0]["authorship_type"], "named")
         self.assertEqual(result_payload["sources"][0]["author_label"], "Example Author")

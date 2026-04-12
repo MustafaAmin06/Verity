@@ -681,6 +681,7 @@ class ScoredSource(BaseModel):
     title: str | None
     description: str | None
     live: bool
+    context: str
     verdict: str
     verdict_label: str
     color: str
@@ -1794,6 +1795,7 @@ def build_scored_source(
         flags=_build_flags(scraped),
         date=scraped.date,
         author=scraped.author,
+        context=scraped.context,
         authorship_type=authorship_type,
         author_label=author_label,
         authority_name=authority_profile.authority_name,
