@@ -43,9 +43,14 @@
       <div class="verity-row verity-row-stacked">
         <label for="extractorUrl">Server URL</label>
         <div class="verity-url-row">
-          <input type="url" id="extractorUrl" class="verity-input" placeholder="https://your-backend.up.railway.app">
+          <input type="url" id="extractorUrl" class="verity-input" placeholder="http://localhost:8001">
           <span id="serverStatus" class="verity-status-dot" title="Checking..."></span>
         </div>
+        <div class="verity-preset-row">
+          <button id="useLocalPreset" type="button" class="verity-btn-preset">Use localhost</button>
+          <button id="useRailwayPreset" type="button" class="verity-btn-preset">Use Railway</button>
+        </div>
+        <p class="verity-hint">Default dev target is localhost. Switch to your Railway URL when you deploy.</p>
       </div>
 
       <div class="verity-row verity-row-stacked">

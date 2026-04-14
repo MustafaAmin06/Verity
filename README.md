@@ -136,34 +136,49 @@ The following steps describe how to run VerifyAI locally.
 ### Backend Setup (Python)
 The backend is responsible for source extraction, web scraping, and verification scoring.
 
-1. **Install Python dependencies:**
+1. **Create a local env file from the template:**
+   ```bash
+   cp .env.example .env
+   ```
+   Fill in only the keys you need. Keep `.env` local; it is ignored by git.
+
+2. **Install Python dependencies:**
    ```bash
    pip install -r requirements.txt
    ```
 
-2. **Install Playwright browsers:**
+3. **Install Playwright browsers:**
    ```bash
    playwright install chromium
    ```
 
-3. **Configure optional GitHub Models scoring:**
+4. **Configure optional GitHub Models scoring:**
    ```bash
    export GITHUB_TOKEN=your_token_here
    export GITHUB_MODEL=gpt-4o
    ```
    If `GITHUB_TOKEN` is not set, the backend still works, but it returns extraction results without LLM-based relevance/alignment scoring.
 
-4. **Start the extractor server:**
+5. **Start the extractor server locally:**
    ```bash
    python verity_extractor.py
    ```
-   *The server will start on `http://localhost:8001`. Install Playwright browsers if you want JavaScript-rendered page fallback, and set `GITHUB_TOKEN` if you want LLM scoring enabled.*
+   *The server starts on `http://localhost:8001` by default. To match hosted behavior, `python verity_extractor.py` now uses the same non-reload serving mode as the container; set `VERITY_RELOAD=true` only when you explicitly want auto-reload during development.*
 
 ### Extension Installation
 1. Open Chrome and navigate to `chrome://extensions/`.
 2. Enable **Developer mode** using the toggle in the top-right corner.
 3. Click **Load unpacked**.
 4. Select the `verity-extension` folder from this repository.
+5. Open the Verity popup. It now defaults to `http://localhost:8001` for development.
+6. After deploying to Railway, switch the popup preset to **Use Railway** or paste your Railway URL into the same field.
+
+### Local-to-Railway Workflow
+1. Run the backend locally with `python verity_extractor.py`.
+2. Keep the extension pointed at `http://localhost:8001` while iterating.
+3. When the backend is ready, push to GitHub and let Railway deploy the same app.
+4. In Railway, set the same environment variable names from `.env.example`, especially `GITHUB_TOKEN`, `OPENALEX_EMAIL`, `VERITY_API_KEY`, and `VERITY_EXTENSION_ID` if you want locked-down access.
+5. Change only the extension server URL from localhost to your Railway endpoint.
 
 ---
 

@@ -183,6 +183,30 @@ body {
   flex: 1;
 }
 
+.verity-preset-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.verity-btn-preset {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 999px;
+  color: #cfcfe4;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  padding: 6px 10px;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.verity-btn-preset:hover {
+  background: rgba(122, 184, 255, 0.08);
+  border-color: rgba(122, 184, 255, 0.35);
+  color: #f3f6ff;
+}
+
 /* ---------- Status dot ---------- */
 .verity-status-dot {
   width: 10px;

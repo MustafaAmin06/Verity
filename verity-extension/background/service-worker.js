@@ -24,12 +24,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   // Read backend URL and API key from storage (set via popup dashboard)
   chrome.storage.local.get(
-    { extractorUrl: "https://verity-production-e8f2.up.railway.app", apiKey: "" },
+    { extractorUrl: "http://localhost:8001", apiKey: "" },
     (settings) => {
       const baseUrl = settings.extractorUrl.replace(/\/+$/, "");
 
-      // Enforce HTTPS (allow http://localhost for dev only)
-      if (!baseUrl.startsWith("https://") && !baseUrl.startsWith("http://localhost")) {
+      // Enforce HTTPS except for explicit local development URLs.
+      const isLocalDevUrl =
+        baseUrl.startsWith("http://localhost") ||
+        baseUrl.startsWith("http://127.0.0.1");
+
+      if (!baseUrl.startsWith("https://") && !isLocalDevUrl) {
         sendResponse({ ok: false, error: "Backend URL must use HTTPS" });
         return;
       }

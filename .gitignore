@@ -1,7 +1,10 @@
 venv/
+.venv/
 __pycache__/
 *.py[cod]
 .env
+.env.*
+!.env.example
 
 .vscode/
 .claude/
@@ -12,5 +15,13 @@ Thumbs.db
 node_modules/
 dist/
 build/
+.pytest_cache/
 
 devtools/verity_bench.db
+openalex_cache.db
+openalex_cache.db-shm
+openalex_cache.db-wal
+authority_cache.db
+authority_cache.db-shm
+authority_cache.db-wal
+*.log

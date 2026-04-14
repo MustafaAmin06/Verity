@@ -76,10 +76,11 @@ MAX_BODY_TEXT_CHARS = _env_int("MAX_BODY_TEXT_CHARS", "8000", lo=100, hi=500_000
 MAX_RESPONSE_BYTES = _env_int("MAX_RESPONSE_BYTES", str(10 * 1024 * 1024), lo=1024, hi=100 * 1024 * 1024)
 MAX_SOURCES_PER_REQUEST = _env_int("MAX_SOURCES_PER_REQUEST", "25", lo=1, hi=100)
 PLAYWRIGHT_TIMEOUT_SECONDS = _env_int("PLAYWRIGHT_TIMEOUT_SECONDS", "6", lo=1, hi=60)
+VERITY_RELOAD = os.getenv("VERITY_RELOAD", "false").lower() == "true"
 ENABLE_PLAYWRIGHT_FALLBACK = (
     os.getenv("ENABLE_PLAYWRIGHT_FALLBACK", "true").lower() == "true"
 )
-EXTRACTOR_PORT = _env_int("EXTRACTOR_PORT", "8001", lo=1, hi=65535)
+EXTRACTOR_PORT = _env_int("PORT", os.getenv("EXTRACTOR_PORT", "8001"), lo=1, hi=65535)
 MAX_REDIRECTS = 5
 
 # ── OpenAlex API configuration ──
@@ -680,8 +681,8 @@ class ScoredSource(BaseModel):
     domain: str
     title: str | None
     description: str | None
-    live: bool
     context: str
+    live: bool
     verdict: str
     verdict_label: str
     color: str
@@ -936,6 +937,20 @@ def _get_llm_client() -> httpx.AsyncClient:
     return _llm_client
 
 
+def _build_llm_payload(messages: list[dict[str, str]]) -> dict:
+    payload = {
+        "model": GITHUB_MODEL,
+        "messages": messages,
+        "temperature": 0.1,
+    }
+    # GPT-5 family on GitHub Models expects max_completion_tokens instead of max_tokens.
+    if GITHUB_MODEL.startswith("gpt-5"):
+        payload["max_completion_tokens"] = 150
+    else:
+        payload["max_tokens"] = 150
+    return payload
+
+
 async def _call_llm(prompt: str, system: str | None = None) -> str | None:
     """Call GitHub Models API (OpenAI-compatible) and return the response text."""
     if not GITHUB_TOKEN:
@@ -952,12 +967,7 @@ async def _call_llm(prompt: str, system: str | None = None) -> str | None:
         try:
             response = await client.post(
                 GITHUB_API_URL,
-                json={
-                    "model": GITHUB_MODEL,
-                    "messages": messages,
-                    "temperature": 0.1,
-                    "max_tokens": 150,
-                },
+                json=_build_llm_payload(messages),
             )
             if response.status_code == 429 and attempt == 0:
                 await asyncio.sleep(2)
@@ -1785,6 +1795,7 @@ def build_scored_source(
         domain=scraped.domain,
         title=scraped.title,
         description=scraped.description,
+        context=scraped.context,
         live=scraped.live,
         verdict=verdict,
         verdict_label=verdict_label,
@@ -1795,7 +1806,6 @@ def build_scored_source(
         flags=_build_flags(scraped),
         date=scraped.date,
         author=scraped.author,
-        context=scraped.context,
         authorship_type=authorship_type,
         author_label=author_label,
         authority_name=authority_profile.authority_name,
@@ -3167,6 +3177,9 @@ async def healthcheck(request: Request) -> dict:
         llm_ok = await _check_llm_available()
         return {
             "status": "ok",
+            "port": EXTRACTOR_PORT,
+            "api_key_required": bool(VERITY_API_KEY),
+            "extension_lockdown_enabled": bool(VERITY_EXTENSION_ID),
             "playwright_enabled": ENABLE_PLAYWRIGHT_FALLBACK and PLAYWRIGHT_AVAILABLE,
             "llm_enabled": llm_ok,
             "llm_model": GITHUB_MODEL,
@@ -3473,4 +3486,4 @@ async def extract_stream(request: Request, body: ExtractRequest):
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run("verity_extractor:app", host="0.0.0.0", port=EXTRACTOR_PORT, reload=True)
+    uvicorn.run("verity_extractor:app", host="0.0.0.0", port=EXTRACTOR_PORT, reload=VERITY_RELOAD)

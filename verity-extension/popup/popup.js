@@ -1,7 +1,10 @@
+const LOCAL_EXTRACTOR_URL = "http://localhost:8001";
+const RAILWAY_EXTRACTOR_URL = "https://verity-production-e8f2.up.railway.app";
+
 const DEFAULTS = {
   enabled: true,
   autoCheck: false,
-  extractorUrl: "https://verity-production-e8f2.up.railway.app",
+  extractorUrl: LOCAL_EXTRACTOR_URL,
   apiKey: "",
   minUrlsToShowButton: 1,
 };
@@ -16,6 +19,8 @@ const savedIndicator = document.getElementById("savedIndicator");
 const serverStatus = document.getElementById("serverStatus");
 const versionLabel = document.getElementById("versionLabel");
 const projectLink = document.getElementById("projectLink");
+const useLocalPreset = document.getElementById("useLocalPreset");
+const useRailwayPreset = document.getElementById("useRailwayPreset");
 
 if (versionLabel) {
   versionLabel.textContent = `v${manifest.version}`;
@@ -41,6 +46,17 @@ function populateForm(settings) {
       el.value = settings[key];
     }
   }
+}
+
+function writeSettings(partialSettings) {
+  chrome.storage.local.get(DEFAULTS, (current) => {
+    const next = { ...current, ...partialSettings };
+    chrome.storage.local.set(next, () => {
+      populateForm(next);
+      flashSaved();
+      checkServer(next.extractorUrl);
+    });
+  });
 }
 
 // ---- Auto-save on change ----
@@ -112,9 +128,13 @@ async function checkServer(url) {
 
 // ---- Reset to defaults ----
 document.getElementById("resetDefaults").addEventListener("click", () => {
-  chrome.storage.local.set(DEFAULTS, () => {
-    populateForm(DEFAULTS);
-    flashSaved();
-    checkServer(DEFAULTS.extractorUrl);
-  });
+  writeSettings(DEFAULTS);
+});
+
+useLocalPreset?.addEventListener("click", () => {
+  writeSettings({ extractorUrl: LOCAL_EXTRACTOR_URL });
+});
+
+useRailwayPreset?.addEventListener("click", () => {
+  writeSettings({ extractorUrl: RAILWAY_EXTRACTOR_URL });
 });
