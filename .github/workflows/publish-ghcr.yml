@@ -1,9 +1,10 @@
-name: Publish Docker image to GHCR
+  name: Publish Docker image to GHCR
 
-  on:
+  'on':
     workflow_dispatch:
     push:
-      branches: [ "main" ]
+      branches:
+        - main
 
   jobs:
     push-to-ghcr:
@@ -23,7 +24,7 @@ name: Publish Docker image to GHCR
             username: ${{ github.actor }}
             password: ${{ secrets.GITHUB_TOKEN }}
 
-        - name: Build and push latest
+        - name: Build and push
           uses: docker/build-push-action@v6
           with:
             context: .
@@ -31,4 +32,3 @@ name: Publish Docker image to GHCR
             tags: |
               ghcr.io/mustafaamin06/verity-api:latest
               ghcr.io/mustafaamin06/verity-api:v1
-
