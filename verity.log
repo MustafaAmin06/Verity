@@ -285,3 +285,120 @@
 22:08:39 [INFO] Scrape+Score done (1ms): 1 live, 0 dead
 22:08:39 [INFO] Scoring done (3ms total)
 22:08:39 [INFO] ────────────────────────────────────────────────────────────
+21:44:23 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+21:44:24 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+21:44:24 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+21:44:24 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+21:44:24 [INFO] ────────────────────────────────────────────────────────────
+21:44:24 [INFO] Extract request: 1 source(s)  |  LLM: off
+21:44:24 [INFO] Prompt: [26 chars]
+21:44:24 [INFO]   [1] https://example.com/article  |  label: Example article
+21:44:24 [INFO] Scrape+Score done (1ms): 1 live, 0 dead
+21:44:24 [INFO]   [1/1] EXTRACTED  https://example.com/article
+          title    : Example article
+          date     : 2024
+          author   : Example Author
+          words    : 24
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : Example body text that is long enough to be considered a successful scrape.
+21:44:24 [INFO]   ✓ live  example.com                               method=beautifulsoup   words=24
+21:44:24 [INFO] ────────────────────────────────────────────────────────────
+21:44:24 [INFO] ────────────────────────────────────────────────────────────
+21:44:24 [INFO] Extract-stream request: 1 source(s)  |  LLM: on
+21:44:24 [INFO] Prompt: [26 chars]
+21:44:24 [INFO]   [1] https://example.com/article  |  label: Example article
+21:44:24 [INFO] Scrape+Score done (0ms): 1 live, 0 dead
+21:44:24 [INFO] Scoring done (3ms total)
+21:44:24 [INFO] ────────────────────────────────────────────────────────────
+21:44:35 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+21:44:36 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+21:44:36 [INFO] ────────────────────────────────────────────────────────────
+21:44:36 [INFO] Extract request: 1 source(s)  |  LLM: off
+21:44:36 [INFO] Prompt: [26 chars]
+21:44:36 [INFO]   [1] https://example.com/article  |  label: Example article
+21:44:36 [INFO] Scrape+Score done (1ms): 1 live, 0 dead
+21:44:36 [INFO]   [1/1] EXTRACTED  https://example.com/article
+          title    : Example article
+          date     : 2024
+          author   : Example Author
+          words    : 160
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape.
+21:44:36 [INFO]   ✓ live  example.com                               method=beautifulsoup   words=160
+21:44:36 [INFO] ────────────────────────────────────────────────────────────
+21:44:36 [INFO] ────────────────────────────────────────────────────────────
+21:44:36 [INFO] Extract-stream request: 1 source(s)  |  LLM: on
+21:44:36 [INFO] Prompt: [26 chars]
+21:44:36 [INFO]   [1] https://example.com/article  |  label: Example article
+21:44:36 [INFO] Scrape+Score done (0ms): 1 live, 0 dead
+21:44:36 [INFO] Scoring done (1ms total)
+21:44:36 [INFO] ────────────────────────────────────────────────────────────
+21:45:16 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+21:45:16 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+21:45:16 [INFO] ────────────────────────────────────────────────────────────
+21:45:16 [INFO] Extract request: 1 source(s)  |  LLM: off
+21:45:16 [INFO] Prompt: [26 chars]
+21:45:16 [INFO]   [1] https://example.com/article  |  label: Example article
+21:45:16 [INFO] Scrape+Score done (1ms): 1 live, 0 dead
+21:45:16 [INFO]   [1/1] EXTRACTED  https://example.com/article
+          title    : Example article
+          date     : 2024
+          author   : Example Author
+          words    : 160
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape.
+21:45:16 [INFO]   ✓ live  example.com                               method=beautifulsoup   words=160
+21:45:16 [INFO] ────────────────────────────────────────────────────────────
+21:45:16 [INFO] ────────────────────────────────────────────────────────────
+21:45:16 [INFO] Extract-stream request: 1 source(s)  |  LLM: on
+21:45:16 [INFO] Prompt: [26 chars]
+21:45:16 [INFO]   [1] https://example.com/article  |  label: Example article
+21:45:16 [INFO] Scrape+Score done (0ms): 1 live, 0 dead
+21:45:16 [INFO] Scoring done (2ms total)
+21:45:16 [INFO] ────────────────────────────────────────────────────────────
+21:59:49 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+21:59:49 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+21:59:50 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+21:59:50 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+22:00:56 [INFO] ────────────────────────────────────────────────────────────
+22:00:56 [INFO] Extract-stream request: 4 source(s)  |  LLM: on
+22:00:56 [INFO] Prompt: [18 chars]
+22:00:56 [INFO]   [1] https://pfizer.com/disease-and-conditions/cancers  |  label: Pfizer
+22:00:56 [INFO]   [2] https://who.int/news-room/fact-sheets/detail/cancer  |  label: World Health Organization
+22:00:56 [INFO]   [3] https://healthline.com/health/how-does-cancer-kill-you  |  label: Healthline
+22:00:56 [INFO]   [4] https://mayoclinic.org/diseases-conditions/cancer/symptoms-causes/syc-20370588  |  label: Mayo Clinic
+22:00:56 [INFO] HTTP Request: GET https://pfizer.com/disease-and-conditions/cancers "HTTP/2 301 Moved Permanently"
+22:00:56 [INFO] HTTP Request: GET https://healthline.com/health/how-does-cancer-kill-you "HTTP/2 301 Moved Permanently"
+22:00:56 [INFO] HTTP Request: GET https://mayoclinic.org/diseases-conditions/cancer/symptoms-causes/syc-20370588 "HTTP/1.0 301 Moved Permanently"
+22:00:57 [INFO] HTTP Request: GET https://www.pfizer.com/disease-and-conditions/cancers "HTTP/2 200 OK"
+22:00:57 [INFO]   SCRAPED OK   pfizer.com                                status=200  words=1039  method=beautifulsoup  note=ok
+22:00:57 [INFO] HTTP Request: GET https://www.healthline.com/health/how-does-cancer-kill-you "HTTP/2 200 OK"
+22:00:57 [INFO]   SCRAPED OK   healthline.com                            status=200  words=1301  method=beautifulsoup  note=ok
+22:00:57 [INFO] HTTP Request: GET https://who.int/news-room/fact-sheets/detail/cancer "HTTP/2 301 Moved Permanently"
+22:00:57 [INFO] HTTP Request: GET https://api.ror.org/v2/organizations?query=What+is+Cancer%3F+How+Cancer+Affects+the+Body+%7C+Pfizer&page=1&affiliation=false "HTTP/2 200 OK"
+22:00:57 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=ids.pmcid%3APMC8243509&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cids%2Cprimary_location%2Cbest_oa_location%2Cauthorships%2Ctopics%2Cprimary_topic%2Copen_access "HTTP/2 200 OK"
+22:00:57 [INFO] HTTP Request: GET https://www.wikidata.org/w/api.php?action=wbsearchentities&search=What+is+Cancer%3F+How+Cancer+Affects+the+Body+%7C+Pfizer&language=en&limit=5&format=json&origin=%2A "HTTP/2 200 OK"
+22:00:57 [INFO] HTTP Request: GET https://www.who.int/news-room/fact-sheets/detail/cancer "HTTP/2 200 OK"
+22:00:57 [INFO]   SCRAPED OK   who.int                                   status=200  words=1200  method=beautifulsoup  note=ok
+22:00:58 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=locations.landing_page_url%3Ahttps%3A%2F%2Fhealthline.com%2Fhealth%2Fhow-does-cancer-kill-you&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cids%2Cprimary_location%2Cbest_oa_location%2Cauthorships%2Ctopics%2Cprimary_topic%2Copen_access "HTTP/2 200 OK"
+22:00:58 [INFO] HTTP Request: GET https://api.ror.org/v2/organizations?query=Cancer&page=1&affiliation=false "HTTP/2 200 OK"
+22:00:58 [INFO] HTTP Request: GET https://api.ror.org/v2/organizations?query=Healthline&page=1&affiliation=false "HTTP/2 200 OK"
+22:00:58 [INFO] HTTP Request: GET https://www.mayoclinic.org/diseases-conditions/cancer/symptoms-causes/syc-20370588 "HTTP/2 200 OK"
+22:00:58 [INFO] HTTP Request: GET https://www.wikidata.org/w/api.php?action=wbsearchentities&search=Cancer&language=en&limit=5&format=json&origin=%2A "HTTP/2 200 OK"
+22:00:58 [INFO]   SCRAPED OK   mayoclinic.org                            status=200  words=0  method=beautifulsoup  note=ok
+22:00:58 [INFO]   PLAYWRIGHT   mayoclinic.org                            words=0 → trying JS render
+22:00:58 [INFO] HTTP Request: GET https://www.wikidata.org/w/api.php?action=wbgetentities&ids=Q8849%7CQ428243%7CQ12078%7CQ326041%7CQ161701&props=claims%7Clabels%7Cdescriptions&languages=en&format=json&origin=%2A "HTTP/2 200 OK"
+22:01:00 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:01:00 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:01:01 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:01:01 [INFO]   CONSENT_DOM  removed 6 consent element(s) via JS
+22:01:02 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=doi%3A10.3322%2Fcaac.21591&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cids%2Cprimary_location%2Cbest_oa_location%2Cauthorships%2Ctopics%2Cprimary_topic%2Copen_access "HTTP/2 200 OK"
+22:01:02 [INFO] HTTP Request: GET https://api.openalex.org/sources/S126094547?select=id%2Cdisplay_name%2Ctype%2Cissn_l%2Cissn%2Chost_organization_name%2Cis_oa%2Csummary_stats "HTTP/2 200 OK"
+22:01:02 [INFO] HTTP Request: GET https://api.openalex.org/authors/A5054344284?select=id%2Cdisplay_name%2Csummary_stats%2Clast_known_institutions "HTTP/2 200 OK"
+22:01:04 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:01:04 [INFO] Scrape+Score done (8302ms): 4 live, 0 dead
+22:01:04 [INFO] Scoring done (8309ms total)
+22:01:04 [INFO] ────────────────────────────────────────────────────────────

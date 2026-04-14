@@ -186,7 +186,7 @@
 /* ---------- Card (full-size) ---------- */
 .verity-card {
   position: relative;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   padding: 14px 14px 14px 17px;
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.05);
@@ -213,28 +213,46 @@
 
 .verity-card-summary {
   display: flex;
-  align-items: center;
-  gap: 14px;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.verity-card-content {
+.verity-card-main {
   flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.verity-card-domain {
-  font-size: 12px;
-  font-weight: 500;
-  color: #999;
-  margin-bottom: 4px;
+.verity-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.verity-verdict-badge {
+  display: inline-flex;
+  align-self: flex-start;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--verity-score-color, rgba(255,255,255,0.15)) 35%, rgba(255,255,255,0.08));
+  background: color-mix(in srgb, var(--verity-score-color, rgba(255,255,255,0)) 14%, rgba(255,255,255,0.04));
+  color: #edf4ff;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  line-height: 1.3;
+  white-space: normal;
 }
 
 .verity-card-title {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
   color: #e0e0e0;
   line-height: 1.3;
-  margin-bottom: 4px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   line-clamp: 2;
@@ -248,9 +266,34 @@
   color: #fff;
 }
 
-.verity-card-date {
+.verity-card-meta {
   font-size: 12px;
-  color: #777;
+  color: #8e949d;
+}
+
+.verity-card-summary-reason {
+  font-size: 13px;
+  line-height: 1.5;
+  color: #c8d0d8;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.verity-score-chip {
+  flex-shrink: 0;
+  align-self: flex-start;
+  min-width: 66px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--verity-score-color, rgba(255,255,255,0.15)) 40%, rgba(255,255,255,0.08));
+  background: color-mix(in srgb, var(--verity-score-color, rgba(255,255,255,0)) 10%, rgba(255,255,255,0.04));
+  color: #f4f8ff;
+  font-size: 12px;
+  font-weight: 700;
+  text-align: center;
 }
 
 /* ---------- Card expanded detail ---------- */
@@ -265,19 +308,117 @@
   display: block;
 }
 
-/* 2-column metadata grid */
-.verity-detail-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px 20px;
-  margin-bottom: 14px;
+.verity-detail-section + .verity-detail-section {
+  margin-top: 14px;
 }
 
-.verity-detail-cell {
+.verity-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #8a9098;
+  margin-bottom: 9px;
+}
+
+.verity-flag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.verity-flag-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.04);
+  color: #d5dae1;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.verity-rubric {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.verity-rubric-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.verity-rubric-row-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.verity-rubric-label-wrap {
   min-width: 0;
 }
 
-.verity-detail-label {
+.verity-rubric-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #edf2f7;
+}
+
+.verity-rubric-descriptor {
+  font-size: 11px;
+  color: #8e97a2;
+  margin-top: 2px;
+}
+
+.verity-rubric-score {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: #f1f5fb;
+  white-space: nowrap;
+}
+
+.verity-rubric-track {
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.verity-rubric-fill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--verity-score-color, #9ca3af) 45%, rgba(255,255,255,0.18)),
+    color-mix(in srgb, var(--verity-score-color, #9ca3af) 90%, rgba(255,255,255,0.02))
+  );
+}
+
+.verity-facts-grid,
+.verity-detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 18px;
+}
+
+.verity-detail-cell,
+.verity-fact-cell {
+  min-width: 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.verity-detail-label,
+.verity-fact-label {
   font-size: 10px;
   font-weight: 600;
   text-transform: uppercase;
@@ -286,9 +427,12 @@
   margin-bottom: 3px;
 }
 
-.verity-detail-value {
+.verity-detail-value,
+.verity-fact-value {
   font-size: 13px;
   color: #e0e0e0;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .verity-detail-value--green { color: #4ade80; }
@@ -312,13 +456,24 @@
 /* Summary paragraph in expanded card */
 .verity-card-reason {
   font-size: 13px;
-  line-height: 1.5;
-  color: #bbb;
+  line-height: 1.55;
+  color: #d1d6dc;
   margin: 0;
 }
 
+.verity-card-implication {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #9aa3ad;
+}
+
+.verity-detail-grid + .verity-card-reason {
+  margin-top: 14px;
+}
+
 .verity-context-section {
-  margin-top: 12px;
+  margin-top: 14px;
 }
 
 .verity-context-toggle {
@@ -380,7 +535,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
-  margin-bottom: 10px;
+  margin-top: 12px;
 }
 
 .verity-topic-tag {
@@ -397,7 +552,7 @@
 .verity-funders-row {
   font-size: 11px;
   color: #999;
-  margin-bottom: 8px;
+  margin-top: 8px;
 }
 
 /* ---------- "More" divider ---------- */
@@ -537,4 +692,25 @@
   display: inline-block;
   background: rgba(255, 255, 255, 0.15);
   color: #ddd;
+}
+
+@media (max-width: 640px) {
+  .verity-card-summary {
+    flex-direction: column;
+  }
+
+  .verity-score-chip {
+    align-self: flex-start;
+  }
+
+  .verity-rubric-row-head {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .verity-facts-grid,
+  .verity-detail-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
 }

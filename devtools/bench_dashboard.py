@@ -309,9 +309,10 @@ _DASHBOARD_HTML = """\
 let currentTriageCaseId = null;
 
 function badgeClass(verdict) {
-  if (verdict === 'reliable' || verdict === 'confirmed_fixable') return 'green';
-  if (verdict === 'caution' || verdict === 'reviewing' || verdict === 'new') return 'amber';
-  if (verdict === 'skeptical' || verdict === 'not_fixable' || verdict === 'duplicate') return 'red';
+  if (verdict === 'reliable' || verdict === 'supported' || verdict === 'confirmed_fixable') return 'green';
+  if (verdict === 'caution' || verdict === 'cautious_support' || verdict === 'relevant_unverified' || verdict === 'reviewing' || verdict === 'new') return 'amber';
+  if (verdict === 'skeptical' || verdict === 'contradicted' || verdict === 'not_fixable' || verdict === 'duplicate') return 'red';
+  if (verdict === 'unverified' || verdict === 'inaccessible') return 'gray';
   return 'gray';
 }
 

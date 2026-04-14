@@ -662,6 +662,18 @@ class SourceSignals(BaseModel):
     author_score: int
     relevance_score: int
     alignment_score: int
+    topic_relevance_score: int
+    claim_support_score: int
+    retrieval_integrity_score: int
+    source_credibility_score: int
+    decision_confidence_score: int
+    overall_score: int
+    support_class: str
+    evidence_specificity: str
+    contradiction_strength: str
+    decision_confidence_level: str
+    retrieval_limited: bool = False
+    metadata_only: bool = False
     is_peer_reviewed: bool
     claim_aligned: bool | None
     matched_terms: list[str]
@@ -686,6 +698,7 @@ class ScoredSource(BaseModel):
     verdict: str
     verdict_label: str
     color: str
+    overall_score: int
     composite_score: int
     reason: str
     implication: str
@@ -739,6 +752,18 @@ DOMAIN_TIER_SCORES: dict[str, int] = {
     "unknown":          30,
 }
 
+SUPPORTED_CLASSES: set[str] = {"direct_support", "qualified_support"}
+UNVERIFIED_CLASSES: set[str] = {"topic_relevant_unverified", "mixed_or_ambiguous"}
+CONTRADICTION_CLASSES: set[str] = {"contradicted"}
+LLM_SUPPORT_CLASSES: set[str] = SUPPORTED_CLASSES | UNVERIFIED_CLASSES | CONTRADICTION_CLASSES
+EVIDENCE_SPECIFICITY_VALUES: set[str] = {"direct", "paraphrased", "weak", "none"}
+CONTRADICTION_STRENGTH_VALUES: set[str] = {"none", "weak", "moderate", "strong"}
+DECISION_CONFIDENCE_LEVELS: tuple[tuple[int, str], ...] = (
+    (80, "high"),
+    (60, "medium"),
+    (0, "low"),
+)
+
 TIER_PEER_REVIEWED: set[str] = {"academic_journal"}
 INSTITUTIONAL_AUTHORSHIP_TIERS: set[str] = {"academic_journal", "official_body", "medical_authority"}
 AUTHORITY_OVERRIDE_PROTECTED_TIERS: set[str] = {"flagged", "reference_tertiary"}
@@ -790,19 +815,33 @@ def _compute_domain_score(domain_info: dict, oa: dict | None = None) -> int:
     return DOMAIN_TIER_SCORES.get(domain_info.get("tier", "unknown"), 30)
 
 
-def _compute_recency_score(year: str | None) -> int:
+def _compute_recency_score(year: str | None, topic: str = "general") -> int:
     if not year:
-        return 40
+        return 35 if topic == "health" else 40
     try:
         age = time.localtime().tm_year - int(year)
-        if age <= 1:  return 100
+        if topic == "health":
+            if age <= 1:  return 100
+            if age <= 3:  return 85
+            if age <= 5:  return 70
+            if age <= 10: return 55
+            if age <= 20: return 40
+            return 25
+        if topic == "geopolitics":
+            if age <= 1:  return 100
+            if age <= 3:  return 90
+            if age <= 5:  return 75
+            if age <= 10: return 55
+            if age <= 20: return 35
+            return 20
+        if age <= 1:  return 95
         if age <= 3:  return 90
-        if age <= 5:  return 75
-        if age <= 10: return 60
-        if age <= 20: return 45
-        return 30
-    except (ValueError, TypeError):
+        if age <= 5:  return 80
+        if age <= 10: return 65
+        if age <= 20: return 50
         return 40
+    except (ValueError, TypeError):
+        return 35 if topic == "health" else 40
 
 
 def _classify_authorship(author: str | None, domain_info: dict) -> tuple[str, str]:
@@ -829,6 +868,333 @@ def _compute_author_score(author: str | None, domain_info: dict, oa: dict | None
         if h > 0:
             return 85   # published
     return 80
+
+
+def _clamp_score(value: int | float, *, lo: int = 0, hi: int = 100) -> int:
+    return max(lo, min(int(round(value)), hi))
+
+
+def _authority_confidence_score(confidence: str | None) -> int:
+    if not confidence:
+        return 55
+    mapping = {
+        "high": 90,
+        "medium": 75,
+        "low": 60,
+    }
+    return mapping.get(confidence, 55)
+
+
+def _compute_retrieval_integrity(scraped: ScrapedSource) -> int:
+    if not scraped.live:
+        return 0
+
+    note = scraped.scrape_note or ""
+    if note == "blocked_403_waf":
+        return 0
+
+    if scraped.word_count >= 1200:
+        depth_score = 100
+    elif scraped.word_count >= 700:
+        depth_score = 95
+    elif scraped.word_count >= 250:
+        depth_score = 90
+    elif scraped.word_count >= 100:
+        depth_score = 80
+    elif scraped.word_count >= 50:
+        depth_score = 70
+    elif scraped.word_count >= 25:
+        depth_score = 55
+    elif scraped.word_count > 0:
+        depth_score = 35
+    else:
+        depth_score = 10
+
+    score = depth_score
+    if scraped.scrape_success:
+        score += 5
+    if scraped.scrape_method == "playwright" and scraped.scrape_success:
+        score += 5
+    if not scraped.body_text and scraped.description:
+        score = min(score, 45)
+
+    cap = 100
+    if scraped.paywalled or note == "paywall_detected":
+        cap = min(cap, 40)
+    if scraped.is_pdf or note == "pdf_skipped":
+        cap = min(cap, 45)
+    if note == "partial_content":
+        cap = min(cap, 60)
+    if note == "timeout":
+        cap = min(cap, 35)
+    if note == "consent_only":
+        cap = min(cap, 35)
+    if not scraped.scrape_success:
+        cap = min(cap, 55)
+
+    return _clamp_score(min(score, cap))
+
+
+def _is_metadata_only(scraped: ScrapedSource, retrieval_integrity_score: int) -> bool:
+    if not scraped.body_text:
+        return True
+    if scraped.word_count < 50:
+        return True
+    if scraped.paywalled or scraped.is_pdf:
+        return True
+    return retrieval_integrity_score < 45
+
+
+def _compute_source_credibility(
+    *,
+    domain_score: int,
+    recency_score: int,
+    author_score: int,
+    is_peer_reviewed: bool,
+    authority_confidence: str | None,
+    domain_tier: str,
+) -> int:
+    authority_score = _authority_confidence_score(authority_confidence)
+    peer_evidence_score = 100 if is_peer_reviewed else 70 if authority_score >= 75 else 55
+    score = (
+        domain_score * 0.50 +
+        recency_score * 0.15 +
+        author_score * 0.15 +
+        authority_score * 0.10 +
+        peer_evidence_score * 0.10
+    )
+    if domain_tier == "flagged":
+        score = min(score, 25)
+    if domain_tier == "reference_tertiary":
+        score = min(score, 74)
+    return _clamp_score(score)
+
+
+def _normalize_llm_result(llm: dict | None) -> dict:
+    llm = llm or {}
+
+    topic_relevance_score = _clamp_score(llm.get("topic_relevance_score", llm.get("relevance_score", 50)))
+    claim_support_score = _clamp_score(llm.get("claim_support_score", llm.get("alignment_score", 50)))
+
+    support_class = str(llm.get("support_class") or "").strip().lower()
+    if support_class not in LLM_SUPPORT_CLASSES:
+        if claim_support_score >= 90:
+            support_class = "direct_support"
+        elif claim_support_score >= 75:
+            support_class = "qualified_support"
+        elif claim_support_score >= 55 and topic_relevance_score >= 60:
+            support_class = "topic_relevant_unverified"
+        elif claim_support_score >= 35:
+            support_class = "mixed_or_ambiguous"
+        else:
+            support_class = "contradicted"
+
+    evidence_specificity = str(llm.get("evidence_specificity") or "").strip().lower()
+    if evidence_specificity not in EVIDENCE_SPECIFICITY_VALUES:
+        if claim_support_score >= 90:
+            evidence_specificity = "direct"
+        elif claim_support_score >= 75:
+            evidence_specificity = "paraphrased"
+        elif claim_support_score >= 55:
+            evidence_specificity = "weak"
+        else:
+            evidence_specificity = "none"
+
+    contradiction_strength = str(llm.get("contradiction_strength") or "").strip().lower()
+    if contradiction_strength not in CONTRADICTION_STRENGTH_VALUES:
+        if support_class != "contradicted":
+            contradiction_strength = "none"
+        elif claim_support_score < 10:
+            contradiction_strength = "strong"
+        elif claim_support_score < 25:
+            contradiction_strength = "moderate"
+        else:
+            contradiction_strength = "weak"
+
+    claim_aligned = llm.get("claim_aligned")
+    if claim_aligned is None:
+        if support_class in SUPPORTED_CLASSES:
+            claim_aligned = True
+        elif support_class == "contradicted":
+            claim_aligned = False
+
+    return {
+        "topic_relevance_score": topic_relevance_score,
+        "claim_support_score": claim_support_score,
+        "relevance_score": topic_relevance_score,
+        "alignment_score": claim_support_score,
+        "support_class": support_class,
+        "evidence_specificity": evidence_specificity,
+        "contradiction_strength": contradiction_strength,
+        "claim_aligned": claim_aligned,
+        "reason": llm.get("reason", ""),
+        "implication": llm.get("implication", ""),
+        "matched_terms": list(llm.get("matched_terms", []))[:5],
+    }
+
+
+def _compute_claim_support_axis(llm: dict) -> int:
+    score = llm["claim_support_score"]
+    topic_relevance = llm["topic_relevance_score"]
+    support_class = llm["support_class"]
+    evidence_specificity = llm["evidence_specificity"]
+    contradiction_strength = llm["contradiction_strength"]
+
+    if topic_relevance < 30:
+        score = min(score, 35)
+    elif topic_relevance < 50:
+        score = min(score, 55)
+
+    if support_class == "direct_support":
+        if evidence_specificity == "direct":
+            score = max(score, 92)
+        elif evidence_specificity == "paraphrased":
+            score = max(score, 86)
+    elif support_class == "qualified_support":
+        score = min(max(score, 72), 89)
+    elif support_class == "topic_relevant_unverified":
+        floor = 55 if topic_relevance >= 70 else 45
+        score = min(max(score, floor), 69)
+    elif support_class == "mixed_or_ambiguous":
+        score = min(max(score, 35), 54)
+    elif support_class == "contradicted":
+        contradiction_caps = {
+            "weak": 39,
+            "moderate": 24,
+            "strong": 9,
+            "none": 29,
+        }
+        score = min(score, contradiction_caps.get(contradiction_strength, 24))
+
+    return _clamp_score(score)
+
+
+def _compute_decision_confidence(
+    *,
+    retrieval_integrity_score: int,
+    authority_confidence: str | None,
+    support_class: str,
+    evidence_specificity: str,
+    contradiction_strength: str,
+    topic_relevance_score: int,
+) -> int:
+    authority_score = _authority_confidence_score(authority_confidence)
+
+    clarity_score = 55
+    if support_class == "direct_support":
+        clarity_score = 95 if evidence_specificity == "direct" else 85
+    elif support_class == "qualified_support":
+        clarity_score = 75
+    elif support_class == "topic_relevant_unverified":
+        clarity_score = 60
+    elif support_class == "mixed_or_ambiguous":
+        clarity_score = 45
+    elif support_class == "contradicted":
+        contradiction_map = {
+            "strong": 85,
+            "moderate": 75,
+            "weak": 65,
+            "none": 60,
+        }
+        clarity_score = contradiction_map.get(contradiction_strength, 65)
+
+    score = (
+        retrieval_integrity_score * 0.50 +
+        authority_score * 0.20 +
+        clarity_score * 0.30
+    )
+
+    if topic_relevance_score < 40 and support_class != "contradicted":
+        score = min(score, 60)
+    if retrieval_integrity_score < 50:
+        score = min(score, 50)
+    if evidence_specificity == "none" and support_class in SUPPORTED_CLASSES:
+        score = min(score, 65)
+
+    return _clamp_score(score)
+
+
+def _decision_confidence_level(score: int) -> str:
+    for threshold, label in DECISION_CONFIDENCE_LEVELS:
+        if score >= threshold:
+            return label
+    return "low"
+
+
+def _compute_overall_score(
+    *,
+    retrieval_integrity_score: int,
+    source_credibility_score: int,
+    claim_support_score: int,
+    decision_confidence_score: int,
+    domain_tier: str,
+    support_class: str,
+) -> int:
+    if retrieval_integrity_score == 0:
+        return 0
+
+    score = (
+        retrieval_integrity_score * 0.20 +
+        source_credibility_score * 0.35 +
+        claim_support_score * 0.35 +
+        decision_confidence_score * 0.10
+    )
+
+    if retrieval_integrity_score < 50:
+        score = min(score, 59)
+    if support_class == "contradicted":
+        score = min(score, 24)
+    elif support_class in UNVERIFIED_CLASSES:
+        score = min(score, 69)
+    if domain_tier == "flagged":
+        score = min(score, 24)
+    if domain_tier == "reference_tertiary" and support_class in SUPPORTED_CLASSES:
+        score = min(score, 74)
+    if source_credibility_score < 40 and support_class in SUPPORTED_CLASSES:
+        score = min(score, 64)
+
+    return _clamp_score(score)
+
+
+def _verdict_from_matrix(
+    *,
+    live: bool,
+    retrieval_integrity_score: int,
+    source_credibility_score: int,
+    claim_support_score: int,
+    topic_relevance_score: int,
+    support_class: str,
+    contradiction_strength: str,
+) -> tuple[str, str, str]:
+    if not live or retrieval_integrity_score < 35:
+        return "inaccessible", "Inaccessible or insufficient evidence", "gray"
+
+    if (
+        support_class == "contradicted"
+        and contradiction_strength in {"moderate", "strong"}
+        and retrieval_integrity_score >= 60
+    ):
+        return "contradicted", "Contradicted by source", "red"
+
+    if (
+        source_credibility_score >= 65
+        and claim_support_score >= 80
+        and retrieval_integrity_score >= 70
+        and support_class in SUPPORTED_CLASSES
+    ):
+        return "supported", "Supported by source", "green"
+
+    if (
+        claim_support_score >= 65
+        and retrieval_integrity_score >= 55
+        and support_class in SUPPORTED_CLASSES
+    ):
+        return "cautious_support", "Some support, but use caution", "amber"
+
+    if topic_relevance_score >= 40 or support_class in UNVERIFIED_CLASSES or support_class == "contradicted":
+        return "relevant_unverified", "Relevant, but not verified", "amber"
+
+    return "inaccessible", "Inaccessible or insufficient evidence", "gray"
 
 
 def _verdict_from_score(score: int) -> tuple[str, str, str]:
@@ -891,29 +1257,52 @@ ORIGINAL QUESTION (what the user asked):
 SOURCE CONTENT (truncated to first 2000 chars):
 {body}
 
-TASK: Score this source on two dimensions, then explain.
+TASK: Evaluate this source using a real-world verification rubric. Score it, classify the support type, and explain briefly.
 
 SCORING RUBRICS — read these before assigning any number:
 
-relevance_score (0-100): Does the source address the same subject as the original question?
+topic_relevance_score (0-100): Does the source address the same subject as the original question?
   90-100  The source is entirely about this exact topic with significant depth.
   70-89   The source covers this topic as a primary focus.
   40-69   The source mentions the topic but is mainly about something else.
   10-39   The source is only tangentially related.
   0-9     The source is unrelated to the question.
 
-alignment_score (0-100): Does the source content support, contradict, or ignore the specific claim?
+claim_support_score (0-100): Does the source content support, contradict, or fail to verify the specific claim?
   90-100  Source explicitly states or strongly confirms the claim with direct evidence.
-  70-89   Source broadly supports the claim; consistent but not a direct quote.
-  40-69   Source neither confirms nor denies; claim cannot be verified from this content.
-  10-39   Source content is inconsistent with or casts doubt on the claim.
-  0-9     Source directly contradicts the claim.
+  75-89   Source supports the claim, but the evidence is paraphrased, qualified, or indirect.
+  55-74   Source is clearly on-topic but does not provide enough evidence to verify the claim.
+  35-54   Source is mixed, ambiguous, or only weakly connected to the claim.
+  0-34    Source contradicts the claim or materially undermines it.
+
+support_class:
+  direct_support              The claim is directly supported by the source.
+  qualified_support           The source supports the claim, but with qualifications or indirect evidence.
+  topic_relevant_unverified   The source is relevant, but the specific claim is not verified.
+  mixed_or_ambiguous          The source is ambiguous, incomplete, or only weakly related to the claim.
+  contradicted                The source contradicts or materially undermines the claim.
+
+evidence_specificity:
+  direct       The source directly states the relevant fact or finding.
+  paraphrased  The source supports the claim, but not with quote-level specificity.
+  weak         The source only loosely suggests the claim.
+  none         The source does not provide affirmative evidence for the claim.
+
+contradiction_strength:
+  none         No contradiction detected.
+  weak         The source creates mild tension with the claim.
+  moderate     The source meaningfully undermines the claim.
+  strong       The source directly contradicts the claim.
 
 Respond with ONLY valid JSON — no text before or after the JSON object:
 {{
-  "relevance_score": <integer 0-100>,
-  "alignment_score": <integer 0-100>,
-  "claim_aligned": <true if alignment_score >= 70, false if alignment_score < 40, null otherwise>,
+  "topic_relevance_score": <integer 0-100>,
+  "claim_support_score": <integer 0-100>,
+  "support_class": "<direct_support|qualified_support|topic_relevant_unverified|mixed_or_ambiguous|contradicted>",
+  "evidence_specificity": "<direct|paraphrased|weak|none>",
+  "contradiction_strength": "<none|weak|moderate|strong>",
+  "claim_aligned": <true if support_class is direct_support or qualified_support, false if support_class is contradicted, null otherwise>,
+  "matched_terms": ["<up to 5 important terms that appeared in the source and informed your judgment>"],
   "reason": "<1-2 sentences: cite specific evidence from the source content that drove your scores>",
   "implication": "<1 sentence: what the user should do given this source's credibility>"
 }}"""
@@ -999,7 +1388,7 @@ def _parse_json_response(text: str | None, fallback):
 
 
 async def score_source_with_llm(scraped: ScrapedSource, prompt: str) -> dict:
-    """Call local LLM to get relevance, alignment and reasoning for one source."""
+    """Call local LLM to get support classification and evidence reasoning for one source."""
     body_snippet = (scraped.body_text or scraped.description or "")[:2000]
     llm_prompt = _SCORE_PROMPT.format(
         context=scraped.context[:600],
@@ -1008,8 +1397,11 @@ async def score_source_with_llm(scraped: ScrapedSource, prompt: str) -> dict:
     )
     raw = await _call_llm(llm_prompt, system=_SCORE_SYSTEM_PROMPT)
     fallback = {
-        "relevance_score": 50,
-        "alignment_score": 50,
+        "topic_relevance_score": 50,
+        "claim_support_score": 50,
+        "support_class": "mixed_or_ambiguous",
+        "evidence_specificity": "none",
+        "contradiction_strength": "none",
         "claim_aligned": None,
         "reason": "Could not assess — LLM unavailable or content restricted.",
         "implication": "Verify this source manually before citing.",
@@ -1717,7 +2109,11 @@ async def enrich_with_openalex(scraped: "ScrapedSource", timeout_s: float | None
 
 
 def build_scored_source(
-    scraped: ScrapedSource, llm: dict, oa_enrichment: dict | None = None
+    scraped: ScrapedSource,
+    llm: dict,
+    oa_enrichment: dict | None = None,
+    *,
+    topic: str = "general",
 ) -> ScoredSource:
     """Combine scraped metadata + LLM output + OpenAlex enrichment into a ScoredSource."""
     oa = oa_enrichment or {}
@@ -1745,22 +2141,12 @@ def build_scored_source(
         domain_info["tier"] = authority_profile.authority_kind
 
     domain_score  = _compute_domain_score(domain_info, oa)
-    recency_score = _compute_recency_score(scraped.date)
+    recency_score = _compute_recency_score(scraped.date, topic)
     authorship_type, author_label = _classify_authorship(scraped.author, domain_info)
     author_score  = _compute_author_score(scraped.author, domain_info, oa)
-    relevance_score  = int(llm.get("relevance_score", 50))
-    alignment_score  = int(llm.get("alignment_score", 50))
-
-    if not scraped.live:
-        composite = 0
-        verdict, verdict_label, color = "unverified", "Couldn't verify", "gray"
-    else:
-        composite = _composite_score(domain_score, recency_score, author_score, relevance_score, alignment_score)
-        if domain_info.get("tier") == "flagged":
-            composite = min(composite, 24)
-        if domain_info.get("tier") == "reference_tertiary":
-            composite = min(composite, 74)
-        verdict, verdict_label, color = _verdict_from_score(composite)
+    llm_scores = _normalize_llm_result(llm)
+    relevance_score = llm_scores["relevance_score"]
+    alignment_score = llm_scores["alignment_score"]
 
     is_peer_reviewed = (
         authority_profile.is_peer_reviewed
@@ -1770,6 +2156,51 @@ def build_scored_source(
         or oa.get("oa_work_type") in ("journal-article", "review")
     )
 
+    retrieval_integrity_score = _compute_retrieval_integrity(scraped)
+    metadata_only = _is_metadata_only(scraped, retrieval_integrity_score)
+    retrieval_limited = retrieval_integrity_score < 70
+    source_credibility_score = _compute_source_credibility(
+        domain_score=domain_score,
+        recency_score=recency_score,
+        author_score=author_score,
+        is_peer_reviewed=is_peer_reviewed,
+        authority_confidence=authority_profile.confidence,
+        domain_tier=domain_info.get("tier", "unknown"),
+    )
+    claim_support_score = _compute_claim_support_axis(llm_scores)
+    decision_confidence_score = _compute_decision_confidence(
+        retrieval_integrity_score=retrieval_integrity_score,
+        authority_confidence=authority_profile.confidence,
+        support_class=llm_scores["support_class"],
+        evidence_specificity=llm_scores["evidence_specificity"],
+        contradiction_strength=llm_scores["contradiction_strength"],
+        topic_relevance_score=llm_scores["topic_relevance_score"],
+    )
+    overall_score = _compute_overall_score(
+        retrieval_integrity_score=retrieval_integrity_score,
+        source_credibility_score=source_credibility_score,
+        claim_support_score=claim_support_score,
+        decision_confidence_score=decision_confidence_score,
+        domain_tier=domain_info.get("tier", "unknown"),
+        support_class=llm_scores["support_class"],
+    )
+    verdict, verdict_label, color = _verdict_from_matrix(
+        live=scraped.live,
+        retrieval_integrity_score=retrieval_integrity_score,
+        source_credibility_score=source_credibility_score,
+        claim_support_score=claim_support_score,
+        topic_relevance_score=llm_scores["topic_relevance_score"],
+        support_class=llm_scores["support_class"],
+        contradiction_strength=llm_scores["contradiction_strength"],
+    )
+    flags = _build_flags(scraped)
+    if retrieval_limited:
+        flags.append("retrieval_limited")
+    if metadata_only:
+        flags.append("metadata_only")
+    if llm_scores["support_class"] == "contradicted":
+        flags.append("claim_contradicted")
+
     signals = SourceSignals(
         domain_tier=domain_info.get("tier", "unknown"),
         domain_score=domain_score,
@@ -1777,9 +2208,21 @@ def build_scored_source(
         author_score=author_score,
         relevance_score=relevance_score,
         alignment_score=alignment_score,
+        topic_relevance_score=llm_scores["topic_relevance_score"],
+        claim_support_score=claim_support_score,
+        retrieval_integrity_score=retrieval_integrity_score,
+        source_credibility_score=source_credibility_score,
+        decision_confidence_score=decision_confidence_score,
+        overall_score=overall_score,
+        support_class=llm_scores["support_class"],
+        evidence_specificity=llm_scores["evidence_specificity"],
+        contradiction_strength=llm_scores["contradiction_strength"],
+        decision_confidence_level=_decision_confidence_level(decision_confidence_score),
+        retrieval_limited=retrieval_limited,
+        metadata_only=metadata_only,
         is_peer_reviewed=is_peer_reviewed,
-        claim_aligned=llm.get("claim_aligned"),
-        matched_terms=llm.get("matched_terms", [])[:5],
+        claim_aligned=llm_scores["claim_aligned"],
+        matched_terms=llm_scores["matched_terms"],
         oa_source_h_index=oa.get("oa_source_h_index"),
         oa_author_h_index=oa.get("oa_author_h_index"),
         oa_cited_by_count=oa.get("oa_cited_by_count"),
@@ -1800,10 +2243,11 @@ def build_scored_source(
         verdict=verdict,
         verdict_label=verdict_label,
         color=color,
-        composite_score=composite,
-        reason=llm.get("reason", ""),
-        implication=llm.get("implication", ""),
-        flags=_build_flags(scraped),
+        overall_score=overall_score,
+        composite_score=overall_score,
+        reason=llm_scores["reason"],
+        implication=llm_scores["implication"],
+        flags=flags,
         date=scraped.date,
         author=scraped.author,
         authorship_type=authorship_type,
@@ -3251,7 +3695,7 @@ async def extract(request: Request, body: ExtractRequest):
 
     if llm_ok:
         scored_unsorted = [
-            build_scored_source(s, llm, oa)
+            build_scored_source(s, llm, oa, topic=topic)
             for s, llm, oa in zip(scraped_sources, llm_results, oa_results)
         ]
         await _record_live_triage_batch(
@@ -3273,12 +3717,17 @@ async def extract(request: Request, body: ExtractRequest):
         )
         scored = list(scored_unsorted)
 
-        # Sort: reliable first, unverified last
-        order = {"reliable": 0, "caution": 1, "skeptical": 2, "unverified": 3}
+        order = {
+            "supported": 0,
+            "cautious_support": 1,
+            "relevant_unverified": 2,
+            "contradicted": 3,
+            "inaccessible": 4,
+        }
         scored.sort(key=lambda s: order.get(s.verdict, 4))
 
-        reliable_count = sum(1 for s in scored if s.verdict == "reliable")
-        flagged_count  = sum(1 for s in scored if s.verdict in ("skeptical", "unverified"))
+        reliable_count = sum(1 for s in scored if s.verdict == "supported")
+        flagged_count  = sum(1 for s in scored if s.verdict in ("relevant_unverified", "contradicted", "inaccessible"))
 
         total_ms = int((time.perf_counter() - start) * 1000)
         logging.info("Scoring done (%dms total)", total_ms)
@@ -3290,17 +3739,22 @@ async def extract(request: Request, body: ExtractRequest):
         for i, s in enumerate(scored, 1):
             logging.info(
                 "  [%d/%d] SCORED    %s  →  %s (%d/100)\n"
+                "          retrieval: %d/100  credibility: %d/100\n"
+                "          support  : %d/100  confidence : %d/100 (%s)\n"
                 "          domain   : %s  %d/100\n"
                 "          recency  : %d/100  (date: %s)\n"
                 "          author   : %d/100  (author: %s)\n"
-                "          relevance: %d/100  alignment: %d/100\n"
+                "          relevance: %d/100  alignment: %d/100  class=%s\n"
                 "          reason   : %s\n"
                 "          terms    : %s",
                 i, len(scored), s.domain, s.verdict, s.composite_score,
+                s.signals.retrieval_integrity_score, s.signals.source_credibility_score,
+                s.signals.claim_support_score, s.signals.decision_confidence_score,
+                s.signals.decision_confidence_level,
                 s.signals.domain_tier, s.signals.domain_score,
                 s.signals.recency_score, s.date or "none",
                 s.signals.author_score, s.author or "none",
-                s.signals.relevance_score, s.signals.alignment_score,
+                s.signals.relevance_score, s.signals.alignment_score, s.signals.support_class,
                 s.reason,
                 ", ".join(s.signals.matched_terms) or "(none)",
             )
@@ -3405,7 +3859,7 @@ async def extract_stream(request: Request, body: ExtractRequest):
 
         if llm_ok:
             scored_unsorted = [
-                build_scored_source(s, llm, oa)
+                build_scored_source(s, llm, oa, topic=topic)
                 for s, llm, oa in zip(scraped_sources, llm_results, oa_results)
             ]
             await _record_live_triage_batch(
@@ -3427,11 +3881,17 @@ async def extract_stream(request: Request, body: ExtractRequest):
             )
             scored = list(scored_unsorted)
 
-            order = {"reliable": 0, "caution": 1, "skeptical": 2, "unverified": 3}
+            order = {
+                "supported": 0,
+                "cautious_support": 1,
+                "relevant_unverified": 2,
+                "contradicted": 3,
+                "inaccessible": 4,
+            }
             scored.sort(key=lambda s: order.get(s.verdict, 4))
 
-            reliable_count = sum(1 for s in scored if s.verdict == "reliable")
-            flagged_count = sum(1 for s in scored if s.verdict in ("skeptical", "unverified"))
+            reliable_count = sum(1 for s in scored if s.verdict == "supported")
+            flagged_count = sum(1 for s in scored if s.verdict in ("relevant_unverified", "contradicted", "inaccessible"))
 
             total_ms = int((time.perf_counter() - start) * 1000)
             logging.info("Scoring done (%dms total)", total_ms)

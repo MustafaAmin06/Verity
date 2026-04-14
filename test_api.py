@@ -24,7 +24,7 @@ def make_scraped_source(
         http_status=200,
         title="Example article",
         description="Example description",
-        body_text="Example body text that is long enough to be considered a successful scrape.",
+        body_text="Example body text that is long enough to be considered a successful scrape. " * 8,
         date="2024",
         author="Example Author",
         doi=None,
@@ -32,7 +32,7 @@ def make_scraped_source(
         is_pdf=False,
         json_ld=None,
         keywords=["example"],
-        word_count=24,
+        word_count=160,
         scrape_method="beautifulsoup",
         scrape_note=None,
         scrape_success=True,
@@ -168,9 +168,11 @@ class VerityApiContractTests(unittest.IsolatedAsyncioTestCase):
 
         self.assertIsNotNone(result_payload)
         self.assertEqual(result_payload["source_count"], 1)
-        self.assertEqual(result_payload["sources"][0]["verdict"], "reliable")
+        self.assertEqual(result_payload["sources"][0]["verdict"], "supported")
         self.assertEqual(result_payload["sources"][0]["context"], scraped.context)
         self.assertEqual(result_payload["sources"][0]["signals"]["alignment_score"], 88)
+        self.assertEqual(result_payload["sources"][0]["signals"]["support_class"], "qualified_support")
+        self.assertGreaterEqual(result_payload["sources"][0]["signals"]["retrieval_integrity_score"], 70)
         self.assertEqual(result_payload["sources"][0]["authorship_type"], "named")
         self.assertEqual(result_payload["sources"][0]["author_label"], "Example Author")
         self.assertEqual(result_payload["sources"][0]["authority_source"], "openalex")

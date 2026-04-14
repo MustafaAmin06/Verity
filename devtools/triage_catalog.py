@@ -291,7 +291,7 @@ def compute_priority(
         score += 10
     elif word_count < 100:
         score += 5
-    if verdict in {"unverified", "skeptical"}:
+    if verdict in {"unverified", "skeptical", "inaccessible", "contradicted", "relevant_unverified"}:
         score += 8
     score += min(max(times_seen - 1, 0) * 8, 24)
     score += min(max(domain_case_count - 1, 0) * 3, 15)
