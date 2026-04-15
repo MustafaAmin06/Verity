@@ -60,6 +60,9 @@ GITHUB_MODEL = os.getenv("GITHUB_MODEL", "gpt-4o")
 GITHUB_API_URL = "https://models.inference.ai.azure.com/chat/completions"
 VERITY_API_KEY = os.getenv("VERITY_API_KEY", "")
 VERITY_EXTENSION_ID = os.getenv("VERITY_EXTENSION_ID", "")
+VERITY_STRICT_EXTENSION_LOCKDOWN = (
+    os.getenv("VERITY_STRICT_EXTENSION_LOCKDOWN", "false").lower() == "true"
+)
 
 
 def _env_int(name: str, default: str, lo: int = 0, hi: int = 2**31 - 1) -> int:
@@ -4340,12 +4343,16 @@ _ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 
-_origin_regex = (
-    rf"chrome-extension://{re.escape(VERITY_EXTENSION_ID)}"
-    if VERITY_EXTENSION_ID
-    else r"chrome-extension://.*"
-)
-if not VERITY_EXTENSION_ID:
+_origin_regex = None
+if VERITY_STRICT_EXTENSION_LOCKDOWN:
+    if VERITY_EXTENSION_ID:
+        _origin_regex = rf"chrome-extension://{re.escape(VERITY_EXTENSION_ID)}"
+    else:
+        logging.error("VERITY_STRICT_EXTENSION_LOCKDOWN is enabled but VERITY_EXTENSION_ID is not set")
+elif VERITY_EXTENSION_ID:
+    _origin_regex = rf"chrome-extension://{re.escape(VERITY_EXTENSION_ID)}"
+else:
+    _origin_regex = r"chrome-extension://.*"
     logging.warning("VERITY_EXTENSION_ID not set — CORS allows any Chrome extension")
 
 app.add_middleware(
@@ -4367,12 +4374,76 @@ def _is_authenticated(request: Request) -> bool:
     return hmac.compare_digest(auth[7:], VERITY_API_KEY)
 
 
+def _request_origin(request: Request) -> str:
+    return (request.headers.get("Origin") or "").strip().rstrip("/")
+
+
+def _allowed_extension_origin() -> str | None:
+    if not VERITY_EXTENSION_ID:
+        return None
+    return f"chrome-extension://{VERITY_EXTENSION_ID}"
+
+
+def _is_allowed_extension_origin(request: Request) -> bool:
+    allowed_origin = _allowed_extension_origin()
+    return bool(allowed_origin and _request_origin(request) == allowed_origin)
+
+
+def _is_allowed_web_origin(request: Request) -> bool:
+    origin = _request_origin(request)
+    return bool(origin and origin in _ALLOWED_ORIGINS)
+
+
+def _is_local_dev_request(request: Request) -> bool:
+    hostname = (request.url.hostname or "").lower()
+    origin = _request_origin(request)
+    return (
+        hostname in {"localhost", "127.0.0.1"}
+        or origin.startswith("http://localhost")
+        or origin.startswith("http://127.0.0.1")
+    )
+
+
+def _is_request_authorized(request: Request) -> bool:
+    if _is_allowed_extension_origin(request):
+        return True
+
+    api_key_configured = bool(VERITY_API_KEY)
+    if api_key_configured:
+        if _is_authenticated(request):
+            return True
+        if not VERITY_STRICT_EXTENSION_LOCKDOWN and (
+            _is_allowed_web_origin(request) or _is_local_dev_request(request)
+        ):
+            return True
+        return False
+
+    if not VERITY_STRICT_EXTENSION_LOCKDOWN:
+        return True
+
+    return False
+
+
+def _can_view_detailed_health(request: Request) -> bool:
+    if _is_allowed_extension_origin(request):
+        return True
+    if VERITY_API_KEY and _is_authenticated(request):
+        return True
+    if not VERITY_STRICT_EXTENSION_LOCKDOWN:
+        return True
+    return False
+
+
 @app.middleware("http")
 async def verify_api_key(request: Request, call_next):
+    if request.method == "OPTIONS":
+        return await call_next(request)
     if request.url.path == "/health":
         return await call_next(request)
-    if not _is_authenticated(request):
-        return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
+    if not _is_request_authorized(request):
+        if VERITY_API_KEY:
+            return JSONResponse(status_code=401, content={"detail": "Unauthorized"})
+        return JSONResponse(status_code=403, content={"detail": "Forbidden"})
     return await call_next(request)
 
 
@@ -4389,13 +4460,16 @@ async def add_security_headers(request: Request, call_next):
 
 @app.get("/health")
 async def healthcheck(request: Request) -> dict: 
-    if _is_authenticated(request):
+    if _can_view_detailed_health(request):
         llm_ok = await _check_llm_available()
         return {
             "status": "ok",
             "port": EXTRACTOR_PORT,
             "api_key_required": bool(VERITY_API_KEY),
+            "strict_extension_lockdown": VERITY_STRICT_EXTENSION_LOCKDOWN,
+            "extension_origin_configured": bool(VERITY_EXTENSION_ID),
             "extension_lockdown_enabled": bool(VERITY_EXTENSION_ID),
+            "request_policy_mode": "strict_extension_origin" if VERITY_STRICT_EXTENSION_LOCKDOWN else "development_open",
             "playwright_enabled": ENABLE_PLAYWRIGHT_FALLBACK and PLAYWRIGHT_AVAILABLE,
             "llm_enabled": llm_ok,
             "llm_model": GITHUB_MODEL,

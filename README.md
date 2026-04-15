@@ -33,7 +33,7 @@ Existing verification tools address this problem at the platform level (e.g., Ge
 ### What Verity Does
 Verity is a browser extension that intercepts LLM responses, extracts every cited source, and executes a multi-layer verification pipeline in the background. By the time a user finishes reading a response, each source has been independently scored and a trust verdict is displayed inline — requiring no additional action from the user.
 
-The verification pipeline operates across two distinct layers simultaneously:
+The verificatio/n pipeline operates across two distinct layers simultaneously:
 1. **Layer 1: Metadata Credibility** — applying the CRAAP Test framework (Currency, Relevance, Authority, Accuracy, Purpose) to evaluate each source's publication date, author attribution, domain tier, and institutional standing.
 2. **Layer 2: Claim-Level Content Verification** — retrieving the full source body, extracting its text, and determining whether the specific sentence cited by the LLM is semantically supported by what the source actually states.
 
@@ -198,6 +198,7 @@ The backend is responsible for source extraction, web scraping, and verification
 
 ### Production backend checklist
 - Set `VERITY_EXTENSION_ID` in the hosted backend before publishing so CORS is locked to your Chrome Web Store extension ID instead of allowing any Chrome extension origin.
+- Set `VERITY_STRICT_EXTENSION_LOCKDOWN=true` in production so extraction endpoints only accept the approved extension origin or a valid API key.
 - Keep `TRIAGE_CAPTURE_ENABLED=false` and `TRIAGE_CAPTURE_INCLUDE_TEXT=false` in production unless you explicitly want developer-only failure capture.
 - Keep `VERITY_VERBOSE_LOGS=false` in production to avoid logging extracted body snippets and claim-level reasoning.
 - Rotate secrets if they were ever exposed during local testing or Azure setup, and store them in Azure-managed secrets or environment variables rather than in the repo.

@@ -10,21 +10,25 @@ chrome.runtime.onInstalled.addListener(async () => {
   chrome.storage.local.get(
     {
       extractorUrl: AZURE_EXTRACTOR_URL,
+      devMode: false,
       advancedSettingsVisible: false,
     },
     (settings) => {
       const normalized = (settings.extractorUrl || "").replace(/\/+$/, "");
-      const shouldResetToConsumer =
-        normalized === LEGACY_RAILWAY_URL ||
-        normalized === LOCAL_EXTRACTOR_URL ||
-        normalized === LOCAL_LOOPBACK_URL ||
-        settings.advancedSettingsVisible;
+      const devMode = Boolean(
+        settings.devMode !== undefined ? settings.devMode : settings.advancedSettingsVisible
+      );
+      const shouldResetToConsumer = normalized === LEGACY_RAILWAY_URL;
 
       if (shouldResetToConsumer) {
         chrome.storage.local.set({
           extractorUrl: AZURE_EXTRACTOR_URL,
-          advancedSettingsVisible: false,
+          devMode,
           apiKey: "",
+        });
+      } else if (settings.advancedSettingsVisible !== undefined && settings.devMode === undefined) {
+        chrome.storage.local.set({
+          devMode,
         });
       }
     }

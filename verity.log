@@ -98,3 +98,116 @@
 23:34:15 [ERROR] Future exception was never retrieved
 future: <Future finished exception=Exception('Connection closed while reading from the driver')>
 Exception: Connection closed while reading from the driver
+18:51:11 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+18:51:11 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+18:51:11 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+18:51:11 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+18:52:11 [INFO] ────────────────────────────────────────────────────────────
+18:52:11 [INFO] Extract-stream request: 6 source(s)  |  LLM: on
+18:52:11 [INFO] Prompt: [44 chars]
+18:52:11 [INFO]   [1] https://paloaltonetworks.co.uk/cyberpedia/what-is-retrieval-augmented-generation  |  label: Palo Alto Networks
+18:52:11 [INFO]   [2] https://merge.dev/blog/rag-benefits  |  label: Merge
+18:52:11 [INFO]   [3] https://aws.amazon.com/what-is/retrieval-augmented-generation  |  label: Amazon Web Services, Inc.
++1
+18:52:11 [INFO]   [4] https://ibm.com/think/topics/retrieval-augmented-generation  |  label: IBM
+18:52:11 [INFO]   [5] https://meilisearch.com/blog/what-is-rag  |  label: Meilisearch
+18:52:11 [INFO]   [6] https://community.deeplearning.ai/t/why-and-when-to-use-rag/682599  |  label: DeepLearning.AI
+18:52:11 [INFO] HTTP Request: GET https://meilisearch.com/blog/what-is-rag "HTTP/2 301 Moved Permanently"
+18:52:11 [INFO] HTTP Request: GET https://merge.dev/blog/rag-benefits "HTTP/2 302 Found"
+18:52:11 [INFO] HTTP Request: GET https://ibm.com/think/topics/retrieval-augmented-generation "HTTP/2 301 Moved Permanently"
+18:52:11 [INFO] HTTP Request: GET https://aws.amazon.com/what-is/retrieval-augmented-generation "HTTP/2 301 Moved Permanently"
+18:52:11 [INFO] HTTP Request: GET https://aws.amazon.com/what-is/retrieval-augmented-generation/ "HTTP/2 200 OK"
+18:52:11 [INFO] HTTP Request: GET https://paloaltonetworks.co.uk/cyberpedia/what-is-retrieval-augmented-generation "HTTP/2 301 Moved Permanently"
+18:52:11 [INFO]   SCRAPED OK   aws.amazon.com                            status=200  words=1153  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+18:52:12 [INFO] HTTP Request: GET https://www.merge.dev/blog/rag-benefits "HTTP/2 200 OK"
+18:52:12 [INFO] HTTP Request: GET https://www.ibm.com/think/topics/retrieval-augmented-generation "HTTP/2 200 OK"
+18:52:12 [INFO]   SCRAPED OK   merge.dev                                 status=200  words=976  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+18:52:12 [INFO]   SCRAPED OK   ibm.com                                   status=200  words=1163  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+18:52:12 [INFO] HTTP Request: GET https://community.deeplearning.ai/t/why-and-when-to-use-rag/682599 "HTTP/2 200 OK"
+18:52:12 [INFO] HTTP Request: GET https://www.meilisearch.com/blog/what-is-rag "HTTP/2 200 OK"
+18:52:12 [INFO]   SCRAPED OK   community.deeplearning.ai                 status=200  words=0  stage=http  strategy=none  confidence=30  note=metadata_only
+18:52:12 [INFO]   PLAYWRIGHT   community.deeplearning.ai                 stage=metadata_only  confidence=30 → trying browser render
+18:52:12 [INFO]   SCRAPED OK   meilisearch.com                           status=200  words=1234  stage=http  strategy=heuristic_dom  confidence=79  note=ok
+18:52:12 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+18:52:12 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+18:52:12 [INFO] HTTP Request: GET https://www.paloaltonetworks.co.uk/cyberpedia/what-is-retrieval-augmented-generation "HTTP/2 200 OK"
+18:52:12 [INFO]   SCRAPED OK   paloaltonetworks.co.uk                    status=200  words=1240  stage=http  strategy=heuristic_dom  confidence=79  note=ok
+18:52:12 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+18:52:12 [INFO] HTTP Request: GET https://api.ror.org/v2/organizations?query=What+is+RAG+%28Retrieval-Augmented+Generation%29+%26+how+it+works%3F&page=1&affiliation=false "HTTP/2 200 OK"
+18:52:12 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=doi%3A10.1007%2F978-3-031-54252-7_1&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cids%2Cprimary_location%2Cbest_oa_location%2Cauthorships%2Ctopics%2Cprimary_topic%2Copen_access "HTTP/2 200 OK"
+18:52:13 [INFO] HTTP Request: GET https://api.openalex.org/authors/A5047852127?select=id%2Cdisplay_name%2Csummary_stats%2Clast_known_institutions "HTTP/2 200 OK"
+18:52:13 [INFO] HTTP Request: GET https://api.openalex.org/sources/S4210212571?select=id%2Cdisplay_name%2Ctype%2Cissn_l%2Cissn%2Chost_organization_name%2Cis_oa%2Csummary_stats "HTTP/2 200 OK"
+18:52:13 [INFO] HTTP Request: GET https://www.wikidata.org/w/api.php?action=wbsearchentities&search=What+is+RAG+%28Retrieval-Augmented+Generation%29+%26+how+it+works%3F&language=en&limit=5&format=json&origin=%2A "HTTP/2 200 OK"
+18:52:13 [INFO] HTTP Request: GET https://api.crossref.org/works/10.1007%2F978-3-031-54252-7_1 "HTTP/2 200 OK"
+18:52:14 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+18:52:14 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+18:52:14 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+18:52:14 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+18:52:14 [WARNING] GitHub Models call failed: Client error '429 Too Many Requests' for url 'https://models.inference.ai.azure.com/chat/completions'
+For more informati
+18:52:14 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+18:52:15 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+18:52:15 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+18:52:15 [INFO]   CONSENT_DOM  removed 1 consent element(s) via JS
+18:52:15 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+18:52:16 [INFO] HTTP Request: GET https://api.ror.org/v2/organizations?query=DeepLearning.AI&page=1&affiliation=false "HTTP/2 200 OK"
+18:52:16 [INFO] HTTP Request: GET https://www.wikidata.org/w/api.php?action=wbsearchentities&search=DeepLearning.AI&language=en&limit=5&format=json&origin=%2A "HTTP/2 200 OK"
+18:52:16 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+18:52:16 [WARNING] GitHub Models call failed: Client error '429 Too Many Requests' for url 'https://models.inference.ai.azure.com/chat/completions'
+For more informati
+18:52:16 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+18:52:17 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+18:52:17 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+18:52:18 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+18:52:20 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+18:52:20 [INFO] Scrape+Score done (8434ms): 6 live, 0 dead
+18:52:20 [INFO] Scoring done (8435ms total)
+18:52:20 [INFO] ────────────────────────────────────────────────────────────
+18:52:58 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+18:52:58 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+18:52:58 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+18:52:58 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+18:58:55 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+18:58:55 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+18:58:55 [INFO] ────────────────────────────────────────────────────────────
+18:58:55 [INFO] Extract request: 1 source(s)  |  LLM: off
+18:58:55 [INFO] Prompt: [26 chars]
+18:58:55 [INFO]   [1] https://example.com/article  |  label: Example article
+18:58:55 [INFO] Scrape+Score done (1ms): 1 live, 0 dead
+18:58:55 [INFO]   [1/1] EXTRACTED  example.com  live=yes method=beautifulsoup words=160 note=ok
+18:58:55 [INFO]   ✓ live  example.com                               method=beautifulsoup   words=160
+18:58:55 [INFO] ────────────────────────────────────────────────────────────
+18:58:55 [INFO] ────────────────────────────────────────────────────────────
+18:58:55 [INFO] Extract-stream request: 1 source(s)  |  LLM: on
+18:58:55 [INFO] Prompt: [26 chars]
+18:58:55 [INFO]   [1] https://example.com/article  |  label: Example article
+18:58:55 [INFO] Scrape+Score done (0ms): 1 live, 0 dead
+18:58:55 [INFO] Scoring done (1ms total)
+18:58:55 [INFO] ────────────────────────────────────────────────────────────
+18:59:09 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+18:59:09 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+18:59:09 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+18:59:09 [INFO] ────────────────────────────────────────────────────────────
+18:59:09 [INFO] Extract request: 1 source(s)  |  LLM: off
+18:59:09 [INFO] Prompt: [26 chars]
+18:59:09 [INFO]   [1] https://example.com/article  |  label: Example article
+18:59:09 [INFO] Scrape+Score done (1ms): 1 live, 0 dead
+18:59:09 [INFO]   [1/1] EXTRACTED  example.com  live=yes method=beautifulsoup words=160 note=ok
+18:59:09 [INFO]   ✓ live  example.com                               method=beautifulsoup   words=160
+18:59:09 [INFO] ────────────────────────────────────────────────────────────
+18:59:09 [INFO] ────────────────────────────────────────────────────────────
+18:59:09 [INFO] Extract-stream request: 1 source(s)  |  LLM: on
+18:59:09 [INFO] Prompt: [26 chars]
+18:59:09 [INFO]   [1] https://example.com/article  |  label: Example article
+18:59:09 [INFO] Scrape+Score done (0ms): 1 live, 0 dead
+18:59:09 [INFO] Scoring done (0ms total)
+18:59:09 [INFO] ────────────────────────────────────────────────────────────
+18:59:09 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+18:59:09 [INFO]   SCRAPED OK   example.com                               status=200  words=483  stage=http  strategy=heuristic_dom  confidence=64  note=ok
+18:59:09 [INFO]   SCRAPED OK   example.com                               status=200  words=0  stage=http  strategy=none  confidence=0  note=ok
+18:59:09 [INFO]   PLAYWRIGHT   example.com                               stage=metadata_only  confidence=0 → trying browser render
+18:59:09 [WARNING]   SCRAPE FAIL  guarded.example.com                       status=403   reason=blocked_403_waf
+18:59:09 [INFO]   SCRAPED OK   pubmed.ncbi.nlm.nih.gov                   status=200  words=20  stage=http  strategy=scholarly_adapter  confidence=48  note=abstract_only
+19:12:07 [ERROR] Future exception was never retrieved
+future: <Future finished exception=Exception('Connection closed while reading from the driver')>
+Exception: Connection closed while reading from the driver

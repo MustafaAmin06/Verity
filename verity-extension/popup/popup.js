@@ -2,19 +2,17 @@ const AZURE_EXTRACTOR_URL =
   "https://verity-api.thankfulsmoke-1985157b.eastus.azurecontainerapps.io";
 const LOCAL_EXTRACTOR_URL = "http://localhost:8001";
 const LEGACY_RAILWAY_URL = "https://verity-production-e8f2.up.railway.app";
-const ADVANCED_CLICK_TARGET = 5;
-const ADVANCED_CLICK_WINDOW_MS = 1500;
 
 const DEFAULTS = {
   enabled: true,
   autoCheck: false,
+  devMode: false,
   extractorUrl: AZURE_EXTRACTOR_URL,
   apiKey: "",
   minUrlsToShowButton: 1,
-  advancedSettingsVisible: false,
 };
 
-const FIELD_KEYS = ["enabled", "autoCheck", "extractorUrl", "apiKey", "minUrlsToShowButton"];
+const FIELD_KEYS = ["enabled", "autoCheck", "devMode", "extractorUrl", "apiKey", "minUrlsToShowButton"];
 const manifest = chrome.runtime.getManifest();
 
 const els = Object.fromEntries(
@@ -34,8 +32,6 @@ const versionLabel = document.getElementById("versionLabel");
 
 let saveTimer = null;
 let savedTimer = null;
-let advancedClickCount = 0;
-let advancedClickWindow = null;
 let currentSettings = { ...DEFAULTS };
 
 if (versionLabel) {
@@ -52,6 +48,9 @@ function normalizeUrl(value) {
 
 function normalizeSettings(settings) {
   const next = { ...DEFAULTS, ...settings };
+  next.devMode = Boolean(
+    settings.devMode !== undefined ? settings.devMode : settings.advancedSettingsVisible
+  );
   next.extractorUrl = normalizeUrl(next.extractorUrl) || AZURE_EXTRACTOR_URL;
   next.apiKey = String(next.apiKey || "");
   next.minUrlsToShowButton = Math.min(
@@ -59,7 +58,7 @@ function normalizeSettings(settings) {
     Math.max(1, Number.parseInt(next.minUrlsToShowButton, 10) || DEFAULTS.minUrlsToShowButton)
   );
 
-  if (!next.advancedSettingsVisible && next.extractorUrl === LEGACY_RAILWAY_URL) {
+  if (!next.devMode && next.extractorUrl === LEGACY_RAILWAY_URL) {
     next.extractorUrl = AZURE_EXTRACTOR_URL;
   }
 
@@ -77,7 +76,7 @@ function populateForm(settings) {
       el.value = settings[key];
     }
   }
-  setAdvancedVisibility(Boolean(settings.advancedSettingsVisible));
+  setAdvancedVisibility(Boolean(settings.devMode));
   updateBackendCopy(settings.extractorUrl);
 }
 
@@ -125,7 +124,7 @@ function collectFormValues() {
       10,
       Math.max(1, Number.parseInt(els.minUrlsToShowButton.value, 10) || DEFAULTS.minUrlsToShowButton)
     ),
-    advancedSettingsVisible: currentSettings.advancedSettingsVisible,
+    devMode: els.devMode.checked,
   };
 }
 
@@ -174,40 +173,20 @@ async function checkServer(url) {
   }
 }
 
-function toggleAdvancedPanel() {
-  const nextVisible = !currentSettings.advancedSettingsVisible;
-  persistSettings({ advancedSettingsVisible: nextVisible });
-}
-
-function handleVersionClick() {
-  advancedClickCount += 1;
-  clearTimeout(advancedClickWindow);
-  advancedClickWindow = setTimeout(() => {
-    advancedClickCount = 0;
-  }, ADVANCED_CLICK_WINDOW_MS);
-
-  if (advancedClickCount >= ADVANCED_CLICK_TARGET) {
-    advancedClickCount = 0;
-    toggleAdvancedPanel();
-  }
-}
-
 for (const key of FIELD_KEYS) {
   const el = els[key];
   if (!el) continue;
   el.addEventListener("change", save);
 }
 
-versionLabel?.addEventListener("click", handleVersionClick);
-
 resetDefaults?.addEventListener("click", () => {
   persistSettings({
     enabled: DEFAULTS.enabled,
     autoCheck: DEFAULTS.autoCheck,
+    devMode: DEFAULTS.devMode,
     extractorUrl: AZURE_EXTRACTOR_URL,
     apiKey: "",
     minUrlsToShowButton: DEFAULTS.minUrlsToShowButton,
-    advancedSettingsVisible: false,
   });
 });
 

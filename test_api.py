@@ -67,17 +67,55 @@ def make_request(path, method="GET", headers=None):
 class VerityApiContractTests(unittest.IsolatedAsyncioTestCase):
     async def test_health_reports_backend_capabilities(self):
         original_model = ve.GITHUB_MODEL
+        original_strict = ve.VERITY_STRICT_EXTENSION_LOCKDOWN
         try:
             ve.GITHUB_MODEL = "gpt-test"
+            ve.VERITY_STRICT_EXTENSION_LOCKDOWN = False
             with patch.object(ve, "_check_llm_available", AsyncMock(return_value=True)):
                 payload = await ve.healthcheck(make_request("/health"))
         finally:
             ve.GITHUB_MODEL = original_model
+            ve.VERITY_STRICT_EXTENSION_LOCKDOWN = original_strict
 
         self.assertEqual(payload["status"], "ok")
         self.assertTrue(payload["llm_enabled"])
         self.assertEqual(payload["llm_model"], "gpt-test")
         self.assertEqual(payload["llm_backend"], "github_models")
+
+    async def test_health_is_minimal_when_strict_mode_blocks_public_request(self):
+        original_strict = ve.VERITY_STRICT_EXTENSION_LOCKDOWN
+        original_extension_id = ve.VERITY_EXTENSION_ID
+        try:
+            ve.VERITY_STRICT_EXTENSION_LOCKDOWN = True
+            ve.VERITY_EXTENSION_ID = "abc123"
+            payload = await ve.healthcheck(make_request("/health"))
+        finally:
+            ve.VERITY_STRICT_EXTENSION_LOCKDOWN = original_strict
+            ve.VERITY_EXTENSION_ID = original_extension_id
+
+        self.assertEqual(payload, {"status": "ok"})
+
+    async def test_health_is_detailed_for_allowed_extension_origin_in_strict_mode(self):
+        original_model = ve.GITHUB_MODEL
+        original_strict = ve.VERITY_STRICT_EXTENSION_LOCKDOWN
+        original_extension_id = ve.VERITY_EXTENSION_ID
+        try:
+            ve.GITHUB_MODEL = "gpt-test"
+            ve.VERITY_STRICT_EXTENSION_LOCKDOWN = True
+            ve.VERITY_EXTENSION_ID = "abc123"
+            with patch.object(ve, "_check_llm_available", AsyncMock(return_value=True)):
+                payload = await ve.healthcheck(
+                    make_request("/health", headers={"Origin": "chrome-extension://abc123"})
+                )
+        finally:
+            ve.GITHUB_MODEL = original_model
+            ve.VERITY_STRICT_EXTENSION_LOCKDOWN = original_strict
+            ve.VERITY_EXTENSION_ID = original_extension_id
+
+        self.assertEqual(payload["status"], "ok")
+        self.assertTrue(payload["strict_extension_lockdown"])
+        self.assertTrue(payload["extension_origin_configured"])
+        self.assertEqual(payload["request_policy_mode"], "strict_extension_origin")
 
     async def test_extract_returns_raw_shape_when_llm_disabled(self):
         scraped = make_scraped_source()
@@ -208,6 +246,50 @@ class VerityApiContractTests(unittest.IsolatedAsyncioTestCase):
             ve.VERITY_API_KEY = original_key
 
         self.assertEqual(response.status_code, 401)
+
+    async def test_verify_api_key_allows_extension_origin_in_strict_mode(self):
+        async def call_next(_request):
+            return JSONResponse({"ok": True})
+
+        original_strict = ve.VERITY_STRICT_EXTENSION_LOCKDOWN
+        original_extension_id = ve.VERITY_EXTENSION_ID
+        original_key = ve.VERITY_API_KEY
+        try:
+            ve.VERITY_STRICT_EXTENSION_LOCKDOWN = True
+            ve.VERITY_EXTENSION_ID = "abc123"
+            ve.VERITY_API_KEY = ""
+            response = await ve.verify_api_key(
+                make_request("/extract", method="POST", headers={"Origin": "chrome-extension://abc123"}),
+                call_next,
+            )
+        finally:
+            ve.VERITY_STRICT_EXTENSION_LOCKDOWN = original_strict
+            ve.VERITY_EXTENSION_ID = original_extension_id
+            ve.VERITY_API_KEY = original_key
+
+        self.assertEqual(response.status_code, 200)
+
+    async def test_verify_api_key_rejects_public_extract_in_strict_mode_without_api_key(self):
+        async def call_next(_request):
+            return JSONResponse({"ok": True})
+
+        original_strict = ve.VERITY_STRICT_EXTENSION_LOCKDOWN
+        original_extension_id = ve.VERITY_EXTENSION_ID
+        original_key = ve.VERITY_API_KEY
+        try:
+            ve.VERITY_STRICT_EXTENSION_LOCKDOWN = True
+            ve.VERITY_EXTENSION_ID = "abc123"
+            ve.VERITY_API_KEY = ""
+            response = await ve.verify_api_key(
+                make_request("/extract", method="POST"),
+                call_next,
+            )
+        finally:
+            ve.VERITY_STRICT_EXTENSION_LOCKDOWN = original_strict
+            ve.VERITY_EXTENSION_ID = original_extension_id
+            ve.VERITY_API_KEY = original_key
+
+        self.assertEqual(response.status_code, 403)
 
 
 class VerityLlmPayloadTests(unittest.TestCase):
