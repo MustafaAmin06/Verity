@@ -19,6 +19,7 @@
 4. [Challenges, Debates, and Future Directions](#4-challenges-debates-and-future-directions)
 5. [Design Principles](#5-design-principles)
 6. [Getting Started](#6-getting-started)
+7. [Deployment And Store Submission](#7-deployment-and-store-submission)
 
 ---
 
@@ -177,16 +178,35 @@ The backend is responsible for source extraction, web scraping, and verification
 ### Local-to-Azure Workflow
 1. Run the backend locally with `python verity_extractor.py`.
 2. Use the popup's hidden developer panel only when you need to point the extension at localhost.
-3. Push to `main` to publish a new GHCR image and update the Azure Container App deployment.
+3. Push to `main` to publish a new GHCR image.
 4. The production API is hosted at:
    `https://verity-api.thankfulsmoke-1985157b.eastus.azurecontainerapps.io`
-5. GitHub Actions deploys the image to Azure Container Apps using:
+5. GitHub Actions can deploy the image to Azure Container Apps when these are configured:
    - `AZURE_CREDENTIALS` secret
    - optional repo vars `AZURE_RESOURCE_GROUP` and `AZURE_CONTAINER_APP_NAME`
-6. Keep runtime environment values such as `GITHUB_TOKEN` and `OPENALEX_EMAIL` configured in Azure Container Apps rather than in the repo.
-7. Before Chrome Web Store publication, set `VERITY_EXTENSION_ID` in the hosted backend so CORS is locked to your published extension ID instead of allowing any Chrome extension.
-8. Leave `TRIAGE_CAPTURE_ENABLED=false` and `TRIAGE_CAPTURE_INCLUDE_TEXT=false` in production unless you intentionally want developer-only failure capture.
-9. Keep `VERITY_VERBOSE_LOGS=false` in production to avoid logging extracted body snippets and claim-level reasoning.
+6. If Azure GitHub credentials are not configured, update the Container App manually after GHCR publish:
+   ```bash
+   az containerapp update \
+     --subscription <subscription-id> \
+     --resource-group <resource-group> \
+     --name <container-app-name> \
+     --image ghcr.io/mustafaamin06/verity-api:sha-<commit-sha>
+   ```
+7. Keep runtime environment values such as `GITHUB_TOKEN` and `OPENALEX_EMAIL` configured in Azure Container Apps rather than in the repo.
+
+## 7. Deployment And Store Submission
+
+### Production backend checklist
+- Set `VERITY_EXTENSION_ID` in the hosted backend before publishing so CORS is locked to your Chrome Web Store extension ID instead of allowing any Chrome extension origin.
+- Keep `TRIAGE_CAPTURE_ENABLED=false` and `TRIAGE_CAPTURE_INCLUDE_TEXT=false` in production unless you explicitly want developer-only failure capture.
+- Keep `VERITY_VERBOSE_LOGS=false` in production to avoid logging extracted body snippets and claim-level reasoning.
+- Rotate secrets if they were ever exposed during local testing or Azure setup, and store them in Azure-managed secrets or environment variables rather than in the repo.
+
+### Chrome Web Store notes
+- Verity only operates on supported ChatGPT pages.
+- The extension sends the cited URLs, the relevant ChatGPT response text, and the user's prompt to the Verity backend for source verification.
+- The extension does not use remote code. All extension JavaScript is bundled locally in the package.
+- The popup is consumer-facing by default; backend overrides are hidden behind the version-click developer panel and are intended for local development only.
 
 ---
 
