@@ -1,5 +1,7 @@
 FROM python:3.11-slim
 
+ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
+
 # Install system dependencies required by Playwright/Chromium
 RUN apt-get update && apt-get install -y \
     libglib2.0-0 \
@@ -31,6 +33,7 @@ WORKDIR /app
 
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN mkdir -p /ms-playwright
 RUN playwright install chromium
 
 RUN groupadd -r verity && useradd -r -g verity -d /app -s /sbin/nologin verity
@@ -40,7 +43,7 @@ COPY scraping ./scraping
 COPY devtools ./devtools
 COPY ["scimagojr 2024.csv", "."]
 
-RUN chown -R verity:verity /app
+RUN chown -R verity:verity /app /ms-playwright
 USER verity
 
 EXPOSE 8001

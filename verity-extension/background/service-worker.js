@@ -1,4 +1,5 @@
-const AZURE_EXTRACTOR_URL =
+// Replace this with the final App Platform hostname after the first DigitalOcean deploy.
+const PRODUCTION_EXTRACTOR_URL =
   "https://verity-api.thankfulsmoke-1985157b.eastus.azurecontainerapps.io";
 const LOCAL_EXTRACTOR_URL = "http://localhost:8001";
 const LOCAL_LOOPBACK_URL = "http://127.0.0.1:8001";
@@ -9,7 +10,7 @@ const LEGACY_RAILWAY_URL = "https://verity-production-e8f2.up.railway.app";
 chrome.runtime.onInstalled.addListener(async () => {
   chrome.storage.local.get(
     {
-      extractorUrl: AZURE_EXTRACTOR_URL,
+      extractorUrl: PRODUCTION_EXTRACTOR_URL,
       devMode: false,
       advancedSettingsVisible: false,
     },
@@ -22,7 +23,7 @@ chrome.runtime.onInstalled.addListener(async () => {
 
       if (shouldResetToConsumer) {
         chrome.storage.local.set({
-          extractorUrl: AZURE_EXTRACTOR_URL,
+          extractorUrl: PRODUCTION_EXTRACTOR_URL,
           devMode,
           apiKey: "",
         });
@@ -57,7 +58,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   // Read backend URL and API key from storage (set via the settings popup).
   chrome.storage.local.get(
-    { extractorUrl: AZURE_EXTRACTOR_URL, apiKey: "" },
+    { extractorUrl: PRODUCTION_EXTRACTOR_URL, apiKey: "" },
     (settings) => {
       const baseUrl = settings.extractorUrl.replace(/\/+$/, "");
 

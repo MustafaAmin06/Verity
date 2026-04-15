@@ -1,4 +1,5 @@
-const AZURE_EXTRACTOR_URL =
+// Replace this with the final App Platform hostname after the first DigitalOcean deploy.
+const PRODUCTION_EXTRACTOR_URL =
   "https://verity-api.thankfulsmoke-1985157b.eastus.azurecontainerapps.io";
 const LOCAL_EXTRACTOR_URL = "http://localhost:8001";
 const LEGACY_RAILWAY_URL = "https://verity-production-e8f2.up.railway.app";
@@ -7,7 +8,7 @@ const DEFAULTS = {
   enabled: true,
   autoCheck: false,
   devMode: false,
-  extractorUrl: AZURE_EXTRACTOR_URL,
+  extractorUrl: PRODUCTION_EXTRACTOR_URL,
   apiKey: "",
   minUrlsToShowButton: 1,
 };
@@ -26,7 +27,7 @@ const resetDefaults = document.getElementById("resetDefaults");
 const savedIndicator = document.getElementById("savedIndicator");
 const serverStatus = document.getElementById("serverStatus");
 const serverSummary = document.getElementById("serverSummary");
-const useAzurePreset = document.getElementById("useAzurePreset");
+const useProductionPreset = document.getElementById("useProductionPreset");
 const useLocalPreset = document.getElementById("useLocalPreset");
 const versionLabel = document.getElementById("versionLabel");
 
@@ -51,7 +52,7 @@ function normalizeSettings(settings) {
   next.devMode = Boolean(
     settings.devMode !== undefined ? settings.devMode : settings.advancedSettingsVisible
   );
-  next.extractorUrl = normalizeUrl(next.extractorUrl) || AZURE_EXTRACTOR_URL;
+  next.extractorUrl = normalizeUrl(next.extractorUrl) || PRODUCTION_EXTRACTOR_URL;
   next.apiKey = String(next.apiKey || "");
   next.minUrlsToShowButton = Math.min(
     10,
@@ -59,7 +60,7 @@ function normalizeSettings(settings) {
   );
 
   if (!next.devMode && next.extractorUrl === LEGACY_RAILWAY_URL) {
-    next.extractorUrl = AZURE_EXTRACTOR_URL;
+    next.extractorUrl = PRODUCTION_EXTRACTOR_URL;
   }
 
   return next;
@@ -95,7 +96,7 @@ function updateBackendCopy(url) {
   const normalized = normalizeUrl(url);
   const isLocal = normalized.startsWith("http://localhost") || normalized.startsWith("http://127.0.0.1");
 
-  backendTitle.textContent = isLocal ? "Local backend" : "Azure API";
+  backendTitle.textContent = isLocal ? "Local backend" : "Production API";
   backendUrlLabel.textContent = isLocal
     ? "Developer override active"
     : "Production backend active";
@@ -184,14 +185,14 @@ resetDefaults?.addEventListener("click", () => {
     enabled: DEFAULTS.enabled,
     autoCheck: DEFAULTS.autoCheck,
     devMode: DEFAULTS.devMode,
-    extractorUrl: AZURE_EXTRACTOR_URL,
+    extractorUrl: PRODUCTION_EXTRACTOR_URL,
     apiKey: "",
     minUrlsToShowButton: DEFAULTS.minUrlsToShowButton,
   });
 });
 
-useAzurePreset?.addEventListener("click", () => {
-  persistSettings({ extractorUrl: AZURE_EXTRACTOR_URL, apiKey: "" });
+useProductionPreset?.addEventListener("click", () => {
+  persistSettings({ extractorUrl: PRODUCTION_EXTRACTOR_URL, apiKey: "" });
 });
 
 useLocalPreset?.addEventListener("click", () => {

@@ -26,7 +26,7 @@ This data is sent to our backend server for processing.
 
 ## How Data Is Processed
 
-Extracted URLs are sent to our hosted backend server (`verity-api.thankfulsmoke-1985157b.eastus.azurecontainerapps.io`) which:
+Extracted URLs are sent to our hosted backend server, currently operated on DigitalOcean App Platform, which:
 
 1. Fetches each cited URL to check if it is live
 2. Analyzes whether the source content supports the AI's claims

@@ -171,43 +171,42 @@ The backend is responsible for source extraction, web scraping, and verification
 2. Enable **Developer mode** using the toggle in the top-right corner.
 3. Click **Load unpacked**.
 4. Select the `verity-extension` folder from this repository.
-5. Open the Verity popup. It defaults to the hosted Azure backend:
-   `https://verity-api.thankfulsmoke-1985157b.eastus.azurecontainerapps.io`
-6. For local development, click the version pill five times to reveal the hidden developer panel, then switch the backend to `http://localhost:8001`.
+5. Open the Verity popup. It defaults to the current production backend and exposes a visible **Developer mode** toggle when you need to point the extension at localhost or a staging URL.
+6. For local development, turn on **Developer mode** in the popup, then switch the backend to `http://localhost:8001`.
 
-### Local-to-Azure Workflow
+### Local-to-DigitalOcean Workflow
 1. Run the backend locally with `python verity_extractor.py`.
-2. Use the popup's hidden developer panel only when you need to point the extension at localhost.
-3. Push to `main` to publish a new GHCR image.
-4. The production API is hosted at:
-   `https://verity-api.thankfulsmoke-1985157b.eastus.azurecontainerapps.io`
-5. GitHub Actions can deploy the image to Azure Container Apps when these are configured:
-   - `AZURE_CREDENTIALS` secret
-   - optional repo vars `AZURE_RESOURCE_GROUP` and `AZURE_CONTAINER_APP_NAME`
-6. If Azure GitHub credentials are not configured, update the Container App manually after GHCR publish:
-   ```bash
-   az containerapp update \
-     --subscription <subscription-id> \
-     --resource-group <resource-group> \
-     --name <container-app-name> \
-     --image ghcr.io/mustafaamin06/verity-api:sha-<commit-sha>
-   ```
-7. Keep runtime environment values such as `GITHUB_TOKEN` and `OPENALEX_EMAIL` configured in Azure Container Apps rather than in the repo.
+2. Use the popup's **Developer mode** toggle when you need to point the extension at localhost.
+3. Create a DigitalOcean App Platform app from this repository using the provided spec:
+   - App spec file: [.do/app.yaml](/home/mustafaamin/Verity/.do/app.yaml)
+   - Runtime: Dockerfile build from the repo root
+   - Recommended instance size: `apps-s-1vcpu-2gb`
+4. Set the production environment values in DigitalOcean App Platform:
+   - `GITHUB_TOKEN`
+   - `GITHUB_MODEL=gpt-4o-mini`
+   - `OPENALEX_EMAIL`
+   - `VERITY_EXTENSION_ID`
+   - `VERITY_STRICT_EXTENSION_LOCKDOWN=true`
+5. Connect the app to the `main` branch with **deploy on push** enabled. App Platform will rebuild and redeploy automatically on new commits to `main`.
+6. After the first successful deploy, App Platform will assign a production hostname like:
+   `https://your-app-name-xxxx.ondigitalocean.app`
+7. Replace the current production backend URL in the extension with that final DigitalOcean hostname before packaging the Chrome Web Store upload.
+8. Keep runtime secrets configured in DigitalOcean App Platform rather than in the repo.
 
 ## 7. Deployment And Store Submission
 
 ### Production backend checklist
-- Set `VERITY_EXTENSION_ID` in the hosted backend before publishing so CORS is locked to your Chrome Web Store extension ID instead of allowing any Chrome extension origin.
+- Set `VERITY_EXTENSION_ID` in the hosted backend before publishing so extraction requests are locked to your Chrome Web Store extension ID instead of allowing any Chrome extension origin.
 - Set `VERITY_STRICT_EXTENSION_LOCKDOWN=true` in production so extraction endpoints only accept the approved extension origin or a valid API key.
 - Keep `TRIAGE_CAPTURE_ENABLED=false` and `TRIAGE_CAPTURE_INCLUDE_TEXT=false` in production unless you explicitly want developer-only failure capture.
 - Keep `VERITY_VERBOSE_LOGS=false` in production to avoid logging extracted body snippets and claim-level reasoning.
-- Rotate secrets if they were ever exposed during local testing or Azure setup, and store them in Azure-managed secrets or environment variables rather than in the repo.
+- Rotate secrets if they were ever exposed during local testing or previous hosting setup, and store them in DigitalOcean App Platform secrets or environment variables rather than in the repo.
 
 ### Chrome Web Store notes
 - Verity only operates on supported ChatGPT pages.
 - The extension sends the cited URLs, the relevant ChatGPT response text, and the user's prompt to the Verity backend for source verification.
 - The extension does not use remote code. All extension JavaScript is bundled locally in the package.
-- The popup is consumer-facing by default; backend overrides are hidden behind the version-click developer panel and are intended for local development only.
+- The popup is consumer-facing by default; backend overrides sit behind the visible **Developer mode** toggle and are intended for local development or staging only.
 
 ---
 
@@ -215,5 +214,6 @@ The backend is responsible for source extraction, web scraping, and verification
 
 ## Changelog
 
-- **2026-04-14:** Released **v1.2.0**. Verity now ships Azure-first, with the extension defaulting to the hosted Azure Container Apps backend and a cleaner status-first popup that hides backend configuration behind a developer panel.
+- **2026-04-15:** Reworked deployment for **DigitalOcean App Platform**. The repo now ships with a first-class `.do/app.yaml` spec, CI-only GitHub Actions, and updated production guidance for DigitalOcean-based hosting.
+- **2026-04-14:** Released **v1.2.0**. Verity now ships with a cleaner status-first popup and a visible developer mode for backend overrides during local troubleshooting.
 - **2026-04-09:** Improved scoring for trusted medical and institutional sources that do not expose named authors, so pages like `cancer.org` and `clevelandclinic.org` are not unfairly dragged down. These sources now render as institutional pages instead of showing `Unknown` authorship by default.

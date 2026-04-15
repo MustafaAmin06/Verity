@@ -2,6 +2,7 @@ import unittest
 from unittest.mock import AsyncMock, patch
 
 from scraping.extractors import extract_page
+from scraping.browser import PlaywrightBrowserPool
 from scraping.models import BrowserRenderResult, FetchResult, PipelineConfig, SourceInput
 from scraping.orchestrator import ScrapeOrchestrator
 
@@ -172,6 +173,18 @@ class ScrapePipelineTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result.extraction_strategy, "scholarly_adapter")
         self.assertIn("abstract_only", result.retrieval_flags)
         self.assertTrue(result.scrape_success)
+
+    async def test_browser_launch_failure_degrades_to_unavailable(self):
+        pool = PlaywrightBrowserPool(make_config(), __import__("logging"))
+
+        with patch.object(
+            pool,
+            "_ensure_browser",
+            AsyncMock(return_value=None),
+        ):
+            result = await pool.render("https://example.com/dynamic")
+
+        self.assertEqual(result.kind, "unavailable")
 
 
 class ExtractionHeuristicsTests(unittest.TestCase):

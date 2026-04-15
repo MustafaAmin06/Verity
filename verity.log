@@ -211,3 +211,46 @@ For more informati
 19:12:07 [ERROR] Future exception was never retrieved
 future: <Future finished exception=Exception('Connection closed while reading from the driver')>
 Exception: Connection closed while reading from the driver
+19:48:48 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+19:48:48 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+19:48:48 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+19:48:48 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+19:49:00 [INFO] ────────────────────────────────────────────────────────────
+19:49:00 [INFO] Extract-stream request: 4 source(s)  |  LLM: on
+19:49:00 [INFO] Prompt: [44 chars]
+19:49:00 [INFO]   [1] https://en.wikipedia.org/wiki/Retrieval-augmented_generation  |  label: Wikipedia
++1
+19:49:00 [INFO]   [2] https://merge.dev/blog/rag-benefits  |  label: Merge
++1
+19:49:00 [INFO]   [3] https://coveo.com/blog/retrieval-augmented-generation-benefits  |  label: Coveo
+19:49:00 [INFO]   [4] https://community.deeplearning.ai/t/why-and-when-to-use-rag/682599  |  label: DeepLearning.AI
+19:49:00 [INFO] HTTP Request: GET https://merge.dev/blog/rag-benefits "HTTP/2 302 Found"
+19:49:00 [INFO] HTTP Request: GET https://en.wikipedia.org/wiki/Retrieval-augmented_generation "HTTP/2 200 OK"
+19:49:00 [INFO] HTTP Request: GET https://coveo.com/blog/retrieval-augmented-generation-benefits "HTTP/2 301 Moved Permanently"
+19:49:01 [INFO]   SCRAPED OK   en.wikipedia.org                          status=200  words=1240  stage=http  strategy=heuristic_dom  confidence=79  note=ok
+19:49:01 [INFO] HTTP Request: GET https://www.merge.dev/blog/rag-benefits "HTTP/2 200 OK"
+19:49:01 [INFO]   SCRAPED OK   merge.dev                                 status=200  words=976  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+19:49:01 [INFO] HTTP Request: GET https://community.deeplearning.ai/t/why-and-when-to-use-rag/682599 "HTTP/2 200 OK"
+19:49:01 [INFO] HTTP Request: GET https://www.coveo.com/blog/retrieval-augmented-generation-benefits "HTTP/2 302 Found"
+19:49:01 [INFO]   SCRAPED OK   community.deeplearning.ai                 status=200  words=0  stage=http  strategy=none  confidence=30  note=metadata_only
+19:49:01 [INFO]   PLAYWRIGHT   community.deeplearning.ai                 stage=metadata_only  confidence=30 → trying browser render
+19:49:01 [INFO] HTTP Request: GET https://www.coveo.com/blog/retrieval-augmented-generation-benefits/ "HTTP/2 200 OK"
+19:49:01 [INFO]   SCRAPED OK   coveo.com                                 status=200  words=1210  stage=http  strategy=heuristic_dom  confidence=79  note=ok
+19:49:01 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=locations.landing_page_url%3Ahttps%3A%2F%2Fcoveo.com%2Fblog%2Fretrieval-augmented-generation-benefits&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cids%2Cprimary_location%2Cbest_oa_location%2Cauthorships%2Ctopics%2Cprimary_topic%2Copen_access "HTTP/2 200 OK"
+19:49:02 [INFO] HTTP Request: GET https://api.ror.org/v2/organizations?query=AI+Search+Blog&page=1&affiliation=false "HTTP/2 200 OK"
+19:49:03 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+19:49:03 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+19:49:03 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+19:49:04 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+19:49:04 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+19:49:04 [INFO]   CONSENT_DOM  removed 1 consent element(s) via JS
+19:49:04 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+19:49:06 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+19:49:07 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+19:49:07 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+19:49:07 [INFO] Scrape+Score done (7292ms): 4 live, 0 dead
+19:49:07 [INFO] Scoring done (7294ms total)
+19:49:07 [INFO] ────────────────────────────────────────────────────────────
+19:52:12 [ERROR] Future exception was never retrieved
+future: <Future finished exception=Exception('Connection closed while reading from the driver')>
+Exception: Connection closed while reading from the driver

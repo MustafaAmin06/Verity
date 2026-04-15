@@ -90,21 +90,39 @@ class PlaywrightBrowserPool:
         self._lock = asyncio.Lock()
         self._playwright = None
         self._browser = None
+        self._launch_failed = False
+        self._launch_error = None
 
     @property
     def available(self) -> bool:
-        return PLAYWRIGHT_AVAILABLE
+        return PLAYWRIGHT_AVAILABLE and not self._launch_failed
 
     async def _ensure_browser(self):
         if not PLAYWRIGHT_AVAILABLE:
+            return None
+        if self._launch_failed:
             return None
         if self._browser is not None:
             return self._browser
         async with self._lock:
             if self._browser is not None:
                 return self._browser
-            self._playwright = await async_playwright().start()
-            self._browser = await self._playwright.chromium.launch(headless=True)
+            if self._launch_failed:
+                return None
+            try:
+                self._playwright = await async_playwright().start()
+                self._browser = await self._playwright.chromium.launch(headless=True)
+            except Exception as exc:
+                self._launch_failed = True
+                self._launch_error = str(exc)
+                self.logger.warning("  PLAYWRIGHT   browser launch failed: %s", exc)
+                if self._playwright is not None:
+                    try:
+                        await self._playwright.stop()
+                    except Exception:
+                        pass
+                    self._playwright = None
+                return None
         return self._browser
 
     async def _dismiss_cookie_popup(self, page) -> bool:
@@ -132,9 +150,10 @@ class PlaywrightBrowserPool:
         if not PLAYWRIGHT_AVAILABLE:
             return BrowserRenderResult(kind="unavailable")
 
-        await self._ensure_browser()
+        browser = await self._ensure_browser()
+        if browser is None:
+            return BrowserRenderResult(kind="unavailable", error=self._launch_error)
         async with self._semaphore:
-            browser = self._browser
             context = None
             page = None
             try:
