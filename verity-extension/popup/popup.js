@@ -8,10 +8,10 @@ const ADVANCED_CLICK_WINDOW_MS = 1500;
 const DEFAULTS = {
   enabled: true,
   autoCheck: false,
-  extractorUrl: LOCAL_EXTRACTOR_URL,
+  extractorUrl: AZURE_EXTRACTOR_URL,
   apiKey: "",
   minUrlsToShowButton: 1,
-  advancedSettingsVisible: true,
+  advancedSettingsVisible: false,
 };
 
 const FIELD_KEYS = ["enabled", "autoCheck", "extractorUrl", "apiKey", "minUrlsToShowButton"];
@@ -52,7 +52,7 @@ function normalizeUrl(value) {
 
 function normalizeSettings(settings) {
   const next = { ...DEFAULTS, ...settings };
-  next.extractorUrl = normalizeUrl(next.extractorUrl) || LOCAL_EXTRACTOR_URL;
+  next.extractorUrl = normalizeUrl(next.extractorUrl) || AZURE_EXTRACTOR_URL;
   next.apiKey = String(next.apiKey || "");
   next.minUrlsToShowButton = Math.min(
     10,
@@ -60,7 +60,7 @@ function normalizeSettings(settings) {
   );
 
   if (!next.advancedSettingsVisible && next.extractorUrl === LEGACY_RAILWAY_URL) {
-    next.extractorUrl = LOCAL_EXTRACTOR_URL;
+    next.extractorUrl = AZURE_EXTRACTOR_URL;
   }
 
   return next;
@@ -204,10 +204,10 @@ resetDefaults?.addEventListener("click", () => {
   persistSettings({
     enabled: DEFAULTS.enabled,
     autoCheck: DEFAULTS.autoCheck,
-    extractorUrl: LOCAL_EXTRACTOR_URL,
+    extractorUrl: AZURE_EXTRACTOR_URL,
     apiKey: "",
     minUrlsToShowButton: DEFAULTS.minUrlsToShowButton,
-    advancedSettingsVisible: true,
+    advancedSettingsVisible: false,
   });
 });
 
