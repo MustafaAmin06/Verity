@@ -36,6 +36,7 @@ RUN playwright install chromium
 RUN groupadd -r verity && useradd -r -g verity -d /app -s /sbin/nologin verity
 
 COPY verity_extractor.py .
+COPY scraping ./scraping
 COPY devtools ./devtools
 COPY ["scimagojr 2024.csv", "."]
 

@@ -238,6 +238,8 @@ def classify_failure(
         return "scrape_error"
     if note == "partial_content":
         return "partial_content"
+    if note == "metadata_only":
+        return "empty_content"
     if note == "consent_only":
         return "consent_only"
     if live and word_count == 0:

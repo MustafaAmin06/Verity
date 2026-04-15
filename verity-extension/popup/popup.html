@@ -2,79 +2,98 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="popup.css">
 </head>
 <body>
-  <div class="verity-popup">
-    <header class="verity-popup-header">
-      <h1>Verity</h1>
-      <span class="verity-version" id="versionLabel"></span>
-      <a class="verity-external-link" id="projectLink" target="_blank" rel="noopener noreferrer" title="Open project">
-        <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 9.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3.5"/>
-          <path d="M10 2h4v4"/>
-          <path d="M7 9L14 2"/>
-        </svg>
-      </a>
+  <div class="verity-shell">
+    <header class="verity-header">
+      <div class="verity-header-copy">
+        <p class="verity-kicker">ChatGPT source verification</p>
+        <h1>Verity</h1>
+      </div>
+      <div class="verity-header-actions">
+        <button type="button" id="versionLabel" class="verity-version" title="Version"></button>
+        <a class="verity-link-icon" id="projectLink" target="_blank" rel="noopener noreferrer" title="Open project">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 9.5V13a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h3.5"/>
+            <path d="M10 2h4v4"/>
+            <path d="M7 9L14 2"/>
+          </svg>
+        </a>
+      </div>
     </header>
 
-    <!-- General -->
+    <section class="verity-status-card">
+      <div class="verity-status-top">
+        <div>
+          <p class="verity-section-label">Backend</p>
+          <h2 id="backendTitle">Azure API</h2>
+        </div>
+        <span id="serverStatus" class="verity-status-dot verity-status-checking" title="Checking"></span>
+      </div>
+      <p id="serverSummary" class="verity-status-summary">Checking API health…</p>
+      <p id="backendUrlLabel" class="verity-status-url"></p>
+    </section>
+
     <section class="verity-section">
       <h2>General</h2>
 
       <div class="verity-row">
-        <label for="enabled">Enable Verity</label>
+        <div class="verity-row-text">
+          <label for="enabled">Enable Verity</label>
+          <p class="verity-hint">Run source verification while browsing ChatGPT responses.</p>
+        </div>
         <input type="checkbox" id="enabled" class="verity-toggle">
       </div>
 
       <div class="verity-row">
         <div class="verity-row-text">
           <label for="autoCheck">Auto-check sources</label>
-          <p class="verity-hint">Automatically check when ChatGPT finishes responding</p>
+          <p class="verity-hint">Start verification as soon as ChatGPT finishes responding.</p>
         </div>
         <input type="checkbox" id="autoCheck" class="verity-toggle">
       </div>
     </section>
 
-    <!-- Backend -->
-    <section class="verity-section">
-      <h2>Backend</h2>
-
-      <div class="verity-row verity-row-stacked">
-        <label for="extractorUrl">Server URL</label>
-        <div class="verity-url-row">
-          <input type="url" id="extractorUrl" class="verity-input" placeholder="http://localhost:8001">
-          <span id="serverStatus" class="verity-status-dot" title="Checking..."></span>
-        </div>
-        <div class="verity-preset-row">
-          <button id="useLocalPreset" type="button" class="verity-btn-preset">Use localhost</button>
-          <button id="useRailwayPreset" type="button" class="verity-btn-preset">Use Railway</button>
-        </div>
-        <p class="verity-hint">Default dev target is localhost. Switch to your Railway URL when you deploy.</p>
-      </div>
-
-      <div class="verity-row verity-row-stacked">
-        <label for="apiKey">API Key</label>
-        <input type="password" id="apiKey" class="verity-input" placeholder="Leave blank if not required" autocomplete="off">
-        <p class="verity-hint">Authentication key for the backend server</p>
-      </div>
-    </section>
-
-    <!-- Display -->
     <section class="verity-section">
       <h2>Display</h2>
 
       <div class="verity-row">
         <div class="verity-row-text">
           <label for="minUrlsToShowButton">Min sources to show button</label>
-          <p class="verity-hint">Only show "Check sources" when at least this many URLs are found</p>
+          <p class="verity-hint">Only show the check button when at least this many links are found.</p>
         </div>
         <input type="number" id="minUrlsToShowButton" class="verity-input verity-input-sm" min="1" max="10" value="1">
       </div>
     </section>
 
+    <section class="verity-section verity-section-advanced" id="advancedPanel" hidden>
+      <div class="verity-advanced-header">
+        <h2>Developer</h2>
+        <span class="verity-badge">Hidden</span>
+      </div>
+
+      <div class="verity-row verity-row-stacked">
+        <label for="extractorUrl">Backend URL</label>
+        <input type="url" id="extractorUrl" class="verity-input" placeholder="https://verity-api.thankfulsmoke-1985157b.eastus.azurecontainerapps.io">
+        <p class="verity-hint">Override the production backend for local or staging work.</p>
+      </div>
+
+      <div class="verity-row verity-row-stacked">
+        <label for="apiKey">API key</label>
+        <input type="password" id="apiKey" class="verity-input" placeholder="Optional for development only" autocomplete="off">
+        <p class="verity-hint">Stored locally and sent as a bearer token when present.</p>
+      </div>
+
+      <div class="verity-dev-actions">
+        <button id="useAzurePreset" type="button" class="verity-btn-pill">Use Azure</button>
+        <button id="useLocalPreset" type="button" class="verity-btn-pill">Use localhost</button>
+      </div>
+    </section>
+
     <footer class="verity-footer">
-      <button id="resetDefaults" class="verity-btn-reset">Reset to defaults</button>
+      <button id="resetDefaults" type="button" class="verity-btn-reset">Reset defaults</button>
       <span id="savedIndicator" class="verity-saved">Saved</span>
     </footer>
   </div>

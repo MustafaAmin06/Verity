@@ -37,8 +37,9 @@ from bs4 import BeautifulSoup
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 from devtools.triage_catalog import create_capture_run, get_db as get_triage_db, record_observation as triage_record_observation
+from scraping import PipelineConfig, ScrapeOrchestrator, ScrapedSource, SourceInput
 
 try:
     from playwright.async_api import async_playwright
@@ -76,6 +77,10 @@ MAX_BODY_TEXT_CHARS = _env_int("MAX_BODY_TEXT_CHARS", "8000", lo=100, hi=500_000
 MAX_RESPONSE_BYTES = _env_int("MAX_RESPONSE_BYTES", str(10 * 1024 * 1024), lo=1024, hi=100 * 1024 * 1024)
 MAX_SOURCES_PER_REQUEST = _env_int("MAX_SOURCES_PER_REQUEST", "25", lo=1, hi=100)
 PLAYWRIGHT_TIMEOUT_SECONDS = _env_int("PLAYWRIGHT_TIMEOUT_SECONDS", "6", lo=1, hi=60)
+LLM_MAX_CONTEXT_CHARS = _env_int("LLM_MAX_CONTEXT_CHARS", "2000", lo=100, hi=20_000)
+LLM_MAX_PROMPT_CHARS = _env_int("LLM_MAX_PROMPT_CHARS", "2000", lo=100, hi=20_000)
+LLM_MAX_BODY_CHARS = _env_int("LLM_MAX_BODY_CHARS", str(min(MAX_BODY_TEXT_CHARS, 8000)), lo=500, hi=500_000)
+LLM_MAX_OUTPUT_TOKENS = _env_int("LLM_MAX_OUTPUT_TOKENS", "400", lo=64, hi=8192)
 VERITY_RELOAD = os.getenv("VERITY_RELOAD", "false").lower() == "true"
 ENABLE_PLAYWRIGHT_FALLBACK = (
     os.getenv("ENABLE_PLAYWRIGHT_FALLBACK", "true").lower() == "true"
@@ -532,6 +537,33 @@ TOPIC_KEYWORDS = {
         "claude",
         "gemini",
     ],
+    "technical": [
+        "api",
+        "sdk",
+        "docs",
+        "documentation",
+        "reference",
+        "guide",
+        "tutorial",
+        "developer",
+        "software",
+        "platform",
+        "cloud",
+        "integration",
+        "deployment",
+        "architecture",
+        "framework",
+        "protocol",
+        "specification",
+        "library",
+        "package",
+        "retrieval augmented generation",
+        "rag",
+        "vector database",
+        "embedding",
+        "inference",
+        "endpoint",
+    ],
     "economics": [
         "gdp",
         "inflation",
@@ -593,54 +625,10 @@ TOPIC_KEYWORDS = {
     ],
 }
 
-
-class SourceInput(BaseModel):
-    url: str
-    label: str
-    context: str
-
-    @field_validator("url")
-    @classmethod
-    def url_must_be_http(cls, v: str) -> str:
-        if not v.startswith(("http://", "https://")):
-            raise ValueError("URL must use http or https protocol")
-        return v
-
-
 class ExtractRequest(BaseModel):
     sources: list[SourceInput] = Field(..., max_length=25)
     original_prompt: str = Field(..., max_length=5000)
     full_ai_response: str = Field(..., max_length=50000)
-
-
-class ScrapedSource(BaseModel):
-    url: str
-    label: str
-    context: str
-    domain: str
-    live: bool
-    http_status: int | None
-    title: str | None
-    description: str | None
-    body_text: str | None
-    date: str | None
-    author: str | None
-    doi: str | None
-    pmid: str | None = None
-    pmcid: str | None = None
-    issn: str | None = None
-    journal_name: str | None = None
-    publisher_hint: str | None = None
-    organization_hint: str | None = None
-    site_name: str | None = None
-    paywalled: bool
-    is_pdf: bool
-    json_ld: dict | None
-    keywords: list[str]
-    word_count: int
-    scrape_method: str | None
-    scrape_note: str | None
-    scrape_success: bool
 
 
 class ExtractResponse(BaseModel):
@@ -658,6 +646,8 @@ class ExtractResponse(BaseModel):
 class SourceSignals(BaseModel):
     domain_tier: str
     domain_score: int
+    authority_fit_score: int | None = None
+    source_type_confidence_score: int | None = None
     recency_score: int
     author_score: int
     relevance_score: int
@@ -686,6 +676,12 @@ class SourceSignals(BaseModel):
     authority_source: str | None = None
     authority_confidence: str | None = None
     authority_label: str | None = None
+    claim_type: str | None = None
+    main_entity: str | None = None
+    source_role: str | None = None
+    does_source_own_entity: bool | None = None
+    classifier_confidence: str | None = None
+    authority_reason: str | None = None
 
 
 class ScoredSource(BaseModel):
@@ -712,6 +708,16 @@ class ScoredSource(BaseModel):
     authority_confidence: str | None = None
     matched_ids: dict[str, str] | None = None
     paywalled: bool
+    extraction_stage: str | None = None
+    extraction_strategy: str | None = None
+    extraction_confidence: int | None = None
+    retrieval_flags: list[str] = Field(default_factory=list)
+    claim_type: str | None = None
+    main_entity: str | None = None
+    source_role: str | None = None
+    does_source_own_entity: bool | None = None
+    authority_reason: str | None = None
+    classifier_confidence: str | None = None
     signals: SourceSignals
     # OpenAlex display data
     publisher: str | None = None
@@ -739,14 +745,29 @@ class AuthorityProfile(BaseModel):
     evidence: list[str] = Field(default_factory=list)
 
 
+class AuthorityClassification(BaseModel):
+    claim_type: str = "general_information"
+    main_entity: str | None = None
+    source_role: str = "unknown"
+    does_source_own_entity: bool = False
+    classifier_confidence: str = "low"
+    authority_reason: str = ""
+
+
 # ── Scoring helpers ──
 
 DOMAIN_TIER_SCORES: dict[str, int] = {
     "academic_journal": 100,
+    "standards_body": 97,
     "official_body":    95,
     "medical_authority": 92,
+    "technical_primary_source": 90,
+    "official_guidance": 90,
+    "vendor_explainer": 72,
     "established_news": 80,
     "reference_tertiary": 35,
+    "community_discussion": 25,
+    "marketing_landing": 20,
     "independent_blog": 50,
     "flagged":          10,
     "unknown":          30,
@@ -765,7 +786,14 @@ DECISION_CONFIDENCE_LEVELS: tuple[tuple[int, str], ...] = (
 )
 
 TIER_PEER_REVIEWED: set[str] = {"academic_journal"}
-INSTITUTIONAL_AUTHORSHIP_TIERS: set[str] = {"academic_journal", "official_body", "medical_authority"}
+INSTITUTIONAL_AUTHORSHIP_TIERS: set[str] = {
+    "academic_journal",
+    "official_body",
+    "medical_authority",
+    "standards_body",
+    "technical_primary_source",
+    "official_guidance",
+}
 AUTHORITY_OVERRIDE_PROTECTED_TIERS: set[str] = {"flagged", "reference_tertiary"}
 GOVERNMENT_DOMAIN_SUFFIXES: tuple[str, ...] = (
     ".gov",
@@ -795,6 +823,57 @@ VERDICT_MAP = [
 
 
 _QUARTILE_SCORES: dict[str, int] = {"Q1": 100, "Q2": 85, "Q3": 70, "Q4": 55}
+
+CLAIM_TYPE_VALUES: set[str] = {
+    "scholarly_empirical",
+    "product_api",
+    "library_behavior",
+    "standard_protocol",
+    "technical_explainer",
+    "company_product_claim",
+    "general_information",
+}
+
+SOURCE_ROLE_VALUES: set[str] = {
+    "scholarly_primary",
+    "standards_body",
+    "official_guidance",
+    "first_party_docs",
+    "vendor_explainer",
+    "news_reporting",
+    "reference_tertiary",
+    "community_discussion",
+    "marketing_landing",
+    "unknown",
+}
+
+CLASSIFIER_CONFIDENCE_VALUES: set[str] = {"high", "medium", "low"}
+
+SOURCE_ROLE_CONFIDENCE_SCORES: dict[str, int] = {
+    "scholarly_primary": 100,
+    "standards_body": 97,
+    "official_guidance": 95,
+    "first_party_docs": 90,
+    "vendor_explainer": 72,
+    "news_reporting": 75,
+    "reference_tertiary": 40,
+    "community_discussion": 25,
+    "marketing_landing": 20,
+    "unknown": 35,
+}
+
+DOMAIN_TIER_FROM_SOURCE_ROLE: dict[str, str] = {
+    "scholarly_primary": "academic_journal",
+    "standards_body": "standards_body",
+    "official_guidance": "official_body",
+    "first_party_docs": "technical_primary_source",
+    "vendor_explainer": "vendor_explainer",
+    "news_reporting": "established_news",
+    "reference_tertiary": "reference_tertiary",
+    "community_discussion": "community_discussion",
+    "marketing_landing": "marketing_landing",
+    "unknown": "unknown",
+}
 
 
 def _compute_domain_score(domain_info: dict, oa: dict | None = None) -> int:
@@ -890,6 +969,7 @@ def _compute_retrieval_integrity(scraped: ScrapedSource) -> int:
         return 0
 
     note = scraped.scrape_note or ""
+    flags = set(scraped.retrieval_flags or [])
     if note == "blocked_403_waf":
         return 0
 
@@ -910,7 +990,10 @@ def _compute_retrieval_integrity(scraped: ScrapedSource) -> int:
     else:
         depth_score = 10
 
-    score = depth_score
+    if scraped.extraction_confidence is not None:
+        score = (depth_score * 0.45) + (scraped.extraction_confidence * 0.55)
+    else:
+        score = depth_score
     if scraped.scrape_success:
         score += 5
     if scraped.scrape_method == "playwright" and scraped.scrape_success:
@@ -919,16 +1002,24 @@ def _compute_retrieval_integrity(scraped: ScrapedSource) -> int:
         score = min(score, 45)
 
     cap = 100
-    if scraped.paywalled or note == "paywall_detected":
+    if scraped.paywalled or note == "paywall_detected" or "paywall" in flags:
         cap = min(cap, 40)
     if scraped.is_pdf or note == "pdf_skipped":
         cap = min(cap, 45)
-    if note == "partial_content":
+    if note == "partial_content" or "partial_content" in flags:
         cap = min(cap, 60)
     if note == "timeout":
         cap = min(cap, 35)
-    if note == "consent_only":
+    if note == "consent_only" or "consent_text" in flags:
         cap = min(cap, 35)
+    if "metadata_only" in flags or scraped.extraction_stage == "metadata_only":
+        cap = min(cap, 45)
+    if "boilerplate" in flags:
+        cap = min(cap, 50)
+    if "soft_404" in flags:
+        cap = min(cap, 20)
+    if "abstract_only" in flags:
+        cap = min(cap, 72)
     if not scraped.scrape_success:
         cap = min(cap, 55)
 
@@ -936,6 +1027,10 @@ def _compute_retrieval_integrity(scraped: ScrapedSource) -> int:
 
 
 def _is_metadata_only(scraped: ScrapedSource, retrieval_integrity_score: int) -> bool:
+    if "metadata_only" in (scraped.retrieval_flags or []):
+        return True
+    if scraped.extraction_stage == "metadata_only":
+        return True
     if not scraped.body_text:
         return True
     if scraped.word_count < 50:
@@ -947,7 +1042,8 @@ def _is_metadata_only(scraped: ScrapedSource, retrieval_integrity_score: int) ->
 
 def _compute_source_credibility(
     *,
-    domain_score: int,
+    authority_fit_score: int,
+    source_type_confidence_score: int,
     recency_score: int,
     author_score: int,
     is_peer_reviewed: bool,
@@ -957,11 +1053,12 @@ def _compute_source_credibility(
     authority_score = _authority_confidence_score(authority_confidence)
     peer_evidence_score = 100 if is_peer_reviewed else 70 if authority_score >= 75 else 55
     score = (
-        domain_score * 0.50 +
-        recency_score * 0.15 +
-        author_score * 0.15 +
+        authority_fit_score * 0.50 +
+        source_type_confidence_score * 0.30 +
+        recency_score * 0.10 +
+        author_score * 0.10 +
         authority_score * 0.10 +
-        peer_evidence_score * 0.10
+        peer_evidence_score * 0.00
     )
     if domain_tier == "flagged":
         score = min(score, 25)
@@ -1129,14 +1226,18 @@ def _compute_overall_score(
     decision_confidence_score: int,
     domain_tier: str,
     support_class: str,
+    authority_fit_score: int,
+    source_type_confidence_score: int,
+    claim_type: str,
+    source_role: str,
 ) -> int:
     if retrieval_integrity_score == 0:
         return 0
 
     score = (
         retrieval_integrity_score * 0.20 +
-        source_credibility_score * 0.35 +
-        claim_support_score * 0.35 +
+        source_credibility_score * 0.40 +
+        claim_support_score * 0.30 +
         decision_confidence_score * 0.10
     )
 
@@ -1152,6 +1253,14 @@ def _compute_overall_score(
         score = min(score, 74)
     if source_credibility_score < 40 and support_class in SUPPORTED_CLASSES:
         score = min(score, 64)
+    if source_role == "vendor_explainer" and claim_type in {"scholarly_empirical", "standard_protocol"} and support_class in SUPPORTED_CLASSES:
+        score = min(score, 69)
+    if source_role in {"community_discussion", "marketing_landing"} and support_class in SUPPORTED_CLASSES:
+        score = min(score, 64)
+    if authority_fit_score < 40 and support_class in SUPPORTED_CLASSES:
+        score = min(score, 64)
+    if source_type_confidence_score < 60 and support_class in SUPPORTED_CLASSES:
+        score = min(score, 69)
 
     return _clamp_score(score)
 
@@ -1165,6 +1274,10 @@ def _verdict_from_matrix(
     topic_relevance_score: int,
     support_class: str,
     contradiction_strength: str,
+    authority_fit_score: int,
+    source_type_confidence_score: int,
+    claim_type: str,
+    source_role: str,
 ) -> tuple[str, str, str]:
     if not live or retrieval_integrity_score < 35:
         return "inaccessible", "Inaccessible or insufficient evidence", "gray"
@@ -1178,9 +1291,13 @@ def _verdict_from_matrix(
 
     if (
         source_credibility_score >= 65
+        and authority_fit_score >= 70
+        and source_type_confidence_score >= 60
         and claim_support_score >= 80
         and retrieval_integrity_score >= 70
         and support_class in SUPPORTED_CLASSES
+        and not (source_role == "vendor_explainer" and claim_type in {"scholarly_empirical", "standard_protocol"})
+        and source_role not in {"community_discussion", "marketing_landing"}
     ):
         return "supported", "Supported by source", "green"
 
@@ -1215,7 +1332,7 @@ def _composite_score(domain: int, recency: int, author: int, relevance: int, ali
 
 
 def _build_flags(scraped: ScrapedSource) -> list[str]:
-    flags: list[str] = []
+    flags: list[str] = list(scraped.retrieval_flags or [])
     if not scraped.live:
         flags.append("url_dead")
     if (scraped.scrape_note or "").startswith("blocked_403"):
@@ -1227,7 +1344,27 @@ def _build_flags(scraped: ScrapedSource) -> list[str]:
         flags.append("tertiary_source")
     if domain_info.get("tier") == "flagged":
         flags.append("low_credibility_domain")
-    return flags
+    return sorted(set(flags))
+
+
+def _has_authority_profile_bug(
+    authority_profile: AuthorityProfile,
+    classification: AuthorityClassification,
+) -> bool:
+    if authority_profile.authority_kind != "unknown":
+        return False
+    if authority_profile.authority_source != "registry":
+        return False
+    if classification.classifier_confidence not in {"medium", "high"}:
+        return False
+    return classification.source_role in {
+        "scholarly_primary",
+        "standards_body",
+        "official_guidance",
+        "first_party_docs",
+        "vendor_explainer",
+        "news_reporting",
+    }
 
 
 def _detect_topic(text: str) -> str:
@@ -1254,7 +1391,7 @@ CLAIM (the statement the AI made when citing this source):
 ORIGINAL QUESTION (what the user asked):
 {prompt}
 
-SOURCE CONTENT (truncated to first 2000 chars):
+SOURCE CONTENT (truncated to first {body_limit} chars):
 {body}
 
 TASK: Evaluate this source using a real-world verification rubric. Score it, classify the support type, and explain briefly.
@@ -1307,6 +1444,67 @@ Respond with ONLY valid JSON — no text before or after the JSON object:
   "implication": "<1 sentence: what the user should do given this source's credibility>"
 }}"""
 
+_AUTHORITY_SYSTEM_PROMPT = """\
+You are a strict source-authority router. Classify the claim and the role of the source.
+Output ONLY valid JSON. Do not score credibility directly. Do not add prose outside JSON."""
+
+_AUTHORITY_PROMPT = """\
+SOURCE URL:
+{url}
+
+SOURCE TITLE:
+{title}
+
+SOURCE DOMAIN / SITE:
+{domain}
+{site_name}
+
+CLAIM CONTEXT:
+{context}
+
+ORIGINAL QUESTION:
+{prompt}
+
+SOURCE CONTENT (truncated to first {body_limit} chars):
+{body}
+
+Classify the claim and source role.
+
+claim_type must be one of:
+- scholarly_empirical
+- product_api
+- library_behavior
+- standard_protocol
+- technical_explainer
+- company_product_claim
+- general_information
+
+source_role must be one of:
+- scholarly_primary
+- standards_body
+- official_guidance
+- first_party_docs
+- vendor_explainer
+- news_reporting
+- reference_tertiary
+- community_discussion
+- marketing_landing
+- unknown
+
+classifier_confidence must be one of:
+- high
+- medium
+- low
+
+Respond with ONLY valid JSON:
+{{
+  "claim_type": "<one enum value>",
+  "main_entity": "<main product/library/topic/standard/entity or null>",
+  "source_role": "<one enum value>",
+  "classifier_confidence": "<high|medium|low>",
+  "authority_reason": "<1 sentence explaining the source role and claim type>"
+}}"""
+
 
 _llm_client: httpx.AsyncClient | None = None
 
@@ -1331,13 +1529,37 @@ def _build_llm_payload(messages: list[dict[str, str]]) -> dict:
         "model": GITHUB_MODEL,
         "messages": messages,
         "temperature": 0.1,
+        "response_format": {"type": "json_object"},
     }
     # GPT-5 family on GitHub Models expects max_completion_tokens instead of max_tokens.
     if GITHUB_MODEL.startswith("gpt-5"):
-        payload["max_completion_tokens"] = 150
+        payload["max_completion_tokens"] = LLM_MAX_OUTPUT_TOKENS
     else:
-        payload["max_tokens"] = 150
+        payload["max_tokens"] = LLM_MAX_OUTPUT_TOKENS
     return payload
+
+
+def _build_score_prompt(*, context: str, prompt: str, body: str, template: str = _SCORE_PROMPT) -> str:
+    return template.format(
+        context=context[:LLM_MAX_CONTEXT_CHARS],
+        prompt=prompt[:LLM_MAX_PROMPT_CHARS],
+        body=(body or "(no content retrieved)")[:LLM_MAX_BODY_CHARS],
+        body_limit=LLM_MAX_BODY_CHARS,
+    )
+
+
+def _build_authority_prompt(scraped: ScrapedSource, prompt: str) -> str:
+    site_line = f"SOURCE SITE NAME:\n{scraped.site_name}\n" if scraped.site_name else ""
+    return _AUTHORITY_PROMPT.format(
+        url=scraped.url,
+        title=scraped.title or scraped.label or "(none)",
+        domain=scraped.domain,
+        site_name=site_line,
+        context=scraped.context[:LLM_MAX_CONTEXT_CHARS],
+        prompt=prompt[:LLM_MAX_PROMPT_CHARS],
+        body=(scraped.body_text or scraped.description or "(no content retrieved)")[:LLM_MAX_BODY_CHARS],
+        body_limit=LLM_MAX_BODY_CHARS,
+    )
 
 
 async def _call_llm(prompt: str, system: str | None = None) -> str | None:
@@ -1362,7 +1584,15 @@ async def _call_llm(prompt: str, system: str | None = None) -> str | None:
                 await asyncio.sleep(2)
                 continue
             response.raise_for_status()
-            return response.json()["choices"][0]["message"]["content"]
+            payload = response.json()
+            choice = payload["choices"][0]
+            finish_reason = choice.get("finish_reason")
+            if finish_reason == "length":
+                logging.warning(
+                    "GitHub Models response truncated by output limit (finish_reason=length, max_output_tokens=%s)",
+                    LLM_MAX_OUTPUT_TOKENS,
+                )
+            return choice["message"]["content"]
         except Exception as exc:
             if attempt == 0 and "429" in str(exc):
                 await asyncio.sleep(2)
@@ -1384,16 +1614,500 @@ def _parse_json_response(text: str | None, fallback):
         cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip())
         return json.loads(cleaned)
     except json.JSONDecodeError:
+        logging.warning("GitHub Models returned non-JSON or truncated JSON; falling back")
         return fallback
+
+
+_STANDARD_DOMAIN_HINTS: set[str] = {
+    "w3.org",
+    "ietf.org",
+    "rfc-editor.org",
+    "whatwg.org",
+    "ecma-international.org",
+    "unicode.org",
+    "iso.org",
+}
+
+_COMMUNITY_DOMAIN_HINTS: set[str] = {
+    "reddit.com",
+    "quora.com",
+    "stackoverflow.com",
+    "stackexchange.com",
+    "discuss.python.org",
+    "community.openai.com",
+}
+
+_REFERENCE_DOMAIN_HINTS: set[str] = {
+    "wikipedia.org",
+}
+
+_NEWS_SURFACE_HINTS: tuple[str, ...] = (
+    "/news/",
+    "/newsroom/",
+    "/press/",
+    "/press-release",
+)
+
+_DOCS_SURFACE_HINTS: tuple[str, ...] = (
+    "/docs/",
+    "/doc/",
+    "/reference/",
+    "/api/",
+    "/sdk/",
+    "/guide/",
+    "/guides/",
+    "/manual/",
+    "/learn/",
+    "/developer/",
+    "/developers/",
+)
+
+_VENDOR_EXPLAINER_SURFACE_HINTS: tuple[str, ...] = (
+    "/blog/",
+    "/blogs/",
+    "/think/topics/",
+    "/what-is/",
+    "/resources/",
+    "/insights/",
+    "/topics/",
+)
+
+_MARKETING_HINTS: tuple[str, ...] = (
+    "contact sales",
+    "book a demo",
+    "start free trial",
+    "talk to sales",
+    "request a demo",
+    "pricing",
+)
+
+_SCHOLARLY_HINTS: tuple[str, ...] = (
+    "paper",
+    "study",
+    "meta-analysis",
+    "systematic review",
+    "randomized trial",
+    "clinical trial",
+    "empirical",
+    "survey",
+    "journal",
+    "published",
+)
+
+_STANDARD_HINTS: tuple[str, ...] = (
+    "rfc",
+    "specification",
+    "standard",
+    "protocol",
+    "w3c recommendation",
+    "internet draft",
+)
+
+_LIBRARY_HINTS: tuple[str, ...] = (
+    "library",
+    "package",
+    "module",
+    "class",
+    "function",
+    "npm",
+    "pypi",
+    "crate",
+    "gem",
+)
+
+_PRODUCT_API_HINTS: tuple[str, ...] = (
+    "api",
+    "endpoint",
+    "request",
+    "response",
+    "parameter",
+    "authentication",
+    "sdk",
+    "service",
+)
+
+
+def _truncate_reason(value: str | None, limit: int = 180) -> str:
+    value = _normalize_whitespace(value)
+    if not value:
+        return ""
+    if len(value) <= limit:
+        return value
+    return value[: limit - 1].rstrip() + "…"
+
+
+def _normalize_claim_type(value: str | None) -> str:
+    value = str(value or "").strip().lower()
+    return value if value in CLAIM_TYPE_VALUES else "general_information"
+
+
+def _normalize_source_role(value: str | None) -> str:
+    value = str(value or "").strip().lower()
+    return value if value in SOURCE_ROLE_VALUES else "unknown"
+
+
+def _normalize_classifier_confidence(value: str | None) -> str:
+    value = str(value or "").strip().lower()
+    return value if value in CLASSIFIER_CONFIDENCE_VALUES else "low"
+
+
+def _domain_brand(domain: str) -> str:
+    reg = registered_domain(domain)
+    if not reg:
+        return ""
+    parts = reg.split(".")
+    if not parts:
+        return ""
+    return parts[0]
+
+
+def _path_text(url: str) -> str:
+    parsed = urlparse(url)
+    text = f"{parsed.path or ''} {(parsed.query or '')}".lower()
+    return text
+
+
+def _is_docs_surface(scraped: ScrapedSource) -> bool:
+    domain = scraped.domain.lower()
+    path_text = _path_text(scraped.url)
+    if domain.startswith(("docs.", "developer.", "developers.", "learn.", "api.")):
+        return True
+    return any(hint in path_text for hint in _DOCS_SURFACE_HINTS)
+
+
+def _is_vendor_explainer_surface(scraped: ScrapedSource) -> bool:
+    domain_info = get_domain_info(scraped.domain)
+    if domain_info.get("tier") == "established_news":
+        return False
+    path_text = _path_text(scraped.url)
+    return any(hint in path_text for hint in _VENDOR_EXPLAINER_SURFACE_HINTS)
+
+
+def _is_community_surface(scraped: ScrapedSource) -> bool:
+    reg_domain = registered_domain(scraped.domain)
+    path_text = _path_text(scraped.url)
+    if reg_domain in _COMMUNITY_DOMAIN_HINTS:
+        return True
+    return any(token in path_text for token in ("/forum", "/forums", "/discussion", "/questions/", "/r/"))
+
+
+def _is_search_surface(scraped: ScrapedSource) -> bool:
+    reg_domain = registered_domain(scraped.domain)
+    path_text = _path_text(scraped.url)
+    title = (scraped.title or "").lower()
+    return (
+        reg_domain in {"google.com", "bing.com", "duckduckgo.com"}
+        and ("/search" in path_text or "google scholar" in title or "search results" in title)
+    ) or "scholar.google.com" in scraped.domain.lower()
+
+
+def _looks_like_marketing_landing(scraped: ScrapedSource) -> bool:
+    text = " ".join(filter(None, [scraped.title, scraped.description, scraped.body_text[:1200] if scraped.body_text else None])).lower()
+    return any(hint in text for hint in _MARKETING_HINTS)
+
+
+def _fallback_claim_type(scraped: ScrapedSource, prompt: str, topic: str) -> str:
+    text = f"{prompt} {scraped.context} {scraped.title or ''}".lower()
+    if any(hint in text for hint in _STANDARD_HINTS):
+        return "standard_protocol"
+    if any(hint in text for hint in _SCHOLARLY_HINTS):
+        return "scholarly_empirical"
+    if any(hint in text for hint in _LIBRARY_HINTS):
+        return "library_behavior"
+    if any(hint in text for hint in _PRODUCT_API_HINTS):
+        return "product_api"
+    if any(token in text for token in ("announced", "launch", "pricing", "acquisition", "product", "feature")):
+        return "company_product_claim"
+    if topic in {"ai", "technical"} or any(token in text for token in ("rag", "retrieval augmented generation", "architecture", "how does", "benefits of")):
+        return "technical_explainer"
+    return "general_information"
+
+
+def _fallback_source_role(scraped: ScrapedSource, authority_profile: AuthorityProfile) -> str:
+    reg_domain = registered_domain(scraped.domain)
+    domain_info = get_domain_info(scraped.domain)
+    title = (scraped.title or "").lower()
+
+    if authority_profile.authority_kind == "academic_journal" or domain_info.get("tier") == "academic_journal":
+        return "scholarly_primary"
+    if authority_profile.authority_kind in {"official_body", "medical_authority"} or domain_info.get("tier") in {"official_body", "medical_authority"}:
+        return "official_guidance"
+    if authority_profile.authority_kind == "standards_body" or reg_domain in _STANDARD_DOMAIN_HINTS or any(hint in title for hint in _STANDARD_HINTS):
+        return "standards_body"
+    if domain_info.get("tier") == "established_news":
+        return "news_reporting"
+    if reg_domain in _REFERENCE_DOMAIN_HINTS or domain_info.get("tier") == "reference_tertiary":
+        return "reference_tertiary"
+    if _is_search_surface(scraped):
+        return "unknown"
+    if _is_community_surface(scraped):
+        return "community_discussion"
+    if _looks_like_marketing_landing(scraped):
+        return "marketing_landing"
+    if _is_docs_surface(scraped):
+        return "first_party_docs"
+    if _is_vendor_explainer_surface(scraped):
+        return "vendor_explainer"
+    return "unknown"
+
+
+def _fallback_main_entity(scraped: ScrapedSource, prompt: str) -> str | None:
+    for candidate in (scraped.title, scraped.label, scraped.site_name, prompt):
+        normalized = _normalize_entity_name(candidate)
+        if normalized and len(normalized) > 2:
+            return candidate
+    return None
+
+
+def _build_fallback_authority_classification(
+    scraped: ScrapedSource,
+    *,
+    prompt: str,
+    topic: str,
+    authority_profile: AuthorityProfile,
+) -> AuthorityClassification:
+    source_role = _fallback_source_role(scraped, authority_profile)
+    claim_type = _fallback_claim_type(scraped, prompt, topic)
+    reason = {
+        "scholarly_primary": "This source appears to be a scholarly or research-primary source.",
+        "standards_body": "This source appears to be a standards or specification authority.",
+        "official_guidance": "This source appears to be guidance from an official or institutional authority.",
+        "first_party_docs": "This source appears to be first-party documentation or reference material.",
+        "vendor_explainer": "This source appears to be a vendor technical explainer rather than official product reference.",
+        "news_reporting": "This source appears to be a news/reporting source.",
+        "reference_tertiary": "This source appears to be tertiary/reference material.",
+        "community_discussion": "This source appears to be a community or discussion page.",
+        "marketing_landing": "This source appears to be a marketing or landing page.",
+        "unknown": "This source could not be confidently classified.",
+    }.get(source_role, "This source could not be confidently classified.")
+    return AuthorityClassification(
+        claim_type=claim_type,
+        main_entity=_fallback_main_entity(scraped, prompt),
+        source_role=source_role,
+        classifier_confidence="low" if source_role == "unknown" else "medium",
+        authority_reason=reason,
+    )
+
+
+def _ownership_identity_candidates(scraped: ScrapedSource) -> list[str]:
+    path = urlparse(scraped.url).path
+    first_segment = next((part for part in path.split("/") if part), "")
+    values = [
+        scraped.site_name,
+        scraped.publisher_hint,
+        scraped.organization_hint,
+        scraped.title,
+        first_segment,
+        _domain_brand(scraped.domain),
+    ]
+    return [value for value in values if value]
+
+
+def _determine_entity_ownership(
+    scraped: ScrapedSource,
+    classification: AuthorityClassification,
+) -> bool:
+    if classification.source_role == "standards_body":
+        return True
+    if classification.claim_type not in {"product_api", "library_behavior", "company_product_claim"}:
+        return False
+    main_entity = classification.main_entity
+    if not main_entity:
+        return False
+    entity_norm = _normalize_entity_name(main_entity)
+    if not entity_norm:
+        return False
+    for candidate in _ownership_identity_candidates(scraped):
+        if _name_similarity(main_entity, candidate) >= 0.86:
+            return True
+        candidate_norm = _normalize_entity_name(candidate)
+        if entity_norm and candidate_norm and entity_norm in candidate_norm:
+            return True
+    path_norm = _normalize_entity_name(urlparse(scraped.url).path.replace("/", " "))
+    return bool(entity_norm and path_norm and entity_norm in path_norm)
+
+
+def _source_type_confidence_score(source_role: str) -> int:
+    return SOURCE_ROLE_CONFIDENCE_SCORES.get(source_role, SOURCE_ROLE_CONFIDENCE_SCORES["unknown"])
+
+
+def _derive_domain_tier(
+    authority_profile: AuthorityProfile,
+    classification: AuthorityClassification,
+) -> str:
+    if authority_profile.authority_kind in {"academic_journal", "official_body", "medical_authority", "flagged", "reference_tertiary"}:
+        return authority_profile.authority_kind
+    return DOMAIN_TIER_FROM_SOURCE_ROLE.get(classification.source_role, authority_profile.authority_kind or "unknown")
+
+
+def _authority_fit_score(
+    *,
+    claim_type: str,
+    source_role: str,
+    does_source_own_entity: bool,
+) -> int:
+    role_scores = {
+        "scholarly_empirical": {
+            "scholarly_primary": 100,
+            "standards_body": 45,
+            "official_guidance": 55,
+            "first_party_docs": 30,
+            "vendor_explainer": 25,
+            "news_reporting": 45,
+            "reference_tertiary": 25,
+            "community_discussion": 10,
+            "marketing_landing": 5,
+            "unknown": 20,
+        },
+        "product_api": {
+            "scholarly_primary": 35,
+            "standards_body": 65,
+            "official_guidance": 55,
+            "first_party_docs": 100 if does_source_own_entity else 40,
+            "vendor_explainer": 72 if does_source_own_entity else 50,
+            "news_reporting": 35,
+            "reference_tertiary": 25,
+            "community_discussion": 20,
+            "marketing_landing": 15,
+            "unknown": 30,
+        },
+        "library_behavior": {
+            "scholarly_primary": 30,
+            "standards_body": 55,
+            "official_guidance": 45,
+            "first_party_docs": 100 if does_source_own_entity else 45,
+            "vendor_explainer": 68 if does_source_own_entity else 45,
+            "news_reporting": 25,
+            "reference_tertiary": 25,
+            "community_discussion": 20,
+            "marketing_landing": 10,
+            "unknown": 30,
+        },
+        "standard_protocol": {
+            "scholarly_primary": 55,
+            "standards_body": 100,
+            "official_guidance": 60,
+            "first_party_docs": 35,
+            "vendor_explainer": 30,
+            "news_reporting": 35,
+            "reference_tertiary": 30,
+            "community_discussion": 15,
+            "marketing_landing": 10,
+            "unknown": 25,
+        },
+        "technical_explainer": {
+            "scholarly_primary": 80,
+            "standards_body": 82,
+            "official_guidance": 78,
+            "first_party_docs": 88 if does_source_own_entity else 74,
+            "vendor_explainer": 72,
+            "news_reporting": 55,
+            "reference_tertiary": 45,
+            "community_discussion": 25,
+            "marketing_landing": 20,
+            "unknown": 35,
+        },
+        "company_product_claim": {
+            "scholarly_primary": 35,
+            "standards_body": 45,
+            "official_guidance": 50,
+            "first_party_docs": 100 if does_source_own_entity else 45,
+            "vendor_explainer": 78 if does_source_own_entity else 45,
+            "news_reporting": 70,
+            "reference_tertiary": 30,
+            "community_discussion": 20,
+            "marketing_landing": 20,
+            "unknown": 35,
+        },
+        "general_information": {
+            "scholarly_primary": 85,
+            "standards_body": 80,
+            "official_guidance": 85,
+            "first_party_docs": 60 if does_source_own_entity else 50,
+            "vendor_explainer": 50,
+            "news_reporting": 60,
+            "reference_tertiary": 45,
+            "community_discussion": 20,
+            "marketing_landing": 15,
+            "unknown": 35,
+        },
+    }
+    return role_scores.get(claim_type, role_scores["general_information"]).get(source_role, 35)
+
+
+def _normalize_authority_classification(
+    data: dict | None,
+    fallback: AuthorityClassification,
+) -> AuthorityClassification:
+    data = data or {}
+    raw_claim_type = data.get("claim_type")
+    raw_source_role = data.get("source_role")
+    raw_confidence = data.get("classifier_confidence")
+    claim_type = (
+        _normalize_claim_type(raw_claim_type)
+        if raw_claim_type not in (None, "")
+        else fallback.claim_type
+    )
+    source_role = (
+        _normalize_source_role(raw_source_role)
+        if raw_source_role not in (None, "")
+        else fallback.source_role
+    )
+    classifier_confidence = (
+        _normalize_classifier_confidence(raw_confidence)
+        if raw_confidence not in (None, "")
+        else fallback.classifier_confidence
+    )
+    return AuthorityClassification(
+        claim_type=claim_type,
+        main_entity=_truncate(data.get("main_entity") or fallback.main_entity, 150),
+        source_role=source_role,
+        does_source_own_entity=False,
+        classifier_confidence=classifier_confidence,
+        authority_reason=_truncate_reason(data.get("authority_reason") or fallback.authority_reason),
+    )
+
+
+async def classify_source_authority(
+    scraped: ScrapedSource,
+    prompt: str,
+    *,
+    topic: str = "general",
+    authority_profile: AuthorityProfile | None = None,
+) -> dict:
+    base_profile = authority_profile or _bootstrap_authority_profile(scraped)
+    fallback = _build_fallback_authority_classification(
+        scraped,
+        prompt=prompt,
+        topic=topic,
+        authority_profile=base_profile,
+    )
+
+    raw = await _call_llm(_build_authority_prompt(scraped, prompt), system=_AUTHORITY_SYSTEM_PROMPT)
+    parsed = _parse_json_response(raw, fallback.model_dump())
+    classification = _normalize_authority_classification(parsed, fallback)
+
+    if classification.source_role == "unknown" and fallback.source_role != "unknown":
+        classification.source_role = fallback.source_role
+        classification.authority_reason = fallback.authority_reason
+        if classification.classifier_confidence == "low":
+            classification.classifier_confidence = fallback.classifier_confidence
+
+    if classification.claim_type == "general_information" and fallback.claim_type != "general_information":
+        classification.claim_type = fallback.claim_type
+
+    does_source_own_entity = _determine_entity_ownership(scraped, classification)
+    classification.does_source_own_entity = does_source_own_entity
+
+    return classification.model_dump()
 
 
 async def score_source_with_llm(scraped: ScrapedSource, prompt: str) -> dict:
     """Call local LLM to get support classification and evidence reasoning for one source."""
-    body_snippet = (scraped.body_text or scraped.description or "")[:2000]
-    llm_prompt = _SCORE_PROMPT.format(
-        context=scraped.context[:600],
-        prompt=prompt[:500],
-        body=body_snippet or "(no content retrieved)",
+    llm_prompt = _build_score_prompt(
+        context=scraped.context,
+        prompt=prompt,
+        body=scraped.body_text or scraped.description or "",
     )
     raw = await _call_llm(llm_prompt, system=_SCORE_SYSTEM_PROMPT)
     fallback = {
@@ -1591,9 +2305,9 @@ async def lookup_openalex_author(author_id: str) -> dict | None:
     return data
 
 
-async def _noop_coro():
-    """Placeholder coroutine that returns None."""
-    return None
+async def _noop_coro(value=None):
+    """Placeholder coroutine that returns the provided value."""
+    return value
 
 
 def _authority_cache_keys(scraped: "ScrapedSource") -> list[tuple[str, str]]:
@@ -2112,13 +2826,28 @@ def build_scored_source(
     scraped: ScrapedSource,
     llm: dict,
     oa_enrichment: dict | None = None,
+    authority_context: dict | None = None,
     *,
     topic: str = "general",
 ) -> ScoredSource:
     """Combine scraped metadata + LLM output + OpenAlex enrichment into a ScoredSource."""
     oa = oa_enrichment or {}
+    authority_ctx = authority_context or {}
     authority_profile = AuthorityProfile.model_validate(
         oa.get("authority_profile") or _bootstrap_authority_profile(scraped).model_dump()
+    )
+    classification = _normalize_authority_classification(
+        authority_ctx,
+        _build_fallback_authority_classification(
+            scraped,
+            prompt=scraped.context,
+            topic=topic,
+            authority_profile=authority_profile,
+        ),
+    )
+    classification.does_source_own_entity = authority_ctx.get(
+        "does_source_own_entity",
+        _determine_entity_ownership(scraped, classification),
     )
     domain_info = {
         **get_domain_info(scraped.domain),
@@ -2140,7 +2869,17 @@ def build_scored_source(
     if authority_profile.authority_kind != "unknown":
         domain_info["tier"] = authority_profile.authority_kind
 
+    derived_domain_tier = _derive_domain_tier(authority_profile, classification)
+    if derived_domain_tier:
+        domain_info["tier"] = derived_domain_tier
+
     domain_score  = _compute_domain_score(domain_info, oa)
+    authority_fit_score = _authority_fit_score(
+        claim_type=classification.claim_type,
+        source_role=classification.source_role,
+        does_source_own_entity=classification.does_source_own_entity,
+    )
+    source_type_confidence_score = _source_type_confidence_score(classification.source_role)
     recency_score = _compute_recency_score(scraped.date, topic)
     authorship_type, author_label = _classify_authorship(scraped.author, domain_info)
     author_score  = _compute_author_score(scraped.author, domain_info, oa)
@@ -2160,7 +2899,8 @@ def build_scored_source(
     metadata_only = _is_metadata_only(scraped, retrieval_integrity_score)
     retrieval_limited = retrieval_integrity_score < 70
     source_credibility_score = _compute_source_credibility(
-        domain_score=domain_score,
+        authority_fit_score=authority_fit_score,
+        source_type_confidence_score=source_type_confidence_score,
         recency_score=recency_score,
         author_score=author_score,
         is_peer_reviewed=is_peer_reviewed,
@@ -2183,6 +2923,10 @@ def build_scored_source(
         decision_confidence_score=decision_confidence_score,
         domain_tier=domain_info.get("tier", "unknown"),
         support_class=llm_scores["support_class"],
+        authority_fit_score=authority_fit_score,
+        source_type_confidence_score=source_type_confidence_score,
+        claim_type=classification.claim_type,
+        source_role=classification.source_role,
     )
     verdict, verdict_label, color = _verdict_from_matrix(
         live=scraped.live,
@@ -2192,8 +2936,14 @@ def build_scored_source(
         topic_relevance_score=llm_scores["topic_relevance_score"],
         support_class=llm_scores["support_class"],
         contradiction_strength=llm_scores["contradiction_strength"],
+        authority_fit_score=authority_fit_score,
+        source_type_confidence_score=source_type_confidence_score,
+        claim_type=classification.claim_type,
+        source_role=classification.source_role,
     )
     flags = _build_flags(scraped)
+    if _has_authority_profile_bug(authority_profile, classification):
+        flags.append("authority_profile_bug")
     if retrieval_limited:
         flags.append("retrieval_limited")
     if metadata_only:
@@ -2204,6 +2954,8 @@ def build_scored_source(
     signals = SourceSignals(
         domain_tier=domain_info.get("tier", "unknown"),
         domain_score=domain_score,
+        authority_fit_score=authority_fit_score,
+        source_type_confidence_score=source_type_confidence_score,
         recency_score=recency_score,
         author_score=author_score,
         relevance_score=relevance_score,
@@ -2231,6 +2983,12 @@ def build_scored_source(
         authority_source=authority_profile.authority_source,
         authority_confidence=authority_profile.confidence,
         authority_label=authority_profile.authority_name,
+        claim_type=classification.claim_type,
+        main_entity=classification.main_entity,
+        source_role=classification.source_role,
+        does_source_own_entity=classification.does_source_own_entity,
+        classifier_confidence=classification.classifier_confidence,
+        authority_reason=classification.authority_reason,
     )
 
     return ScoredSource(
@@ -2257,6 +3015,16 @@ def build_scored_source(
         authority_confidence=authority_profile.confidence,
         matched_ids=authority_profile.matched_ids or None,
         paywalled=scraped.paywalled,
+        extraction_stage=scraped.extraction_stage,
+        extraction_strategy=scraped.extraction_strategy,
+        extraction_confidence=scraped.extraction_confidence,
+        retrieval_flags=scraped.retrieval_flags,
+        claim_type=classification.claim_type,
+        main_entity=classification.main_entity,
+        source_role=classification.source_role,
+        does_source_own_entity=classification.does_source_own_entity,
+        authority_reason=classification.authority_reason,
+        classifier_confidence=classification.classifier_confidence,
         signals=signals,
         publisher=oa.get("cr_publisher") or oa.get("oa_publisher") or scraped.publisher_hint or None,
         topics=oa.get("oa_topics") or None,
@@ -2273,6 +3041,24 @@ def extract_domain(url: str) -> str:
         return netloc
     except Exception:
         return ""
+
+
+_SCRAPE_PIPELINE = ScrapeOrchestrator(
+    config=PipelineConfig(
+        request_timeout_seconds=REQUEST_TIMEOUT_SECONDS,
+        browser_timeout_seconds=PLAYWRIGHT_TIMEOUT_SECONDS,
+        max_response_bytes=MAX_RESPONSE_BYTES,
+        max_body_text_chars=MAX_BODY_TEXT_CHARS,
+        max_redirects=MAX_REDIRECTS,
+        enable_playwright_fallback=ENABLE_PLAYWRIGHT_FALLBACK,
+        browser_user_agent=BROWSER_USER_AGENT,
+        browser_headers=BROWSER_HEADERS,
+        cache_ttl_seconds=_CACHE_TTL_SECONDS,
+    ),
+    logger=logging,
+    extract_domain=extract_domain,
+    get_domain_info=get_domain_info,
+)
 
 
 def registered_domain(domain: str) -> str:
@@ -3481,25 +4267,7 @@ async def scrape_with_playwright(
 
 
 async def scrape_source(source: SourceInput) -> ScrapedSource:
-    result = await scrape_with_beautifulsoup(source)
-    _recoverable = result.scrape_note in ("scrape_failed", "blocked_403")
-    should_use_playwright = (
-        ENABLE_PLAYWRIGHT_FALLBACK
-        and not result.is_pdf
-        and (
-            (result.live and result.word_count == 0)
-            or (not result.live and _recoverable)
-        )
-    )
-    if not should_use_playwright and result.scrape_note == "blocked_403_waf":
-        logging.info(
-            "  PLAYWRIGHT   %-40s  skipped after confirmed hard 403/WAF block",
-            result.domain,
-        )
-    if should_use_playwright:
-        logging.info("  PLAYWRIGHT   %-40s  words=%s → trying JS render", result.domain, result.word_count)
-        result = await scrape_with_playwright(source, result)
-    return result
+    return await _SCRAPE_PIPELINE.scrape_source(source)
 
 
 async def _record_live_triage_batch(
@@ -3556,7 +4324,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 
-app = FastAPI(title="Verity Extractor", version="1.0.0")
+app = FastAPI(title="Verity Extractor", version="1.2.0")
 
 limiter = Limiter(key_func=get_remote_address)
 app.state.limiter = limiter
@@ -3655,11 +4423,22 @@ async def extract(request: Request, body: ExtractRequest):
     topic = _detect_topic(body.full_ai_response + " " + body.original_prompt)
     async def scrape_and_score(source: SourceInput) -> tuple:
         scraped = await scrape_source(source)
-        llm_result, oa_enrichment = await asyncio.gather(
+        bootstrap_profile = _bootstrap_authority_profile(scraped)
+        llm_result, oa_enrichment, authority_context = await asyncio.gather(
             score_source_with_llm(scraped, body.original_prompt) if llm_ok else _noop_coro(),
             resolve_authority(scraped),
+            classify_source_authority(scraped, body.original_prompt, topic=topic, authority_profile=bootstrap_profile)
+            if llm_ok
+            else _noop_coro(
+                _build_fallback_authority_classification(
+                    scraped,
+                    prompt=body.original_prompt,
+                    topic=topic,
+                    authority_profile=bootstrap_profile,
+                ).model_dump()
+            ),
         )
-        return scraped, llm_result or {}, oa_enrichment or {}
+        return scraped, llm_result or {}, oa_enrichment or {}, authority_context or {}
 
     results = await asyncio.gather(
         *(scrape_and_score(source) for source in body.sources)
@@ -3667,6 +4446,7 @@ async def extract(request: Request, body: ExtractRequest):
     scraped_sources = [r[0] for r in results]
     llm_results = [r[1] for r in results]
     oa_results = [r[2] for r in results]
+    authority_results = [r[3] for r in results]
 
     scrape_ms = int((time.perf_counter() - start) * 1000)
     live_count = sum(1 for s in scraped_sources if s.live)
@@ -3695,8 +4475,8 @@ async def extract(request: Request, body: ExtractRequest):
 
     if llm_ok:
         scored_unsorted = [
-            build_scored_source(s, llm, oa, topic=topic)
-            for s, llm, oa in zip(scraped_sources, llm_results, oa_results)
+            build_scored_source(s, llm, oa, authority_context=authority_ctx, topic=topic)
+            for s, llm, oa, authority_ctx in zip(scraped_sources, llm_results, oa_results, authority_results)
         ]
         await _record_live_triage_batch(
             source_kind="live_extract",
@@ -3824,11 +4604,22 @@ async def extract_stream(request: Request, body: ExtractRequest):
 
         async def scrape_and_score_indexed(index, source):
             scraped = await scrape_source(source)
-            llm_result, oa_enrichment = await asyncio.gather(
+            bootstrap_profile = _bootstrap_authority_profile(scraped)
+            llm_result, oa_enrichment, authority_context = await asyncio.gather(
                 score_source_with_llm(scraped, body.original_prompt) if llm_ok else _noop_coro(),
                 resolve_authority(scraped),
+                classify_source_authority(scraped, body.original_prompt, topic=topic, authority_profile=bootstrap_profile)
+                if llm_ok
+                else _noop_coro(
+                    _build_fallback_authority_classification(
+                        scraped,
+                        prompt=body.original_prompt,
+                        topic=topic,
+                        authority_profile=bootstrap_profile,
+                    ).model_dump()
+                ),
             )
-            return index, scraped, llm_result or {}, oa_enrichment or {}
+            return index, scraped, llm_result or {}, oa_enrichment or {}, authority_context or {}
 
         tasks = [
             asyncio.create_task(scrape_and_score_indexed(i, s))
@@ -3838,8 +4629,8 @@ async def extract_stream(request: Request, body: ExtractRequest):
         results = [None] * total
         completed = 0
         for coro in asyncio.as_completed(tasks):
-            idx, scraped, llm_result, oa_enrichment = await coro
-            results[idx] = (scraped, llm_result, oa_enrichment)
+            idx, scraped, llm_result, oa_enrichment, authority_context = await coro
+            results[idx] = (scraped, llm_result, oa_enrichment, authority_context)
             completed += 1
             progress = {
                 "completed": completed,
@@ -3851,6 +4642,7 @@ async def extract_stream(request: Request, body: ExtractRequest):
         scraped_sources = [r[0] for r in results]
         llm_results = [r[1] for r in results]
         oa_results = [r[2] for r in results]
+        authority_results = [r[3] for r in results]
 
         scrape_ms = int((time.perf_counter() - start) * 1000)
         live_count = sum(1 for s in scraped_sources if s.live)
@@ -3859,8 +4651,8 @@ async def extract_stream(request: Request, body: ExtractRequest):
 
         if llm_ok:
             scored_unsorted = [
-                build_scored_source(s, llm, oa, topic=topic)
-                for s, llm, oa in zip(scraped_sources, llm_results, oa_results)
+                build_scored_source(s, llm, oa, authority_context=authority_ctx, topic=topic)
+                for s, llm, oa, authority_ctx in zip(scraped_sources, llm_results, oa_results, authority_results)
             ]
             await _record_live_triage_batch(
                 source_kind="live_stream",

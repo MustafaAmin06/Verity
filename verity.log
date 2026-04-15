@@ -402,3 +402,600 @@
 22:01:04 [INFO] Scrape+Score done (8302ms): 4 live, 0 dead
 22:01:04 [INFO] Scoring done (8309ms total)
 22:01:04 [INFO] ────────────────────────────────────────────────────────────
+21:46:39 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+21:46:39 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+21:46:39 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+21:46:39 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+21:46:39 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+21:46:39 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+21:46:49 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+21:46:49 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+21:46:49 [WARNING]   SCRAPE FAIL  nature.com                                status=-     reason=private_ip_blocked
+21:46:49 [WARNING]   SCRAPE FAIL  who.int                                   status=-     reason=private_ip_blocked
+21:46:49 [WARNING]   SCRAPE FAIL  cdc.gov                                   status=-     reason=private_ip_blocked
+21:46:49 [WARNING]   SCRAPE FAIL  arxiv.org                                 status=-     reason=private_ip_blocked
+21:46:49 [WARNING]   SCRAPE FAIL  bbc.com                                   status=-     reason=private_ip_blocked
+21:46:49 [WARNING]   SCRAPE FAIL  en.wikipedia.org                          status=-     reason=private_ip_blocked
+21:46:49 [WARNING]   SCRAPE FAIL  medium.com                                status=-     reason=private_ip_blocked
+21:46:49 [WARNING]   SCRAPE FAIL  reuters.com                               status=-     reason=private_ip_blocked
+21:46:49 [WARNING]   SCRAPE FAIL  pubmed.ncbi.nlm.nih.gov                   status=-     reason=private_ip_blocked
+21:46:49 [WARNING]   SCRAPE FAIL  sciencedirect.com                         status=-     reason=private_ip_blocked
+21:46:49 [WARNING]   SCRAPE FAIL  epa.gov                                   status=-     reason=private_ip_blocked
+21:46:49 [WARNING]   SCRAPE FAIL  theguardian.com                           status=-     reason=private_ip_blocked
+21:46:49 [WARNING]   SCRAPE FAIL  example-dead-link.com                     status=-     reason=private_ip_blocked
+21:46:49 [WARNING]   SCRAPE FAIL  reddit.com                                status=-     reason=private_ip_blocked
+21:46:49 [WARNING]   SCRAPE FAIL  scholar.google.com                        status=-     reason=private_ip_blocked
+21:47:08 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+21:47:08 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+21:47:09 [INFO] HTTP Request: GET https://www.nature.com/articles/s41893-023-01253-4 "HTTP/2 303 See Other"
+21:47:09 [INFO] HTTP Request: GET https://idp.nature.com/authorize?response_type=cookie&client_id=grover&redirect_uri=https%3A%2F%2Fwww.nature.com%2Farticles%2Fs41893-023-01253-4 "HTTP/2 302 Found"
+21:47:09 [INFO] HTTP Request: GET https://idp.nature.com/transit?redirect_uri=https%3A%2F%2Fwww.nature.com%2Farticles%2Fs41893-023-01253-4&code=0ea87f7a-5482-4348-91da-5b676ada1735 "HTTP/2 302 Found"
+21:47:09 [INFO] HTTP Request: GET https://www.nature.com/articles/s41893-023-01253-4 "HTTP/2 404 Not Found"
+21:47:09 [WARNING]   SCRAPE FAIL  nature.com                                status=404   reason=url_dead
+21:47:10 [INFO] HTTP Request: GET https://www.who.int/news-room/fact-sheets/detail/drinking-water "HTTP/2 200 OK"
+21:47:10 [INFO]   SCRAPED OK   who.int                                   status=200  words=1160  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+21:47:10 [INFO] HTTP Request: GET https://www.cdc.gov/environmental-health/about/index.html "HTTP/2 404 Not Found"
+21:47:10 [WARNING]   SCRAPE FAIL  cdc.gov                                   status=404   reason=url_dead
+21:47:10 [INFO] HTTP Request: GET https://arxiv.org/abs/2312.00001 "HTTP/2 200 OK"
+21:47:10 [INFO]   SCRAPED OK   arxiv.org                                 status=200  words=542  stage=http  strategy=heuristic_dom  confidence=64  note=ok
+21:47:11 [INFO] HTTP Request: GET https://www.bbc.com/news/science-environment-68123456 "HTTP/2 404 Not Found"
+21:47:11 [WARNING]   SCRAPE FAIL  bbc.com                                   status=404   reason=url_dead
+21:47:11 [INFO] HTTP Request: GET https://en.wikipedia.org/wiki/Microplastics "HTTP/2 200 OK"
+21:47:12 [INFO]   SCRAPED OK   en.wikipedia.org                          status=200  words=1224  stage=http  strategy=heuristic_dom  confidence=79  note=ok
+21:47:12 [INFO] HTTP Request: GET https://medium.com/@researcher/microplastics-danger-abc123 "HTTP/2 403 Forbidden"
+21:47:12 [WARNING]   SCRAPE FAIL  medium.com                                status=403   reason=blocked_403_waf
+21:47:12 [INFO] HTTP Request: GET https://www.reuters.com/business/environment/microplastics-water-2024-01-15/ "HTTP/2 401 Unauthorized"
+21:47:12 [WARNING]   SCRAPE FAIL  reuters.com                               status=401   reason=url_dead
+21:47:12 [INFO] HTTP Request: GET https://pubmed.ncbi.nlm.nih.gov/38000000/ "HTTP/2 200 OK"
+21:47:13 [INFO]   SCRAPED OK   pubmed.ncbi.nlm.nih.gov                   status=200  words=485  stage=http  strategy=heuristic_dom  confidence=60  note=ok
+21:47:13 [INFO] HTTP Request: GET https://www.sciencedirect.com/science/article/pii/S0048969724000001 "HTTP/2 403 Forbidden"
+21:47:13 [WARNING]   SCRAPE FAIL  sciencedirect.com                         status=403   reason=blocked_403_waf
+21:47:13 [INFO] HTTP Request: GET https://www.epa.gov/water-research/microplastics-research "HTTP/2 200 OK"
+21:47:13 [INFO]   SCRAPED OK   epa.gov                                   status=200  words=530  stage=http  strategy=heuristic_dom  confidence=64  note=ok
+21:47:13 [INFO] HTTP Request: GET https://www.theguardian.com/environment/2024/jan/01/microplastics-drinking-water "HTTP/2 404 Not Found"
+21:47:13 [WARNING]   SCRAPE FAIL  theguardian.com                           status=404   reason=url_dead
+21:47:13 [WARNING]   SCRAPE FAIL  example-dead-link.com                     status=-     reason=private_ip_blocked
+21:47:13 [INFO] HTTP Request: GET https://www.reddit.com/r/science/comments/abc123/microplastics_study/ "HTTP/2 200 OK"
+21:47:13 [INFO]   SCRAPED OK   reddit.com                                status=200  words=0  stage=http  strategy=none  confidence=0  note=ok
+21:47:13 [INFO]   PLAYWRIGHT   reddit.com                                stage=metadata_only  confidence=0 → trying browser render
+21:47:16 [INFO]   COOKIE_POPUP dismissed
+21:47:17 [INFO] HTTP Request: GET https://scholar.google.com/scholar?q=microplastics+drinking+water "HTTP/2 200 OK"
+21:47:17 [INFO]   SCRAPED OK   scholar.google.com                        status=200  words=801  stage=http  strategy=heuristic_dom  confidence=54  note=ok
+21:47:17 [INFO]   PLAYWRIGHT   scholar.google.com                        stage=http  confidence=54 → trying browser render
+21:47:18 [INFO]   CONSENT_DOM  removed 4 consent element(s) via JS
+21:47:27 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+21:47:27 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+21:47:27 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+21:47:27 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+21:53:32 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+21:53:32 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+21:53:32 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+21:53:32 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+21:53:40 [INFO] ────────────────────────────────────────────────────────────
+21:53:40 [INFO] Extract-stream request: 4 source(s)  |  LLM: on
+21:53:40 [INFO] Prompt: [48 chars]
+21:53:40 [INFO]   [1] https://ibm.com/think/topics/retrieval-augmented-generation  |  label: ibm.com
++1
+21:53:40 [INFO]   [2] https://merge.dev/blog/rag-benefits  |  label: Merge
++1
+21:53:40 [INFO]   [3] https://aws.amazon.com/what-is/retrieval-augmented-generation  |  label: Amazon Web Services, Inc.
++1
+21:53:40 [INFO]   [4] https://microsoft.com/en-us/microsoft-cloud/blog/2025/02/13/5-key-features-and-benefits-of-retrieval-augmented-generation-rag  |  label: Microsoft
+21:53:41 [INFO] HTTP Request: GET https://microsoft.com/en-us/microsoft-cloud/blog/2025/02/13/5-key-features-and-benefits-of-retrieval-augmented-generation-rag "HTTP/2 301 Moved Permanently"
+21:53:41 [INFO] HTTP Request: GET https://merge.dev/blog/rag-benefits "HTTP/2 302 Found"
+21:53:41 [INFO] HTTP Request: GET https://ibm.com/think/topics/retrieval-augmented-generation "HTTP/2 301 Moved Permanently"
+21:53:41 [INFO] HTTP Request: GET https://aws.amazon.com/what-is/retrieval-augmented-generation "HTTP/2 301 Moved Permanently"
+21:53:41 [INFO] HTTP Request: GET https://aws.amazon.com/what-is/retrieval-augmented-generation/ "HTTP/2 200 OK"
+21:53:41 [INFO]   SCRAPED OK   aws.amazon.com                            status=200  words=1153  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+21:53:41 [INFO] HTTP Request: GET https://www.merge.dev/blog/rag-benefits "HTTP/2 200 OK"
+21:53:41 [INFO] HTTP Request: GET https://www.ibm.com/think/topics/retrieval-augmented-generation "HTTP/2 200 OK"
+21:53:41 [INFO]   SCRAPED OK   ibm.com                                   status=200  words=1163  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+21:53:41 [INFO]   SCRAPED OK   merge.dev                                 status=200  words=976  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+21:53:41 [INFO] HTTP Request: GET https://www.microsoft.com/en-us/microsoft-cloud/blog/2025/02/13/5-key-features-and-benefits-of-retrieval-augmented-generation-rag "HTTP/2 301 Moved Permanently"
+21:53:41 [INFO] HTTP Request: GET https://api.ror.org/v2/organizations?query=Amazon+Web+Services%2C+Inc.&page=1&affiliation=false "HTTP/2 200 OK"
+21:53:41 [INFO] HTTP Request: GET https://api.ror.org/v2/organizations?query=Merge&page=1&affiliation=false "HTTP/2 200 OK"
+21:53:41 [INFO] HTTP Request: GET https://api.ror.org/v2/organizations?query=What+is+RAG+%28Retrieval+Augmented+Generation%29%3F+%7C+IBM&page=1&affiliation=false "HTTP/2 200 OK"
+21:53:42 [INFO] HTTP Request: GET https://www.wikidata.org/w/api.php?action=wbsearchentities&search=Amazon+Web+Services%2C+Inc.&language=en&limit=5&format=json&origin=%2A "HTTP/2 200 OK"
+21:53:42 [INFO] HTTP Request: GET https://www.wikidata.org/w/api.php?action=wbsearchentities&search=What+is+RAG+%28Retrieval+Augmented+Generation%29%3F+%7C+IBM&language=en&limit=5&format=json&origin=%2A "HTTP/2 200 OK"
+21:53:42 [INFO] HTTP Request: GET https://www.microsoft.com/en-us/microsoft-cloud/blog/2025/02/13/5-key-features-and-benefits-of-retrieval-augmented-generation-rag/ "HTTP/2 200 OK"
+21:53:42 [INFO] HTTP Request: GET https://www.wikidata.org/w/api.php?action=wbsearchentities&search=Merge&language=en&limit=5&format=json&origin=%2A "HTTP/2 200 OK"
+21:53:42 [INFO]   SCRAPED OK   microsoft.com                             status=200  words=26  stage=http  strategy=heuristic_dom  confidence=0  note=partial_content
+21:53:42 [INFO]   PLAYWRIGHT   microsoft.com                             stage=http  confidence=0 → trying browser render
+21:53:42 [INFO] HTTP Request: GET https://www.wikidata.org/w/api.php?action=wbgetentities&ids=Q456157&props=claims%7Clabels%7Cdescriptions&languages=en&format=json&origin=%2A "HTTP/2 200 OK"
+21:53:42 [INFO] HTTP Request: GET https://www.wikidata.org/w/api.php?action=wbgetentities&ids=Q1921640%7CQ17853087%7CQ12819913%7CQ45403344%7CQ135053372&props=claims%7Clabels%7Cdescriptions&languages=en&format=json&origin=%2A "HTTP/2 200 OK"
+21:53:43 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:53:44 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:53:44 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:53:46 [INFO]   COOKIE_POPUP dismissed
+21:53:46 [INFO]   CONSENT_DOM  removed 4 consent element(s) via JS
+21:53:46 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=doi%3A10.5555%2F3495724.3496517&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cids%2Cprimary_location%2Cbest_oa_location%2Cauthorships%2Ctopics%2Cprimary_topic%2Copen_access "HTTP/2 200 OK"
+21:53:46 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=locations.landing_page_url%3Ahttps%3A%2F%2Fmicrosoft.com%2Fen-us%2Fmicrosoft-cloud%2Fblog%2F2025%2F02%2F13%2F5-key-features-and-benefits-of-retrieval-augmented-generation-rag&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cids%2Cprimary_location%2Cbest_oa_location%2Cauthorships%2Ctopics%2Cprimary_topic%2Copen_access "HTTP/2 200 OK"
+21:53:47 [INFO] HTTP Request: GET https://api.crossref.org/works/10.5555%2F3495724.3496517 "HTTP/2 404 Not Found"
+21:53:47 [WARNING] ROR error: 
+21:53:49 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:53:49 [INFO] Scrape+Score done (8546ms): 4 live, 0 dead
+21:53:49 [INFO] Scoring done (8553ms total)
+21:53:49 [INFO] ────────────────────────────────────────────────────────────
+21:56:09 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+21:56:09 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+21:56:09 [INFO] HTTP Request: GET https://ibm.com/think/topics/retrieval-augmented-generation "HTTP/2 301 Moved Permanently"
+21:56:09 [INFO] HTTP Request: GET https://www.ibm.com/think/topics/retrieval-augmented-generation "HTTP/2 200 OK"
+21:56:10 [INFO]   SCRAPED OK   ibm.com                                   status=200  words=1163  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+21:56:13 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:56:13 [INFO] HTTP Request: GET https://merge.dev/blog/rag-benefits "HTTP/2 302 Found"
+21:56:13 [INFO] HTTP Request: GET https://www.merge.dev/blog/rag-benefits "HTTP/2 200 OK"
+21:56:13 [INFO]   SCRAPED OK   merge.dev                                 status=200  words=976  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+21:56:16 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:56:16 [INFO] HTTP Request: GET https://aws.amazon.com/what-is/retrieval-augmented-generation "HTTP/2 301 Moved Permanently"
+21:56:16 [INFO] HTTP Request: GET https://aws.amazon.com/what-is/retrieval-augmented-generation/ "HTTP/2 200 OK"
+21:56:16 [INFO]   SCRAPED OK   aws.amazon.com                            status=200  words=1153  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+21:56:19 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:56:19 [INFO] HTTP Request: GET https://microsoft.com/en-us/microsoft-cloud/blog/2025/02/13/5-key-features-and-benefits-of-retrieval-augmented-generation-rag "HTTP/2 301 Moved Permanently"
+21:56:19 [INFO] HTTP Request: GET https://www.microsoft.com/en-us/microsoft-cloud/blog/2025/02/13/5-key-features-and-benefits-of-retrieval-augmented-generation-rag "HTTP/2 301 Moved Permanently"
+21:56:20 [INFO] HTTP Request: GET https://www.microsoft.com/en-us/microsoft-cloud/blog/2025/02/13/5-key-features-and-benefits-of-retrieval-augmented-generation-rag/ "HTTP/2 200 OK"
+21:56:20 [INFO]   SCRAPED OK   microsoft.com                             status=200  words=26  stage=http  strategy=heuristic_dom  confidence=0  note=partial_content
+21:56:20 [INFO]   PLAYWRIGHT   microsoft.com                             stage=http  confidence=0 → trying browser render
+21:56:24 [INFO]   COOKIE_POPUP dismissed
+21:56:24 [INFO]   CONSENT_DOM  removed 4 consent element(s) via JS
+21:56:27 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:56:53 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+21:56:53 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+21:56:53 [INFO] HTTP Request: GET https://ibm.com/think/topics/retrieval-augmented-generation "HTTP/2 301 Moved Permanently"
+21:56:53 [INFO] HTTP Request: GET https://www.ibm.com/think/topics/retrieval-augmented-generation "HTTP/2 200 OK"
+21:56:53 [INFO]   SCRAPED OK   ibm.com                                   status=200  words=1163  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+21:56:56 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:56:56 [INFO] HTTP Request: GET https://aws.amazon.com/what-is/retrieval-augmented-generation "HTTP/2 301 Moved Permanently"
+21:56:56 [INFO] HTTP Request: GET https://aws.amazon.com/what-is/retrieval-augmented-generation/ "HTTP/2 200 OK"
+21:56:56 [INFO]   SCRAPED OK   aws.amazon.com                            status=200  words=1153  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+21:56:59 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:59:45 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+21:59:45 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+21:59:45 [INFO] ────────────────────────────────────────────────────────────
+21:59:45 [INFO] Extract request: 1 source(s)  |  LLM: off
+21:59:45 [INFO] Prompt: [26 chars]
+21:59:45 [INFO]   [1] https://example.com/article  |  label: Example article
+21:59:45 [INFO] Scrape+Score done (1ms): 1 live, 0 dead
+21:59:45 [INFO]   [1/1] EXTRACTED  https://example.com/article
+          title    : Example article
+          date     : 2024
+          author   : Example Author
+          words    : 160
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape.
+21:59:45 [INFO]   ✓ live  example.com                               method=beautifulsoup   words=160
+21:59:45 [INFO] ────────────────────────────────────────────────────────────
+21:59:45 [INFO] ────────────────────────────────────────────────────────────
+21:59:45 [INFO] Extract-stream request: 1 source(s)  |  LLM: on
+21:59:45 [INFO] Prompt: [26 chars]
+21:59:45 [INFO]   [1] https://example.com/article  |  label: Example article
+21:59:45 [INFO] Scrape+Score done (0ms): 1 live, 0 dead
+21:59:45 [INFO] Scoring done (1ms total)
+21:59:45 [INFO] ────────────────────────────────────────────────────────────
+21:59:58 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+21:59:58 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+21:59:58 [INFO] HTTP Request: GET https://ibm.com/think/topics/retrieval-augmented-generation "HTTP/2 301 Moved Permanently"
+21:59:58 [INFO] HTTP Request: GET https://www.ibm.com/think/topics/retrieval-augmented-generation "HTTP/2 200 OK"
+21:59:58 [INFO]   SCRAPED OK   ibm.com                                   status=200  words=1163  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+22:00:02 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:00:02 [INFO] HTTP Request: GET https://aws.amazon.com/what-is/retrieval-augmented-generation "HTTP/2 301 Moved Permanently"
+22:00:02 [INFO] HTTP Request: GET https://aws.amazon.com/what-is/retrieval-augmented-generation/ "HTTP/2 200 OK"
+22:00:02 [INFO]   SCRAPED OK   aws.amazon.com                            status=200  words=1153  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+22:00:05 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:00:24 [ERROR] Future exception was never retrieved
+future: <Future finished exception=Exception('Connection closed while reading from the driver')>
+Exception: Connection closed while reading from the driver
+22:00:27 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+22:00:27 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+22:00:27 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+22:00:27 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+22:00:36 [INFO] ────────────────────────────────────────────────────────────
+22:00:36 [INFO] Extract-stream request: 4 source(s)  |  LLM: on
+22:00:36 [INFO] Prompt: [48 chars]
+22:00:36 [INFO]   [1] https://ibm.com/think/topics/retrieval-augmented-generation  |  label: ibm.com
++1
+22:00:36 [INFO]   [2] https://merge.dev/blog/rag-benefits  |  label: Merge
++1
+22:00:36 [INFO]   [3] https://aws.amazon.com/what-is/retrieval-augmented-generation  |  label: Amazon Web Services, Inc.
++1
+22:00:36 [INFO]   [4] https://microsoft.com/en-us/microsoft-cloud/blog/2025/02/13/5-key-features-and-benefits-of-retrieval-augmented-generation-rag  |  label: Microsoft
+22:00:36 [INFO] HTTP Request: GET https://ibm.com/think/topics/retrieval-augmented-generation "HTTP/2 301 Moved Permanently"
+22:00:36 [INFO] HTTP Request: GET https://microsoft.com/en-us/microsoft-cloud/blog/2025/02/13/5-key-features-and-benefits-of-retrieval-augmented-generation-rag "HTTP/2 301 Moved Permanently"
+22:00:36 [INFO] HTTP Request: GET https://merge.dev/blog/rag-benefits "HTTP/2 302 Found"
+22:00:36 [INFO] HTTP Request: GET https://www.merge.dev/blog/rag-benefits "HTTP/2 200 OK"
+22:00:36 [INFO]   SCRAPED OK   merge.dev                                 status=200  words=976  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+22:00:36 [INFO] HTTP Request: GET https://aws.amazon.com/what-is/retrieval-augmented-generation "HTTP/2 301 Moved Permanently"
+22:00:36 [INFO] HTTP Request: GET https://www.ibm.com/think/topics/retrieval-augmented-generation "HTTP/2 200 OK"
+22:00:36 [INFO]   SCRAPED OK   ibm.com                                   status=200  words=1163  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+22:00:36 [INFO] HTTP Request: GET https://aws.amazon.com/what-is/retrieval-augmented-generation/ "HTTP/2 200 OK"
+22:00:37 [INFO]   SCRAPED OK   aws.amazon.com                            status=200  words=1153  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+22:00:37 [INFO] HTTP Request: GET https://www.microsoft.com/en-us/microsoft-cloud/blog/2025/02/13/5-key-features-and-benefits-of-retrieval-augmented-generation-rag "HTTP/2 301 Moved Permanently"
+22:00:37 [INFO] HTTP Request: GET https://www.microsoft.com/en-us/microsoft-cloud/blog/2025/02/13/5-key-features-and-benefits-of-retrieval-augmented-generation-rag/ "HTTP/2 200 OK"
+22:00:37 [INFO]   SCRAPED OK   microsoft.com                             status=200  words=26  stage=http  strategy=heuristic_dom  confidence=0  note=partial_content
+22:00:37 [INFO]   PLAYWRIGHT   microsoft.com                             stage=http  confidence=0 → trying browser render
+22:00:39 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:00:40 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:00:40 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:00:41 [INFO]   COOKIE_POPUP dismissed
+22:00:41 [INFO]   CONSENT_DOM  removed 4 consent element(s) via JS
+22:00:46 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:00:46 [INFO] Scrape+Score done (10216ms): 4 live, 0 dead
+22:00:46 [INFO] Scoring done (10222ms total)
+22:00:46 [INFO] ────────────────────────────────────────────────────────────
+22:28:25 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+22:28:25 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+22:28:25 [INFO] ────────────────────────────────────────────────────────────
+22:28:25 [INFO] Extract request: 1 source(s)  |  LLM: off
+22:28:25 [INFO] Prompt: [26 chars]
+22:28:25 [INFO]   [1] https://example.com/article  |  label: Example article
+22:28:25 [WARNING] GitHub Models call failed: [Errno -2] Name or service not known
+22:28:25 [INFO] Scrape+Score done (35ms): 1 live, 0 dead
+22:28:25 [INFO]   [1/1] EXTRACTED  https://example.com/article
+          title    : Example article
+          date     : 2024
+          author   : Example Author
+          words    : 160
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape.
+22:28:25 [INFO]   ✓ live  example.com                               method=beautifulsoup   words=160
+22:28:25 [INFO] ────────────────────────────────────────────────────────────
+22:29:25 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+22:29:25 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+22:29:52 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+22:29:52 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+22:30:00 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+22:30:00 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+22:30:18 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+22:30:18 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+22:30:53 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+22:30:53 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+22:30:53 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+22:30:53 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+22:30:59 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+22:30:59 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+22:30:59 [INFO] ────────────────────────────────────────────────────────────
+22:30:59 [INFO] Extract request: 1 source(s)  |  LLM: off
+22:30:59 [INFO] Prompt: [26 chars]
+22:30:59 [INFO]   [1] https://example.com/article  |  label: Example article
+22:31:14 [WARNING] GitHub Models call failed: [Errno -2] Name or service not known
+22:31:14 [INFO] Scrape+Score done (15044ms): 1 live, 0 dead
+22:31:14 [INFO]   [1/1] EXTRACTED  https://example.com/article
+          title    : Example article
+          date     : 2024
+          author   : Example Author
+          words    : 160
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape.
+22:31:14 [INFO]   ✓ live  example.com                               method=beautifulsoup   words=160
+22:31:14 [INFO] ────────────────────────────────────────────────────────────
+22:31:16 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+22:31:16 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+22:31:16 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+22:31:16 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+22:31:16 [INFO] ────────────────────────────────────────────────────────────
+22:31:16 [INFO] Extract request: 1 source(s)  |  LLM: off
+22:31:16 [INFO] Prompt: [26 chars]
+22:31:16 [INFO]   [1] https://example.com/article  |  label: Example article
+22:31:16 [WARNING] GitHub Models call failed: [Errno -2] Name or service not known
+22:31:16 [INFO] Scrape+Score done (33ms): 1 live, 0 dead
+22:31:16 [INFO]   [1/1] EXTRACTED  https://example.com/article
+          title    : Example article
+          date     : 2024
+          author   : Example Author
+          words    : 160
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape.
+22:31:16 [INFO]   ✓ live  example.com                               method=beautifulsoup   words=160
+22:31:16 [INFO] ────────────────────────────────────────────────────────────
+22:31:16 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+22:31:16 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+22:31:49 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+22:31:49 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+22:31:49 [INFO] ────────────────────────────────────────────────────────────
+22:31:49 [INFO] Extract request: 1 source(s)  |  LLM: off
+22:31:49 [INFO] Prompt: [26 chars]
+22:31:49 [INFO]   [1] https://example.com/article  |  label: Example article
+22:31:49 [WARNING] GitHub Models call failed: [Errno -2] Name or service not known
+22:31:49 [INFO] Scrape+Score done (30ms): 1 live, 0 dead
+22:31:49 [INFO]   [1/1] EXTRACTED  https://example.com/article
+          title    : Example article
+          date     : 2024
+          author   : Example Author
+          words    : 160
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape.
+22:31:49 [INFO]   ✓ live  example.com                               method=beautifulsoup   words=160
+22:31:49 [INFO] ────────────────────────────────────────────────────────────
+22:32:59 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+22:32:59 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+22:32:59 [INFO] ────────────────────────────────────────────────────────────
+22:32:59 [INFO] Extract request: 1 source(s)  |  LLM: off
+22:32:59 [INFO] Prompt: [26 chars]
+22:32:59 [INFO]   [1] https://example.com/article  |  label: Example article
+22:32:59 [INFO] Scrape+Score done (1ms): 1 live, 0 dead
+22:32:59 [INFO]   [1/1] EXTRACTED  https://example.com/article
+          title    : Example article
+          date     : 2024
+          author   : Example Author
+          words    : 160
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape.
+22:32:59 [INFO]   ✓ live  example.com                               method=beautifulsoup   words=160
+22:32:59 [INFO] ────────────────────────────────────────────────────────────
+22:32:59 [INFO] ────────────────────────────────────────────────────────────
+22:32:59 [INFO] Extract-stream request: 1 source(s)  |  LLM: on
+22:32:59 [INFO] Prompt: [26 chars]
+22:32:59 [INFO]   [1] https://example.com/article  |  label: Example article
+22:32:59 [INFO] Scrape+Score done (0ms): 1 live, 0 dead
+22:32:59 [INFO] Scoring done (1ms total)
+22:32:59 [INFO] ────────────────────────────────────────────────────────────
+22:33:03 [INFO] ────────────────────────────────────────────────────────────
+22:33:03 [INFO] Extract-stream request: 6 source(s)  |  LLM: on
+22:33:03 [INFO] Prompt: [942 chars]
+22:33:03 [INFO]   [1] https://developers.openalex.org/  |  label: OpenAlex Developers
++1
+22:33:03 [INFO]   [2] https://wikidata.org/wiki/Property%3AP856  |  label: Wikidata
+22:33:03 [INFO]   [3] https://schema.org/sameAs  |  label: Schema.org
+22:33:03 [INFO]   [4] https://docs.npmjs.com/cli/v10/configuring-npm/package-json  |  label: npm Docs
++1
+22:33:03 [INFO]   [5] https://docs.github.com/organizations/managing-organization-settings/verifying-or-approving-a-domain-for-your-organization  |  label: GitHub Docs
+22:33:03 [INFO]   [6] https://learn.microsoft.com/en-us/docs  |  label: W3C
++4
+Microsoft Learn
++4
+ibm.com
++4
+22:33:04 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+22:33:04 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+22:33:04 [INFO] HTTP Request: GET https://docs.npmjs.com/cli/v10/configuring-npm/package-json "HTTP/2 301 Moved Permanently"
+22:33:04 [INFO] ────────────────────────────────────────────────────────────
+22:33:04 [INFO] Extract request: 1 source(s)  |  LLM: off
+22:33:04 [INFO] Prompt: [26 chars]
+22:33:04 [INFO]   [1] https://example.com/article  |  label: Example article
+22:33:04 [INFO] Scrape+Score done (1ms): 1 live, 0 dead
+22:33:04 [INFO]   [1/1] EXTRACTED  https://example.com/article
+          title    : Example article
+          date     : 2024
+          author   : Example Author
+          words    : 160
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape.
+22:33:04 [INFO]   ✓ live  example.com                               method=beautifulsoup   words=160
+22:33:04 [INFO] ────────────────────────────────────────────────────────────
+22:33:04 [INFO] ────────────────────────────────────────────────────────────
+22:33:04 [INFO] Extract-stream request: 1 source(s)  |  LLM: on
+22:33:04 [INFO] Prompt: [26 chars]
+22:33:04 [INFO]   [1] https://example.com/article  |  label: Example article
+22:33:04 [INFO] Scrape+Score done (0ms): 1 live, 0 dead
+22:33:04 [INFO] Scoring done (2ms total)
+22:33:04 [INFO] ────────────────────────────────────────────────────────────
+22:33:04 [INFO] HTTP Request: GET https://wikidata.org/wiki/Property%3AP856 "HTTP/2 301 Moved Permanently"
+22:33:04 [INFO] HTTP Request: GET https://docs.github.com/organizations/managing-organization-settings/verifying-or-approving-a-domain-for-your-organization "HTTP/2 302 Found"
+22:33:04 [INFO] HTTP Request: GET https://docs.npmjs.com/cli/v10/configuring-npm/package-json/ "HTTP/2 200 OK"
+22:33:04 [INFO] HTTP Request: GET https://learn.microsoft.com/en-us/docs "HTTP/2 301 Moved Permanently"
+22:33:04 [INFO]   SCRAPED OK   example.com                               status=200  words=483  stage=http  strategy=heuristic_dom  confidence=64  note=ok
+22:33:04 [INFO]   SCRAPED OK   example.com                               status=200  words=0  stage=http  strategy=none  confidence=0  note=ok
+22:33:04 [INFO]   PLAYWRIGHT   example.com                               stage=metadata_only  confidence=0 → trying browser render
+22:33:04 [WARNING]   SCRAPE FAIL  guarded.example.com                       status=403   reason=blocked_403_waf
+22:33:04 [INFO]   SCRAPED OK   pubmed.ncbi.nlm.nih.gov                   status=200  words=20  stage=http  strategy=scholarly_adapter  confidence=48  note=abstract_only
+22:33:04 [INFO]   SCRAPED OK   docs.npmjs.com                            status=200  words=0  stage=http  strategy=none  confidence=30  note=metadata_only
+22:33:04 [INFO]   PLAYWRIGHT   docs.npmjs.com                            stage=metadata_only  confidence=30 → trying browser render
+22:33:04 [INFO] HTTP Request: GET https://schema.org/sameAs "HTTP/2 200 OK"
+22:33:04 [INFO] HTTP Request: GET https://developers.openalex.org/ "HTTP/2 200 OK"
+22:33:04 [INFO] HTTP Request: GET https://docs.github.com/en/organizations/managing-organization-settings/verifying-or-approving-a-domain-for-your-organization "HTTP/2 200 OK"
+22:33:04 [INFO]   SCRAPED OK   schema.org                                status=200  words=212  stage=http  strategy=heuristic_dom  confidence=36  note=ok
+22:33:04 [INFO]   PLAYWRIGHT   schema.org                                stage=http  confidence=36 → trying browser render
+22:33:04 [INFO]   SCRAPED OK   developers.openalex.org                   status=200  words=68  stage=http  strategy=heuristic_dom  confidence=8  note=partial_content
+22:33:04 [INFO]   PLAYWRIGHT   developers.openalex.org                   stage=http  confidence=8 → trying browser render
+22:33:04 [INFO]   SCRAPED OK   docs.github.com                           status=200  words=682  stage=http  strategy=heuristic_dom  confidence=64  note=ok
+22:33:04 [INFO] HTTP Request: GET https://www.wikidata.org/wiki/Property:P856 "HTTP/2 200 OK"
+22:33:05 [INFO]   SCRAPED OK   wikidata.org                              status=200  words=1114  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+22:33:05 [INFO] HTTP Request: GET https://learn.microsoft.com/en-us/docs/ "HTTP/2 200 OK"
+22:33:05 [INFO]   SCRAPED OK   learn.microsoft.com                       status=200  words=22  stage=http  strategy=heuristic_dom  confidence=0  note=partial_content
+22:33:05 [INFO]   PLAYWRIGHT   learn.microsoft.com                       stage=http  confidence=0 → trying browser render
+22:33:05 [INFO] HTTP Request: GET https://api.ror.org/v2/organizations?query=GitHub+Docs&page=1&affiliation=false "HTTP/2 200 OK"
+22:33:05 [INFO] HTTP Request: GET https://api.ror.org/v2/organizations?query=official+website&page=1&affiliation=false "HTTP/2 200 OK"
+22:33:05 [INFO] HTTP Request: GET https://www.wikidata.org/w/api.php?action=wbsearchentities&search=GitHub+Docs&language=en&limit=5&format=json&origin=%2A "HTTP/2 200 OK"
+22:33:05 [INFO] HTTP Request: GET https://www.wikidata.org/w/api.php?action=wbsearchentities&search=official+website&language=en&limit=5&format=json&origin=%2A "HTTP/2 200 OK"
+22:33:05 [INFO] HTTP Request: GET https://www.wikidata.org/w/api.php?action=wbgetentities&ids=Q135228354&props=claims%7Clabels%7Cdescriptions&languages=en&format=json&origin=%2A "HTTP/2 200 OK"
+22:33:05 [INFO] HTTP Request: GET https://www.wikidata.org/w/api.php?action=wbgetentities&ids=Q22137024%7CQ5614958%7CQ116205932%7CQ137421100%7CQ137595730&props=claims%7Clabels%7Cdescriptions&languages=en&format=json&origin=%2A "HTTP/2 200 OK"
+22:33:07 [INFO] HTTP Request: GET https://api.ror.org/v2/organizations?query=package.json+%7C+npm+Docs&page=1&affiliation=false "HTTP/2 200 OK"
+22:33:07 [INFO] HTTP Request: GET https://www.wikidata.org/w/api.php?action=wbsearchentities&search=package.json+%7C+npm+Docs&language=en&limit=5&format=json&origin=%2A "HTTP/2 200 OK"
+22:33:07 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:33:07 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:33:08 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=doi%3A10.5240%2FB752-5B47-DBBE-E5D4-5A3F-N&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cids%2Cprimary_location%2Cbest_oa_location%2Cauthorships%2Ctopics%2Cprimary_topic%2Copen_access "HTTP/2 200 OK"
+22:33:08 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=locations.landing_page_url%3Ahttps%3A%2F%2Fschema.org%2FsameAs&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cids%2Cprimary_location%2Cbest_oa_location%2Cauthorships%2Ctopics%2Cprimary_topic%2Copen_access "HTTP/2 200 OK"
+22:33:08 [INFO] HTTP Request: GET https://api.crossref.org/works/10.5240%2FB752-5B47-DBBE-E5D4-5A3F-N "HTTP/2 404 Not Found"
+22:33:08 [WARNING] ROR error: 
+22:33:08 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=doi%3A10.1234%2Fexample%60&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cids%2Cprimary_location%2Cbest_oa_location%2Cauthorships%2Ctopics%2Cprimary_topic%2Copen_access "HTTP/2 200 OK"
+22:33:09 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=locations.landing_page_url%3Ahttps%3A%2F%2Fdevelopers.openalex.org%2F&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cids%2Cprimary_location%2Cbest_oa_location%2Cauthorships%2Ctopics%2Cprimary_topic%2Copen_access "HTTP/2 200 OK"
+22:33:09 [INFO] HTTP Request: GET https://api.crossref.org/works/10.1234%2Fexample%60 "HTTP/2 404 Not Found"
+22:33:09 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:33:09 [INFO]   COOKIE_POPUP dismissed
+22:33:09 [INFO] HTTP Request: GET https://api.ror.org/v2/organizations?query=OpenAlex+Developers&page=1&affiliation=false "HTTP/2 200 OK"
+22:33:09 [INFO] HTTP Request: GET https://www.wikidata.org/w/api.php?action=wbsearchentities&search=OpenAlex+Developers&language=en&limit=5&format=json&origin=%2A "HTTP/2 200 OK"
+22:33:10 [INFO]   CONSENT_DOM  removed 2 consent element(s) via JS
+22:33:10 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:33:12 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:33:13 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:33:13 [INFO] Scrape+Score done (9474ms): 6 live, 0 dead
+22:33:13 [INFO] Scoring done (9482ms total)
+22:33:13 [INFO] ────────────────────────────────────────────────────────────
+22:33:26 [INFO] ────────────────────────────────────────────────────────────
+22:33:26 [INFO] Extract-stream request: 1 source(s)  |  LLM: on
+22:33:26 [INFO] Prompt: [26 chars]
+22:33:26 [INFO]   [1] https://example.com/article  |  label: Example article
+22:33:26 [WARNING] GitHub Models call failed: [Errno -2] Name or service not known
+22:33:26 [INFO] Scrape+Score done (6ms): 1 live, 0 dead
+22:33:26 [INFO] Scoring done (9ms total)
+22:33:26 [INFO] ────────────────────────────────────────────────────────────
+22:33:30 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+22:33:30 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+22:33:34 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+22:33:34 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+22:33:34 [INFO] ────────────────────────────────────────────────────────────
+22:33:34 [INFO] Extract request: 1 source(s)  |  LLM: off
+22:33:34 [INFO] Prompt: [26 chars]
+22:33:34 [INFO]   [1] https://example.com/article  |  label: Example article
+22:33:34 [INFO] Scrape+Score done (1ms): 1 live, 0 dead
+22:33:34 [INFO]   [1/1] EXTRACTED  https://example.com/article
+          title    : Example article
+          date     : 2024
+          author   : Example Author
+          words    : 160
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape.
+22:33:34 [INFO]   ✓ live  example.com                               method=beautifulsoup   words=160
+22:33:34 [INFO] ────────────────────────────────────────────────────────────
+22:33:34 [INFO] ────────────────────────────────────────────────────────────
+22:33:34 [INFO] Extract-stream request: 1 source(s)  |  LLM: on
+22:33:34 [INFO] Prompt: [26 chars]
+22:33:34 [INFO]   [1] https://example.com/article  |  label: Example article
+22:33:34 [INFO] Scrape+Score done (0ms): 1 live, 0 dead
+22:33:34 [INFO] Scoring done (2ms total)
+22:33:34 [INFO] ────────────────────────────────────────────────────────────
+22:33:34 [INFO]   SCRAPED OK   example.com                               status=200  words=483  stage=http  strategy=heuristic_dom  confidence=64  note=ok
+22:33:34 [INFO]   SCRAPED OK   example.com                               status=200  words=0  stage=http  strategy=none  confidence=0  note=ok
+22:33:34 [INFO]   PLAYWRIGHT   example.com                               stage=metadata_only  confidence=0 → trying browser render
+22:33:34 [WARNING]   SCRAPE FAIL  guarded.example.com                       status=403   reason=blocked_403_waf
+22:33:34 [INFO]   SCRAPED OK   pubmed.ncbi.nlm.nih.gov                   status=200  words=20  stage=http  strategy=scholarly_adapter  confidence=48  note=abstract_only
+22:34:50 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+22:34:50 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+22:34:51 [INFO] HTTP Request: GET https://www.ibm.com/think/topics/retrieval-augmented-generation "HTTP/2 200 OK"
+22:34:51 [INFO]   SCRAPED OK   ibm.com                                   status=200  words=1163  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+22:34:53 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:34:54 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:34:54 [INFO] HTTP Request: GET https://aws.amazon.com/what-is/retrieval-augmented-generation/ "HTTP/2 200 OK"
+22:34:54 [INFO]   SCRAPED OK   aws.amazon.com                            status=200  words=1153  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+22:34:56 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:34:57 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:34:57 [INFO] HTTP Request: GET https://learn.microsoft.com/en-us/azure/search/retrieval-augmented-generation-overview "HTTP/2 200 OK"
+22:34:57 [INFO]   SCRAPED OK   learn.microsoft.com                       status=200  words=1103  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+22:34:59 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:35:00 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:35:01 [INFO] HTTP Request: GET https://www.merge.dev/blog/what-is-retrieval-augmented-generation "HTTP/2 404 Not Found"
+22:35:01 [WARNING]   SCRAPE FAIL  merge.dev                                 status=404   reason=url_dead
+22:35:03 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:35:03 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:35:26 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+22:35:26 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+22:35:26 [INFO] HTTP Request: GET https://learn.microsoft.com/en-us/azure/search/retrieval-augmented-generation-overview "HTTP/2 200 OK"
+22:35:26 [INFO]   SCRAPED OK   learn.microsoft.com                       status=200  words=1103  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+22:35:28 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:35:29 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:36:14 [INFO] ────────────────────────────────────────────────────────────
+22:36:14 [INFO] Extract-stream request: 1 source(s)  |  LLM: on
+22:36:14 [INFO] Prompt: [26 chars]
+22:36:14 [INFO]   [1] https://example.com/article  |  label: Example article
+22:36:14 [WARNING] GitHub Models call failed: [Errno -2] Name or service not known
+22:36:14 [INFO] Scrape+Score done (6ms): 1 live, 0 dead
+22:36:14 [INFO] Scoring done (12ms total)
+22:36:14 [INFO] ────────────────────────────────────────────────────────────
+22:38:26 [INFO]   SCRAPED OK   example.com                               status=200  words=483  stage=http  strategy=heuristic_dom  confidence=64  note=ok
+22:38:26 [INFO]   SCRAPED OK   example.com                               status=200  words=0  stage=http  strategy=none  confidence=0  note=ok
+22:38:26 [INFO]   PLAYWRIGHT   example.com                               stage=metadata_only  confidence=0 → trying browser render
+22:38:26 [WARNING]   SCRAPE FAIL  guarded.example.com                       status=403   reason=blocked_403_waf
+22:38:26 [INFO]   SCRAPED OK   pubmed.ncbi.nlm.nih.gov                   status=200  words=20  stage=http  strategy=scholarly_adapter  confidence=48  note=abstract_only
+22:38:58 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+22:38:58 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+22:38:59 [INFO] ────────────────────────────────────────────────────────────
+22:38:59 [INFO] Extract request: 1 source(s)  |  LLM: off
+22:38:59 [INFO] Prompt: [26 chars]
+22:38:59 [INFO]   [1] https://example.com/article  |  label: Example article
+22:38:59 [INFO] Scrape+Score done (1ms): 1 live, 0 dead
+22:38:59 [INFO]   [1/1] EXTRACTED  https://example.com/article
+          title    : Example article
+          date     : 2024
+          author   : Example Author
+          words    : 160
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape.
+22:38:59 [INFO]   ✓ live  example.com                               method=beautifulsoup   words=160
+22:38:59 [INFO] ────────────────────────────────────────────────────────────
+22:38:59 [INFO] ────────────────────────────────────────────────────────────
+22:38:59 [INFO] Extract-stream request: 1 source(s)  |  LLM: on
+22:38:59 [INFO] Prompt: [26 chars]
+22:38:59 [INFO]   [1] https://example.com/article  |  label: Example article
+22:38:59 [INFO] Scrape+Score done (0ms): 1 live, 0 dead
+22:38:59 [INFO] Scoring done (1ms total)
+22:38:59 [INFO] ────────────────────────────────────────────────────────────
+22:39:18 [ERROR] Future exception was never retrieved
+future: <Future finished exception=Exception('Connection closed while reading from the driver')>
+Exception: Connection closed while reading from the driver
+22:39:21 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+22:39:21 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+22:39:21 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+22:39:21 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+22:39:55 [INFO] ────────────────────────────────────────────────────────────
+22:39:55 [INFO] Extract-stream request: 3 source(s)  |  LLM: on
+22:39:55 [INFO] Prompt: [12 chars]
+22:39:55 [INFO]   [1] https://geeksforgeeks.org/nlp/what-is-retrieval-augmented-generation-rag  |  label: GeeksforGeeks
++1
+22:39:55 [INFO]   [2] https://en.wikipedia.org/wiki/Retrieval-augmented_generation  |  label: Wikipedia
+22:39:55 [INFO]   [3] https://blogs.nvidia.com/blog/what-is-retrieval-augmented-generation  |  label: NVIDIA Blog
+22:39:56 [INFO] HTTP Request: GET https://geeksforgeeks.org/nlp/what-is-retrieval-augmented-generation-rag "HTTP/2 301 Moved Permanently"
+22:39:56 [INFO] HTTP Request: GET https://en.wikipedia.org/wiki/Retrieval-augmented_generation "HTTP/2 200 OK"
+22:39:56 [INFO]   SCRAPED OK   en.wikipedia.org                          status=200  words=1240  stage=http  strategy=heuristic_dom  confidence=79  note=ok
+22:39:56 [INFO] HTTP Request: GET https://www.geeksforgeeks.org/nlp/what-is-retrieval-augmented-generation-rag "HTTP/2 308 Permanent Redirect"
+22:39:56 [INFO] HTTP Request: GET https://www.geeksforgeeks.org/nlp/what-is-retrieval-augmented-generation-rag/ "HTTP/2 200 OK"
+22:39:56 [INFO]   SCRAPED OK   geeksforgeeks.org                         status=200  words=1201  stage=http  strategy=heuristic_dom  confidence=79  note=ok
+22:39:56 [INFO] HTTP Request: GET https://blogs.nvidia.com/blog/what-is-retrieval-augmented-generation "HTTP/2 301 Moved Permanently"
+22:39:56 [INFO] HTTP Request: GET https://blogs.nvidia.com/blog/what-is-retrieval-augmented-generation/ "HTTP/2 200 OK"
+22:39:56 [INFO]   SCRAPED OK   blogs.nvidia.com                          status=200  words=1285  stage=http  strategy=heuristic_dom  confidence=79  note=ok
+22:39:56 [INFO] HTTP Request: GET https://api.ror.org/v2/organizations?query=GeeksforGeeks&page=1&affiliation=false "HTTP/2 200 OK"
+22:39:56 [INFO] HTTP Request: GET https://api.ror.org/v2/organizations?query=NVIDIA+Blog&page=1&affiliation=false "HTTP/2 200 OK"
+22:39:57 [INFO] HTTP Request: GET https://www.wikidata.org/w/api.php?action=wbsearchentities&search=GeeksforGeeks&language=en&limit=5&format=json&origin=%2A "HTTP/2 200 OK"
+22:39:57 [INFO] HTTP Request: GET https://www.wikidata.org/w/api.php?action=wbsearchentities&search=NVIDIA+Blog&language=en&limit=5&format=json&origin=%2A "HTTP/2 200 OK"
+22:39:57 [INFO] HTTP Request: GET https://www.wikidata.org/w/api.php?action=wbgetentities&ids=Q104673617&props=claims%7Clabels%7Cdescriptions&languages=en&format=json&origin=%2A "HTTP/2 200 OK"
+22:39:58 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:39:58 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:39:58 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:39:58 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:39:59 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:40:00 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:40:03 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:40:03 [INFO] Scrape+Score done (7764ms): 3 live, 0 dead
+22:40:03 [INFO] Scoring done (7770ms total)
+22:40:03 [INFO] ────────────────────────────────────────────────────────────
+22:41:14 [INFO]   SCRAPED OK   example.com                               status=200  words=483  stage=http  strategy=heuristic_dom  confidence=64  note=ok
+22:41:14 [INFO]   SCRAPED OK   example.com                               status=200  words=0  stage=http  strategy=none  confidence=0  note=ok
+22:41:14 [INFO]   PLAYWRIGHT   example.com                               stage=metadata_only  confidence=0 → trying browser render
+22:41:14 [WARNING]   SCRAPE FAIL  guarded.example.com                       status=403   reason=blocked_403_waf
+22:41:14 [INFO]   SCRAPED OK   pubmed.ncbi.nlm.nih.gov                   status=200  words=20  stage=http  strategy=scholarly_adapter  confidence=48  note=abstract_only
+22:55:31 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+22:55:31 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+22:55:31 [INFO] ────────────────────────────────────────────────────────────
+22:55:31 [INFO] Extract request: 1 source(s)  |  LLM: off
+22:55:31 [INFO] Prompt: [26 chars]
+22:55:31 [INFO]   [1] https://example.com/article  |  label: Example article
+22:55:31 [INFO] Scrape+Score done (1ms): 1 live, 0 dead
+22:55:31 [INFO]   [1/1] EXTRACTED  https://example.com/article
+          title    : Example article
+          date     : 2024
+          author   : Example Author
+          words    : 160
+          paywalled: no
+          method   : beautifulsoup  note=ok
+          body     : Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape. Example body text that is long enough to be considered a successful scrape.
+22:55:31 [INFO]   ✓ live  example.com                               method=beautifulsoup   words=160
+22:55:31 [INFO] ────────────────────────────────────────────────────────────
+22:55:31 [INFO] ────────────────────────────────────────────────────────────
+22:55:31 [INFO] Extract-stream request: 1 source(s)  |  LLM: on
+22:55:31 [INFO] Prompt: [26 chars]
+22:55:31 [INFO]   [1] https://example.com/article  |  label: Example article
+22:55:31 [INFO] Scrape+Score done (0ms): 1 live, 0 dead
+22:55:31 [INFO] Scoring done (1ms total)
+22:55:31 [INFO] ────────────────────────────────────────────────────────────
+22:55:31 [INFO]   SCRAPED OK   example.com                               status=200  words=483  stage=http  strategy=heuristic_dom  confidence=64  note=ok
+22:55:31 [INFO]   SCRAPED OK   example.com                               status=200  words=0  stage=http  strategy=none  confidence=0  note=ok
+22:55:31 [INFO]   PLAYWRIGHT   example.com                               stage=metadata_only  confidence=0 → trying browser render
+22:55:31 [WARNING]   SCRAPE FAIL  guarded.example.com                       status=403   reason=blocked_403_waf
+22:55:31 [INFO]   SCRAPED OK   pubmed.ncbi.nlm.nih.gov                   status=200  words=20  stage=http  strategy=scholarly_adapter  confidence=48  note=abstract_only

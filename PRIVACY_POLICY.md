@@ -1,6 +1,6 @@
 # Verity Privacy Policy
 
-**Last updated:** March 19, 2026
+**Last updated:** April 14, 2026
 
 ## What Verity Does
 
@@ -26,7 +26,7 @@ This data is sent to our backend server for processing.
 
 ## How Data Is Processed
 
-Extracted URLs are sent to our backend server (`verity-production-e8f2.up.railway.app`) which:
+Extracted URLs are sent to our hosted backend server (`verity-api.thankfulsmoke-1985157b.eastus.azurecontainerapps.io`) which:
 
 1. Fetches each cited URL to check if it is live
 2. Analyzes whether the source content supports the AI's claims

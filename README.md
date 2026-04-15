@@ -1,4 +1,4 @@
-# VerifyAI
+# Verity
 
 **A browser extension that audits LLM-generated citations in real time — before you act on them.**
 
@@ -29,8 +29,8 @@ Large language models have become a default research tool for millions of people
 
 Existing verification tools address this problem at the platform level (e.g., Gemini Grounding, Perplexity citations, SearchGPT), but they share a critical blind spot: **they confirm that a source exists, not that the source actually supports the specific claim being made.** A green checkmark next to a real journal URL is not the same as a verified fact.
 
-### What VerifyAI Does
-VerifyAI is a browser extension that intercepts LLM responses, extracts every cited source, and executes a multi-layer verification pipeline in the background. By the time a user finishes reading a response, each source has been independently scored and a trust verdict is displayed inline — requiring no additional action from the user.
+### What Verity Does
+Verity is a browser extension that intercepts LLM responses, extracts every cited source, and executes a multi-layer verification pipeline in the background. By the time a user finishes reading a response, each source has been independently scored and a trust verdict is displayed inline — requiring no additional action from the user.
 
 The verification pipeline operates across two distinct layers simultaneously:
 1. **Layer 1: Metadata Credibility** — applying the CRAAP Test framework (Currency, Relevance, Authority, Accuracy, Purpose) to evaluate each source's publication date, author attribution, domain tier, and institutional standing.
@@ -45,13 +45,13 @@ The result is a trust score, a plain-English verdict, and — where sources are 
 - **General users** who have encountered inaccurate or hallucinated information after acting on an LLM-generated response.
 
 ### Core Differentiator
-VerifyAI does not merely confirm whether a link resolves. **It reads the source.** It determines whether the source contains the information the LLM asserted it does. This distinction separates a metadata badge from genuine verification — and it is precisely what no native LLM platform currently offers at the individual claim level.
+Verity does not merely confirm whether a link resolves. **It reads the source.** It determines whether the source contains the information the LLM asserted it does. This distinction separates a metadata badge from genuine verification — and it is precisely what no native LLM platform currently offers at the individual claim level.
 
 ---
 
 ## 2. How It Works — The Verification Pipeline
 
-VerifyAI employs a rigorous seven-stage pipeline to transform raw LLM output into an actionable trust verdict.
+Verity employs a rigorous seven-stage pipeline to transform raw LLM output into an actionable trust verdict.
 
 ![Full System Architecture flowchart](Image/unified_pipeline_combined.svg)
 
@@ -103,7 +103,7 @@ Content extraction employs a two-step fallback chain, designed to maximize cover
 
 ### Key Design Tensions
 - **The Threshold Problem:** Determining an appropriate score cutoff (e.g., 75 points for "Reliable") is fundamentally a product values decision. The architecture supports flexible tuning — recency may be weighted more heavily in fast-moving domains, and semantic alignment can be configured as a hard-gate requirement rather than a weighted signal.
-- **The Auditor Paradox:** Using an AI system to evaluate the output of another AI system risks compounding hallucinations. VerifyAI mitigates this by ensuring the auditing layer does not generate new claims. Claim matching relies on string and term overlap; plain-English verdicts follow standardized templates rather than free-form generation.
+- **The Auditor Paradox:** Using an AI system to evaluate the output of another AI system risks compounding hallucinations. Verity mitigates this by ensuring the auditing layer does not generate new claims. Claim matching relies on string and term overlap; plain-English verdicts follow standardized templates rather than free-form generation.
 - **Scope Transparency:** A verification tool that explicitly surfaces what it cannot assess is more trustworthy than one that silently omits failures. Paywalled pages, dead links, and missing author information are deliberately presented as caution indicators rather than hidden from the user.
 
 ### Future Roadmap
@@ -127,7 +127,7 @@ Content extraction employs a two-step fallback chain, designed to maximize cover
 
 ## 6. Getting Started
 
-The following steps describe how to run VerifyAI locally.
+The following steps describe how to run Verity locally.
 
 ### Prerequisites
 - **Python 3.10 or later**
@@ -170,20 +170,26 @@ The backend is responsible for source extraction, web scraping, and verification
 2. Enable **Developer mode** using the toggle in the top-right corner.
 3. Click **Load unpacked**.
 4. Select the `verity-extension` folder from this repository.
-5. Open the Verity popup. It now defaults to `http://localhost:8001` for development.
-6. After deploying to Railway, switch the popup preset to **Use Railway** or paste your Railway URL into the same field.
+5. Open the Verity popup. It defaults to the hosted Azure backend:
+   `https://verity-api.thankfulsmoke-1985157b.eastus.azurecontainerapps.io`
+6. For local development, click the version pill five times to reveal the hidden developer panel, then switch the backend to `http://localhost:8001`.
 
-### Local-to-Railway Workflow
+### Local-to-Azure Workflow
 1. Run the backend locally with `python verity_extractor.py`.
-2. Keep the extension pointed at `http://localhost:8001` while iterating.
-3. When the backend is ready, push to GitHub and let Railway deploy the same app.
-4. In Railway, set the same environment variable names from `.env.example`, especially `GITHUB_TOKEN`, `OPENALEX_EMAIL`, `VERITY_API_KEY`, and `VERITY_EXTENSION_ID` if you want locked-down access.
-5. Change only the extension server URL from localhost to your Railway endpoint.
+2. Use the popup's hidden developer panel only when you need to point the extension at localhost.
+3. Push to `main` to publish a new GHCR image and update the Azure Container App deployment.
+4. The production API is hosted at:
+   `https://verity-api.thankfulsmoke-1985157b.eastus.azurecontainerapps.io`
+5. GitHub Actions deploys the image to Azure Container Apps using:
+   - `AZURE_CREDENTIALS` secret
+   - optional repo vars `AZURE_RESOURCE_GROUP` and `AZURE_CONTAINER_APP_NAME`
+6. Keep runtime environment values such as `GITHUB_TOKEN` and `OPENALEX_EMAIL` configured in Azure Container Apps rather than in the repo.
 
 ---
 
-> **VerifyAI** — Reducing AI misinformation risk through rigorous, claim-level citation verification.
+> **Verity** — Reducing AI misinformation risk through rigorous, claim-level citation verification.
 
 ## Changelog
 
+- **2026-04-14:** Released **v1.2.0**. Verity now ships Azure-first, with the extension defaulting to the hosted Azure Container Apps backend and a cleaner status-first popup that hides backend configuration behind a developer panel.
 - **2026-04-09:** Improved scoring for trusted medical and institutional sources that do not expose named authors, so pages like `cancer.org` and `clevelandclinic.org` are not unfairly dragged down. These sources now render as institutional pages instead of showing `Unknown` authorship by default.

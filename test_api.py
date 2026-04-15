@@ -93,6 +93,8 @@ class VerityApiContractTests(unittest.IsolatedAsyncioTestCase):
             ve, "scrape_source", AsyncMock(return_value=scraped)
         ), patch.object(
             ve, "resolve_authority", AsyncMock(return_value={})
+        ), patch.object(
+            ve, "classify_source_authority", AsyncMock(return_value={})
         ):
             extract_handler = getattr(ve.extract, "__wrapped__", ve.extract)
             response = await extract_handler(make_request("/extract", method="POST"), body)
@@ -137,6 +139,14 @@ class VerityApiContractTests(unittest.IsolatedAsyncioTestCase):
                 "evidence": ["openalex:work"],
             },
         }
+        authority_classification = {
+            "claim_type": "scholarly_empirical",
+            "main_entity": "Testing claim",
+            "source_role": "scholarly_primary",
+            "does_source_own_entity": False,
+            "classifier_confidence": "high",
+            "authority_reason": "This source is a scholarly primary source.",
+        }
 
         with patch.object(ve, "_check_llm_available", AsyncMock(return_value=True)), patch.object(
             ve, "scrape_source", AsyncMock(return_value=scraped)
@@ -144,6 +154,8 @@ class VerityApiContractTests(unittest.IsolatedAsyncioTestCase):
             ve, "score_source_with_llm", AsyncMock(return_value=llm_result)
         ), patch.object(
             ve, "resolve_authority", AsyncMock(return_value=authority_result)
+        ), patch.object(
+            ve, "classify_source_authority", AsyncMock(return_value=authority_classification)
         ):
             extract_stream_handler = getattr(ve.extract_stream, "__wrapped__", ve.extract_stream)
             response = await extract_stream_handler(make_request("/extract-stream", method="POST"), body)
@@ -170,6 +182,9 @@ class VerityApiContractTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(result_payload["source_count"], 1)
         self.assertEqual(result_payload["sources"][0]["verdict"], "supported")
         self.assertEqual(result_payload["sources"][0]["context"], scraped.context)
+        self.assertIn("extraction_stage", result_payload["sources"][0])
+        self.assertIn("extraction_strategy", result_payload["sources"][0])
+        self.assertIn("retrieval_flags", result_payload["sources"][0])
         self.assertEqual(result_payload["sources"][0]["signals"]["alignment_score"], 88)
         self.assertEqual(result_payload["sources"][0]["signals"]["support_class"], "qualified_support")
         self.assertGreaterEqual(result_payload["sources"][0]["signals"]["retrieval_integrity_score"], 70)
@@ -193,6 +208,46 @@ class VerityApiContractTests(unittest.IsolatedAsyncioTestCase):
             ve.VERITY_API_KEY = original_key
 
         self.assertEqual(response.status_code, 401)
+
+
+class VerityLlmPayloadTests(unittest.TestCase):
+    def test_build_llm_payload_uses_json_mode_and_configured_budget(self):
+        original_model = ve.GITHUB_MODEL
+        original_budget = ve.LLM_MAX_OUTPUT_TOKENS
+        try:
+            ve.GITHUB_MODEL = "gpt-4o-mini"
+            ve.LLM_MAX_OUTPUT_TOKENS = 400
+            payload = ve._build_llm_payload([{"role": "user", "content": "hi"}])
+        finally:
+            ve.GITHUB_MODEL = original_model
+            ve.LLM_MAX_OUTPUT_TOKENS = original_budget
+
+        self.assertEqual(payload["response_format"], {"type": "json_object"})
+        self.assertEqual(payload["max_tokens"], 400)
+        self.assertNotIn("max_completion_tokens", payload)
+
+    def test_build_score_prompt_uses_extended_limits(self):
+        original_context = ve.LLM_MAX_CONTEXT_CHARS
+        original_prompt = ve.LLM_MAX_PROMPT_CHARS
+        original_body = ve.LLM_MAX_BODY_CHARS
+        try:
+            ve.LLM_MAX_CONTEXT_CHARS = 12
+            ve.LLM_MAX_PROMPT_CHARS = 10
+            ve.LLM_MAX_BODY_CHARS = 20
+            prompt = ve._build_score_prompt(
+                context="context-abcdefghijklmnopqrstuvwxyz",
+                prompt="prompt-abcdefghijklmnopqrstuvwxyz",
+                body="body-abcdefghijklmnopqrstuvwxyz",
+            )
+        finally:
+            ve.LLM_MAX_CONTEXT_CHARS = original_context
+            ve.LLM_MAX_PROMPT_CHARS = original_prompt
+            ve.LLM_MAX_BODY_CHARS = original_body
+
+        self.assertIn("context-abcd", prompt)
+        self.assertIn("prompt-abc", prompt)
+        self.assertIn("body-abcdefghijklmno", prompt)
+        self.assertIn("first 20 chars", prompt)
 
 
 if __name__ == "__main__":

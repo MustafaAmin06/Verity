@@ -1,6 +1,25 @@
+const AZURE_EXTRACTOR_URL =
+  "https://verity-api.thankfulsmoke-1985157b.eastus.azurecontainerapps.io";
+const LOCAL_EXTRACTOR_URL = "http://localhost:8001";
+const LOCAL_LOOPBACK_URL = "http://127.0.0.1:8001";
+const LEGACY_RAILWAY_URL = "https://verity-production-e8f2.up.railway.app";
+
 // When the extension is installed or reloaded, tell open ChatGPT tabs to
 // refresh so they pick up fresh content scripts instead of running stale ones.
 chrome.runtime.onInstalled.addListener(async () => {
+  chrome.storage.local.get(
+    {
+      extractorUrl: AZURE_EXTRACTOR_URL,
+      advancedSettingsVisible: false,
+    },
+    (settings) => {
+      const normalized = (settings.extractorUrl || "").replace(/\/+$/, "");
+      if (normalized === LEGACY_RAILWAY_URL && !settings.advancedSettingsVisible) {
+        chrome.storage.local.set({ extractorUrl: AZURE_EXTRACTOR_URL });
+      }
+    }
+  );
+
   const tabs = await chrome.tabs.query({
     url: ["https://chat.openai.com/*", "https://chatgpt.com/*"],
   });
@@ -22,14 +41,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   const tabId = sender.tab?.id;
 
-  // Read backend URL and API key from storage (set via popup dashboard)
+  // Read backend URL and API key from storage (set via the settings popup).
   chrome.storage.local.get(
-    { extractorUrl: "http://localhost:8001", apiKey: "" },
+    { extractorUrl: AZURE_EXTRACTOR_URL, apiKey: "" },
     (settings) => {
       const baseUrl = settings.extractorUrl.replace(/\/+$/, "");
 
       // Enforce HTTPS except for explicit local development URLs.
       const isLocalDevUrl =
+        baseUrl === LOCAL_EXTRACTOR_URL ||
+        baseUrl === LOCAL_LOOPBACK_URL ||
         baseUrl.startsWith("http://localhost") ||
         baseUrl.startsWith("http://127.0.0.1");
 

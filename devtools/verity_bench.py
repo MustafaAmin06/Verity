@@ -26,18 +26,19 @@ sys.path.insert(0, str(_PROJECT_ROOT))
 
 from verity_extractor import (  # noqa: E402
     ENABLE_PLAYWRIGHT_FALLBACK,
+    _SCRAPE_PIPELINE,
     ScrapedSource,
     SourceInput,
     _detect_topic,
     _call_llm,
+    _build_score_prompt,
     _parse_json_response,
     _SCORE_PROMPT,
     _SCORE_SYSTEM_PROMPT,
     _SCRAPE_CACHE,
     build_scored_source,
     enrich_with_openalex,
-    scrape_with_beautifulsoup,
-    scrape_with_playwright,
+    scrape_source,
 )
 from devtools.triage_catalog import (  # noqa: E402
     classify_failure,
@@ -194,68 +195,41 @@ _ACTIONABILITY = {
 async def instrumented_scrape(
     source: SourceInput, *, use_playwright: bool = True
 ) -> dict:
-    """Scrape with per-stage timing and diagnostics."""
-    # Clear cache for this URL to get fresh results
+    """Scrape with diagnostics from the active orchestrator."""
     url_lower = source.url.lower()
     _SCRAPE_CACHE.pop(url_lower, None)
 
     diag: dict = {"url": source.url, "stages": {}}
 
-    # Stage 1: BeautifulSoup
-    t0 = time.perf_counter()
-    bs_result = await scrape_with_beautifulsoup(source)
-    bs_ms = int((time.perf_counter() - t0) * 1000)
+    original_playwright_flag = _SCRAPE_PIPELINE.config.enable_playwright_fallback
+    _SCRAPE_PIPELINE.config.enable_playwright_fallback = original_playwright_flag and use_playwright
+    try:
+        t0 = time.perf_counter()
+        result = await scrape_source(source)
+        total_ms = int((time.perf_counter() - t0) * 1000)
+    finally:
+        _SCRAPE_PIPELINE.config.enable_playwright_fallback = original_playwright_flag
+
+    used_browser = result.extraction_stage == "browser"
     diag["stages"]["beautifulsoup"] = {
-        "duration_ms": bs_ms,
-        "success": bs_result.scrape_success,
-        "word_count": bs_result.word_count,
-        "scrape_note": bs_result.scrape_note,
-        "http_status": bs_result.http_status,
+        "duration_ms": total_ms,
+        "success": result.scrape_success,
+        "word_count": result.word_count,
+        "scrape_note": result.scrape_note,
+        "http_status": result.http_status,
     }
-
-    result = bs_result
-    pw_attempted = False
-    pw_improved = False
-    pw_ms = None
-
-    # Stage 2: Playwright (conditional)
-    _recoverable = bs_result.scrape_note in ("scrape_failed", "blocked_403")
-    should_use_pw = (
-        use_playwright
-        and ENABLE_PLAYWRIGHT_FALLBACK
-        and not bs_result.is_pdf
-        and (
-            (bs_result.live and bs_result.word_count == 0)
-            or (not bs_result.live and _recoverable)
-        )
-    )
-
-    if should_use_pw:
-        pw_attempted = True
-        t1 = time.perf_counter()
-        pw_result = await scrape_with_playwright(source, bs_result)
-        pw_ms = int((time.perf_counter() - t1) * 1000)
-        pw_improved = pw_result is not bs_result
-        diag["stages"]["playwright"] = {
-            "duration_ms": pw_ms,
-            "attempted": True,
-            "improved": pw_improved,
-            "word_count": pw_result.word_count if pw_improved else bs_result.word_count,
-        }
-        if pw_improved:
-            result = pw_result
-    else:
-        skip_reason = "disabled" if not use_playwright else (
-            "hard_waf" if bs_result.scrape_note == "blocked_403_waf"
-            else "bs_sufficient"
-        )
-        diag["stages"]["playwright"] = {"attempted": False, "skip_reason": skip_reason}
-
+    diag["stages"]["playwright"] = {
+        "attempted": used_browser,
+        "improved": used_browser,
+        "duration_ms": total_ms if used_browser else None,
+        "word_count": result.word_count if used_browser else None,
+        "skip_reason": None if used_browser else ("disabled" if not use_playwright else "http_accepted"),
+    }
     diag["result"] = result
-    diag["bs_duration_ms"] = bs_ms
-    diag["pw_duration_ms"] = pw_ms
-    diag["pw_attempted"] = pw_attempted
-    diag["pw_improved"] = pw_improved
+    diag["bs_duration_ms"] = total_ms
+    diag["pw_duration_ms"] = total_ms if used_browser else None
+    diag["pw_attempted"] = used_browser
+    diag["pw_improved"] = used_browser
     diag["failure_category"] = classify_failure(
         scrape_note=result.scrape_note,
         scrape_success=result.scrape_success,
@@ -272,11 +246,11 @@ async def instrumented_llm_score(
     score_prompt_template: str = _SCORE_PROMPT,
 ) -> dict:
     """Score with custom prompt variant, capturing raw LLM response."""
-    body_snippet = (scraped.body_text or scraped.description or "")[:2000]
-    llm_prompt = score_prompt_template.format(
-        context=scraped.context[:600],
-        prompt=original_prompt[:500],
-        body=body_snippet or "(no content retrieved)",
+    llm_prompt = _build_score_prompt(
+        context=scraped.context,
+        prompt=original_prompt,
+        body=scraped.body_text or scraped.description or "",
+        template=score_prompt_template,
     )
 
     t0 = time.perf_counter()
@@ -313,6 +287,9 @@ def _print_scrape_result(diag: dict, *, verbose: bool = False) -> None:
     print(f"  Domain:         {result.domain}" + (f" ({_c('paywalled', 'amber')})" if result.paywalled else ""))
     print(f"  HTTP Status:    {result.http_status or 'N/A'}")
     print(f"  Scrape Method:  {result.scrape_method or 'N/A'} ({bs['duration_ms']}ms)")
+    print(f"  Stage:          {result.extraction_stage or 'N/A'}")
+    print(f"  Strategy:       {result.extraction_strategy or 'N/A'}")
+    print(f"  Confidence:     {result.extraction_confidence if result.extraction_confidence is not None else 'N/A'}")
 
     if pw["attempted"]:
         imp = _c("improved", "green") if pw.get("improved") else _c("no improvement", "dim")
@@ -328,6 +305,8 @@ def _print_scrape_result(diag: dict, *, verbose: bool = False) -> None:
     print(f"  JSON-LD:        {'yes' if result.json_ld else 'no'}")
     print(f"  Keywords:       {len(result.keywords)}")
     print(f"  Scrape Note:    {result.scrape_note or 'ok'}")
+    if result.retrieval_flags:
+        print(f"  Retrieval:      {result.retrieval_flags}")
 
     if fc:
         act = _ACTIONABILITY.get(fc, "Unknown")
