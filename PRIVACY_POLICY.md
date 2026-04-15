@@ -35,10 +35,10 @@ Extracted URLs are sent to our hosted backend server (`verity-api.thankfulsmoke-
 
 ## Data Retention
 
-- Source verification results are cached temporarily on the server to avoid redundant processing
-- No user data is stored permanently
-- No user data is logged or associated with any user identity
-- Server logs may temporarily contain URLs processed, but not user prompts or personal information
+- Source verification results may be cached temporarily on the server to avoid redundant processing
+- By default, user prompts and full AI responses are processed in memory and are not retained in server-side diagnostics
+- Optional developer-only triage capture is disabled by default in production
+- Operational logs may temporarily contain requested source URLs and high-level processing metadata, but not prompts or full AI responses by default
 
 ## Data Sharing
 

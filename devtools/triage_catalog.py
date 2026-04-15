@@ -312,6 +312,7 @@ def create_capture_run(
     live_count: int,
     dead_count: int,
     llm_enabled: bool,
+    include_text: bool = True,
 ) -> None:
     db.execute(
         """INSERT OR REPLACE INTO capture_runs
@@ -323,8 +324,8 @@ def create_capture_run(
             now_iso(),
             source_kind,
             hash_text(prompt),
-            make_snippet(prompt),
-            make_snippet(response),
+            make_snippet(prompt) if include_text else None,
+            make_snippet(response) if include_text else None,
             topic,
             source_count,
             live_count,
@@ -352,6 +353,7 @@ def record_observation(
     scored=None,
     playwright_attempted: bool | None = None,
     playwright_improved: bool | None = None,
+    include_text: bool = True,
 ) -> int | None:
     failure_category = classify_failure(
         scrape_note=getattr(scraped, "scrape_note", None),
@@ -373,9 +375,9 @@ def record_observation(
     domain = normalize_domain(canonical_url, getattr(scraped, "domain", None))
     observed_at = now_iso()
     prompt_hash = hash_text(prompt)
-    prompt_snippet = make_snippet(prompt)
-    response_snippet = make_snippet(response)
-    context_snippet = make_snippet(getattr(scraped, "context", None))
+    prompt_snippet = make_snippet(prompt) if include_text else None
+    response_snippet = make_snippet(response) if include_text else None
+    context_snippet = make_snippet(getattr(scraped, "context", None)) if include_text else None
     title_snippet = make_snippet(getattr(scraped, "title", None) or getattr(scraped, "label", None))
     word_count = int(getattr(scraped, "word_count", 0) or 0)
     body_text_len = len(getattr(scraped, "body_text", None) or "")

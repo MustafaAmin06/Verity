@@ -5,11 +5,12 @@ window.Verity = window.Verity || {};
 
 const VERITY_AZURE_EXTRACTOR_URL =
   "https://verity-api.thankfulsmoke-1985157b.eastus.azurecontainerapps.io";
+const VERITY_LOCAL_EXTRACTOR_URL = "http://localhost:8001";
 
 var VERITY_CONFIG = {
   enabled: true,
   autoCheck: false,
-  extractorUrl: VERITY_AZURE_EXTRACTOR_URL,
+  extractorUrl: VERITY_LOCAL_EXTRACTOR_URL,
   maxBodyTextChars: 8000,
   minContextChars: 30,
   maxContextChars: 400,

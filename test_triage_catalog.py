@@ -244,16 +244,25 @@ class LiveCaptureAndDashboardTests(unittest.IsolatedAsyncioTestCase):
             try:
                 capture_count = db.execute("SELECT COUNT(*) AS cnt FROM capture_runs").fetchone()["cnt"]
                 case_count = db.execute("SELECT COUNT(*) AS cnt FROM triage_cases").fetchone()["cnt"]
+                capture = db.execute(
+                    "SELECT prompt_hash, prompt_snippet, response_snippet FROM capture_runs"
+                ).fetchone()
                 event = db.execute(
-                    "SELECT source_kind, failure_category FROM triage_case_events"
+                    "SELECT source_kind, failure_category, prompt_snippet, response_snippet, context_snippet FROM triage_case_events"
                 ).fetchone()
             finally:
                 db.close()
 
             self.assertEqual(capture_count, 1)
             self.assertEqual(case_count, 1)
+            self.assertIsNotNone(capture["prompt_hash"])
+            self.assertIsNone(capture["prompt_snippet"])
+            self.assertIsNone(capture["response_snippet"])
             self.assertEqual(event["source_kind"], "live_stream")
             self.assertEqual(event["failure_category"], "empty_content")
+            self.assertIsNone(event["prompt_snippet"])
+            self.assertIsNone(event["response_snippet"])
+            self.assertIsNone(event["context_snippet"])
 
     async def test_dashboard_triage_endpoints_return_catalog_data(self):
         with tempfile.TemporaryDirectory() as tempdir:

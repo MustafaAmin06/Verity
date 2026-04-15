@@ -184,6 +184,9 @@ The backend is responsible for source extraction, web scraping, and verification
    - `AZURE_CREDENTIALS` secret
    - optional repo vars `AZURE_RESOURCE_GROUP` and `AZURE_CONTAINER_APP_NAME`
 6. Keep runtime environment values such as `GITHUB_TOKEN` and `OPENALEX_EMAIL` configured in Azure Container Apps rather than in the repo.
+7. Before Chrome Web Store publication, set `VERITY_EXTENSION_ID` in the hosted backend so CORS is locked to your published extension ID instead of allowing any Chrome extension.
+8. Leave `TRIAGE_CAPTURE_ENABLED=false` and `TRIAGE_CAPTURE_INCLUDE_TEXT=false` in production unless you intentionally want developer-only failure capture.
+9. Keep `VERITY_VERBOSE_LOGS=false` in production to avoid logging extracted body snippets and claim-level reasoning.
 
 ---
 

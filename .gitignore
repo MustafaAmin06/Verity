@@ -25,3 +25,4 @@ authority_cache.db
 authority_cache.db-shm
 authority_cache.db-wal
 *.log
+*.log.*

@@ -276,10 +276,18 @@
   line-height: 1.5;
   color: #c8d0d8;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
-  line-clamp: 3;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.verity-card--expanded .verity-card-summary-reason {
+  display: none;
+  -webkit-line-clamp: unset;
+  line-clamp: unset;
+  -webkit-box-orient: initial;
+  overflow: visible;
 }
 
 .verity-score-chip {

@@ -107,7 +107,9 @@ AUTHORITY_LOOKUP_BUDGET_MS = _env_int("AUTHORITY_LOOKUP_BUDGET_MS", "800", lo=10
 AUTHORITY_POSITIVE_TTL_SECONDS = _env_int("AUTHORITY_POSITIVE_TTL_SECONDS", str(14 * 86400), lo=300, hi=90 * 86400)
 AUTHORITY_SCHOLARLY_TTL_SECONDS = _env_int("AUTHORITY_SCHOLARLY_TTL_SECONDS", str(30 * 86400), lo=300, hi=180 * 86400)
 AUTHORITY_NEGATIVE_TTL_SECONDS = _env_int("AUTHORITY_NEGATIVE_TTL_SECONDS", str(3 * 86400), lo=300, hi=30 * 86400)
-TRIAGE_CAPTURE_ENABLED = os.getenv("TRIAGE_CAPTURE_ENABLED", "true").lower() == "true"
+TRIAGE_CAPTURE_ENABLED = os.getenv("TRIAGE_CAPTURE_ENABLED", "false").lower() == "true"
+TRIAGE_CAPTURE_INCLUDE_TEXT = os.getenv("TRIAGE_CAPTURE_INCLUDE_TEXT", "false").lower() == "true"
+VERITY_VERBOSE_LOGS = os.getenv("VERITY_VERBOSE_LOGS", "false").lower() == "true"
 TRIAGE_DB_PATH = os.getenv(
     "TRIAGE_DB_PATH",
     str(pathlib.Path(__file__).resolve().parent / "devtools" / "verity_bench.db"),
@@ -1440,8 +1442,8 @@ Respond with ONLY valid JSON — no text before or after the JSON object:
   "contradiction_strength": "<none|weak|moderate|strong>",
   "claim_aligned": <true if support_class is direct_support or qualified_support, false if support_class is contradicted, null otherwise>,
   "matched_terms": ["<up to 5 important terms that appeared in the source and informed your judgment>"],
-  "reason": "<1-2 sentences: cite specific evidence from the source content that drove your scores>",
-  "implication": "<1 sentence: what the user should do given this source's credibility>"
+  "reason": "<2-3 sentences: cite the specific evidence from the source content that drove your scores and explain the main limitation or strength>",
+  "implication": "<1-2 sentences: what the user should do given this source's credibility>"
 }}"""
 
 _AUTHORITY_SYSTEM_PROMPT = """\
@@ -4299,6 +4301,7 @@ async def _record_live_triage_batch(
                 live_count=live_count,
                 dead_count=dead_count,
                 llm_enabled=llm_enabled,
+                include_text=TRIAGE_CAPTURE_INCLUDE_TEXT,
             )
             for item in observations:
                 triage_record_observation(
@@ -4313,6 +4316,7 @@ async def _record_live_triage_batch(
                     scored=item.get("scored"),
                     playwright_attempted=item.get("playwright_attempted"),
                     playwright_improved=item.get("playwright_improved"),
+                    include_text=TRIAGE_CAPTURE_INCLUDE_TEXT,
                 )
         finally:
             db.close()
@@ -4348,7 +4352,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=_ALLOWED_ORIGINS,
     allow_origin_regex=_origin_regex,
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["GET", "POST"],
     allow_headers=["Content-Type", "Authorization"],
 )
@@ -4453,25 +4457,37 @@ async def extract(request: Request, body: ExtractRequest):
     dead_count = len(scraped_sources) - live_count
     logging.info("Scrape+Score done (%dms): %d live, %d dead", scrape_ms, live_count, dead_count)
     for i, s in enumerate(scraped_sources, 1):
-        body_preview = (s.body_text or "").replace("\n", " ").strip()
-        logging.info(
-            "  [%d/%d] EXTRACTED  %s\n"
-            "          title    : %s\n"
-            "          date     : %s\n"
-            "          author   : %s\n"
-            "          words    : %s\n"
-            "          paywalled: %s\n"
-            "          method   : %s  note=%s\n"
-            "          body     : %s",
-            i, len(scraped_sources), s.url,
-            s.title or "(none)",
-            s.date or "(none)",
-            s.author or "(none)",
-            s.word_count,
-            "yes" if s.paywalled else "no",
-            s.scrape_method or "-", s.scrape_note or "ok",
-            body_preview or "(none)",
-        )
+        if VERITY_VERBOSE_LOGS:
+            body_preview = (s.body_text or "").replace("\n", " ").strip()
+            logging.info(
+                "  [%d/%d] EXTRACTED  %s\n"
+                "          title    : %s\n"
+                "          date     : %s\n"
+                "          author   : %s\n"
+                "          words    : %s\n"
+                "          paywalled: %s\n"
+                "          method   : %s  note=%s\n"
+                "          body     : %s",
+                i, len(scraped_sources), s.url,
+                s.title or "(none)",
+                s.date or "(none)",
+                s.author or "(none)",
+                s.word_count,
+                "yes" if s.paywalled else "no",
+                s.scrape_method or "-", s.scrape_note or "ok",
+                body_preview or "(none)",
+            )
+        else:
+            logging.info(
+                "  [%d/%d] EXTRACTED  %s  live=%s method=%s words=%s note=%s",
+                i,
+                len(scraped_sources),
+                s.domain or s.url,
+                "yes" if s.live else "no",
+                s.scrape_method or "-",
+                s.word_count,
+                s.scrape_note or "ok",
+            )
 
     if llm_ok:
         scored_unsorted = [
@@ -4516,28 +4532,29 @@ async def extract(request: Request, body: ExtractRequest):
                 "  %-12s  score=%-3s  %-40s  %s",
                 s.verdict, s.composite_score, s.domain, s.reason[:60],
             )
-        for i, s in enumerate(scored, 1):
-            logging.info(
-                "  [%d/%d] SCORED    %s  →  %s (%d/100)\n"
-                "          retrieval: %d/100  credibility: %d/100\n"
-                "          support  : %d/100  confidence : %d/100 (%s)\n"
-                "          domain   : %s  %d/100\n"
-                "          recency  : %d/100  (date: %s)\n"
-                "          author   : %d/100  (author: %s)\n"
-                "          relevance: %d/100  alignment: %d/100  class=%s\n"
-                "          reason   : %s\n"
-                "          terms    : %s",
-                i, len(scored), s.domain, s.verdict, s.composite_score,
-                s.signals.retrieval_integrity_score, s.signals.source_credibility_score,
-                s.signals.claim_support_score, s.signals.decision_confidence_score,
-                s.signals.decision_confidence_level,
-                s.signals.domain_tier, s.signals.domain_score,
-                s.signals.recency_score, s.date or "none",
-                s.signals.author_score, s.author or "none",
-                s.signals.relevance_score, s.signals.alignment_score, s.signals.support_class,
-                s.reason,
-                ", ".join(s.signals.matched_terms) or "(none)",
-            )
+        if VERITY_VERBOSE_LOGS:
+            for i, s in enumerate(scored, 1):
+                logging.info(
+                    "  [%d/%d] SCORED    %s  →  %s (%d/100)\n"
+                    "          retrieval: %d/100  credibility: %d/100\n"
+                    "          support  : %d/100  confidence : %d/100 (%s)\n"
+                    "          domain   : %s  %d/100\n"
+                    "          recency  : %d/100  (date: %s)\n"
+                    "          author   : %d/100  (author: %s)\n"
+                    "          relevance: %d/100  alignment: %d/100  class=%s\n"
+                    "          reason   : %s\n"
+                    "          terms    : %s",
+                    i, len(scored), s.domain, s.verdict, s.composite_score,
+                    s.signals.retrieval_integrity_score, s.signals.source_credibility_score,
+                    s.signals.claim_support_score, s.signals.decision_confidence_score,
+                    s.signals.decision_confidence_level,
+                    s.signals.domain_tier, s.signals.domain_score,
+                    s.signals.recency_score, s.date or "none",
+                    s.signals.author_score, s.author or "none",
+                    s.signals.relevance_score, s.signals.alignment_score, s.signals.support_class,
+                    s.reason,
+                    ", ".join(s.signals.matched_terms) or "(none)",
+                )
         logging.info("─" * 60)
 
         return ScoredResponse(

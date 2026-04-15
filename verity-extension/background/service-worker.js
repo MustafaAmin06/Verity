@@ -9,13 +9,16 @@ const LEGACY_RAILWAY_URL = "https://verity-production-e8f2.up.railway.app";
 chrome.runtime.onInstalled.addListener(async () => {
   chrome.storage.local.get(
     {
-      extractorUrl: AZURE_EXTRACTOR_URL,
-      advancedSettingsVisible: false,
+      extractorUrl: LOCAL_EXTRACTOR_URL,
+      advancedSettingsVisible: true,
     },
     (settings) => {
       const normalized = (settings.extractorUrl || "").replace(/\/+$/, "");
-      if (normalized === LEGACY_RAILWAY_URL && !settings.advancedSettingsVisible) {
-        chrome.storage.local.set({ extractorUrl: AZURE_EXTRACTOR_URL });
+      if (normalized === LEGACY_RAILWAY_URL) {
+        chrome.storage.local.set({
+          extractorUrl: LOCAL_EXTRACTOR_URL,
+          advancedSettingsVisible: true,
+        });
       }
     }
   );
@@ -43,7 +46,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   // Read backend URL and API key from storage (set via the settings popup).
   chrome.storage.local.get(
-    { extractorUrl: AZURE_EXTRACTOR_URL, apiKey: "" },
+    { extractorUrl: LOCAL_EXTRACTOR_URL, apiKey: "" },
     (settings) => {
       const baseUrl = settings.extractorUrl.replace(/\/+$/, "");
 
