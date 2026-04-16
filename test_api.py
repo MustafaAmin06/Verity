@@ -1,3 +1,4 @@
+import asyncio
 import json
 import unittest
 from unittest.mock import AsyncMock, patch
@@ -330,6 +331,58 @@ class VerityLlmPayloadTests(unittest.TestCase):
         self.assertIn("prompt-abc", prompt)
         self.assertIn("body-abcdefghijklmno", prompt)
         self.assertIn("first 20 chars", prompt)
+
+    def test_call_llm_retries_http_429_then_succeeds(self):
+        class FakeResponse:
+            def __init__(self, status_code, payload=None):
+                self.status_code = status_code
+                self._payload = payload or {}
+
+            def raise_for_status(self):
+                if self.status_code >= 400:
+                    raise RuntimeError(f"HTTP {self.status_code}")
+
+            def json(self):
+                return self._payload
+
+        class FakeClient:
+            def __init__(self):
+                self.calls = 0
+
+            async def post(self, *_args, **_kwargs):
+                self.calls += 1
+                if self.calls == 1:
+                    return FakeResponse(429)
+                return FakeResponse(
+                    200,
+                    {
+                        "choices": [
+                            {
+                                "finish_reason": "stop",
+                                "message": {"content": '{"ok": true}'},
+                            }
+                        ]
+                    },
+                )
+
+        fake_client = FakeClient()
+        original_token = ve.GITHUB_TOKEN
+        original_retries = ve.LLM_429_MAX_RETRIES
+        with patch.object(ve, "_get_llm_client", return_value=fake_client), patch(
+            "verity_extractor.asyncio.sleep",
+            AsyncMock(),
+        ) as sleep_mock:
+            try:
+                ve.GITHUB_TOKEN = "test-token"
+                ve.LLM_429_MAX_RETRIES = 3
+                result = asyncio.run(ve._call_llm("hello"))
+            finally:
+                ve.GITHUB_TOKEN = original_token
+                ve.LLM_429_MAX_RETRIES = original_retries
+
+        self.assertEqual(result, '{"ok": true}')
+        self.assertEqual(fake_client.calls, 2)
+        sleep_mock.assert_awaited_once()
 
 
 if __name__ == "__main__":

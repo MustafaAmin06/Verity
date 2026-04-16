@@ -84,6 +84,9 @@ LLM_MAX_CONTEXT_CHARS = _env_int("LLM_MAX_CONTEXT_CHARS", "2000", lo=100, hi=20_
 LLM_MAX_PROMPT_CHARS = _env_int("LLM_MAX_PROMPT_CHARS", "2000", lo=100, hi=20_000)
 LLM_MAX_BODY_CHARS = _env_int("LLM_MAX_BODY_CHARS", str(min(MAX_BODY_TEXT_CHARS, 8000)), lo=500, hi=500_000)
 LLM_MAX_OUTPUT_TOKENS = _env_int("LLM_MAX_OUTPUT_TOKENS", "400", lo=64, hi=8192)
+LLM_MAX_CONCURRENT_REQUESTS = _env_int("LLM_MAX_CONCURRENT_REQUESTS", "1", lo=1, hi=16)
+LLM_429_MAX_RETRIES = _env_int("LLM_429_MAX_RETRIES", "3", lo=0, hi=10)
+LLM_429_BACKOFF_SECONDS = _env_int("LLM_429_BACKOFF_SECONDS", "1", lo=1, hi=30)
 VERITY_RELOAD = os.getenv("VERITY_RELOAD", "false").lower() == "true"
 ENABLE_PLAYWRIGHT_FALLBACK = (
     os.getenv("ENABLE_PLAYWRIGHT_FALLBACK", "true").lower() == "true"
@@ -1512,6 +1515,7 @@ Respond with ONLY valid JSON:
 
 
 _llm_client: httpx.AsyncClient | None = None
+_llm_semaphore = asyncio.Semaphore(LLM_MAX_CONCURRENT_REQUESTS)
 
 
 def _get_llm_client() -> httpx.AsyncClient:
@@ -1579,31 +1583,49 @@ async def _call_llm(prompt: str, system: str | None = None) -> str | None:
     messages.append({"role": "user", "content": prompt})
 
     client = _get_llm_client()
-    for attempt in range(2):
-        try:
-            response = await client.post(
-                GITHUB_API_URL,
-                json=_build_llm_payload(messages),
-            )
-            if response.status_code == 429 and attempt == 0:
-                await asyncio.sleep(2)
-                continue
-            response.raise_for_status()
-            payload = response.json()
-            choice = payload["choices"][0]
-            finish_reason = choice.get("finish_reason")
-            if finish_reason == "length":
-                logging.warning(
-                    "GitHub Models response truncated by output limit (finish_reason=length, max_output_tokens=%s)",
-                    LLM_MAX_OUTPUT_TOKENS,
+    async with _llm_semaphore:
+        for attempt in range(LLM_429_MAX_RETRIES + 1):
+            try:
+                response = await client.post(
+                    GITHUB_API_URL,
+                    json=_build_llm_payload(messages),
                 )
-            return choice["message"]["content"]
-        except Exception as exc:
-            if attempt == 0 and "429" in str(exc):
-                await asyncio.sleep(2)
-                continue
-            logging.warning("GitHub Models call failed: %s", str(exc)[:120])
-            return None
+                if response.status_code == 429:
+                    if attempt < LLM_429_MAX_RETRIES:
+                        wait_seconds = LLM_429_BACKOFF_SECONDS * (2**attempt)
+                        logging.info(
+                            "GitHub Models 429 on attempt %d/%d, retrying in %ss",
+                            attempt + 1,
+                            LLM_429_MAX_RETRIES + 1,
+                            wait_seconds,
+                        )
+                        await asyncio.sleep(wait_seconds)
+                        continue
+                    logging.warning("GitHub Models call failed after %d attempts: HTTP 429", attempt + 1)
+                    return None
+                response.raise_for_status()
+                payload = response.json()
+                choice = payload["choices"][0]
+                finish_reason = choice.get("finish_reason")
+                if finish_reason == "length":
+                    logging.warning(
+                        "GitHub Models response truncated by output limit (finish_reason=length, max_output_tokens=%s)",
+                        LLM_MAX_OUTPUT_TOKENS,
+                    )
+                return choice["message"]["content"]
+            except Exception as exc:
+                if "429" in str(exc) and attempt < LLM_429_MAX_RETRIES:
+                    wait_seconds = LLM_429_BACKOFF_SECONDS * (2**attempt)
+                    logging.info(
+                        "GitHub Models 429-style exception on attempt %d/%d, retrying in %ss",
+                        attempt + 1,
+                        LLM_429_MAX_RETRIES + 1,
+                        wait_seconds,
+                    )
+                    await asyncio.sleep(wait_seconds)
+                    continue
+                logging.warning("GitHub Models call failed: %s", str(exc)[:120])
+                return None
     return None
 
 

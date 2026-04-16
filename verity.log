@@ -254,3 +254,21 @@ Exception: Connection closed while reading from the driver
 19:52:12 [ERROR] Future exception was never retrieved
 future: <Future finished exception=Exception('Connection closed while reading from the driver')>
 Exception: Connection closed while reading from the driver
+20:03:52 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+20:03:52 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+20:03:52 [INFO] ────────────────────────────────────────────────────────────
+20:03:52 [INFO] Extract request: 1 source(s)  |  LLM: off
+20:03:52 [INFO] Prompt: [26 chars]
+20:03:52 [INFO]   [1] https://example.com/article  |  label: Example article
+20:03:52 [INFO] Scrape+Score done (1ms): 1 live, 0 dead
+20:03:52 [INFO]   [1/1] EXTRACTED  example.com  live=yes method=beautifulsoup words=160 note=ok
+20:03:52 [INFO]   ✓ live  example.com                               method=beautifulsoup   words=160
+20:03:52 [INFO] ────────────────────────────────────────────────────────────
+20:03:52 [INFO] ────────────────────────────────────────────────────────────
+20:03:52 [INFO] Extract-stream request: 1 source(s)  |  LLM: on
+20:03:52 [INFO] Prompt: [26 chars]
+20:03:52 [INFO]   [1] https://example.com/article  |  label: Example article
+20:03:52 [INFO] Scrape+Score done (0ms): 1 live, 0 dead
+20:03:52 [INFO] Scoring done (0ms total)
+20:03:52 [INFO] ────────────────────────────────────────────────────────────
+20:03:52 [INFO] GitHub Models 429 on attempt 1/4, retrying in 1s

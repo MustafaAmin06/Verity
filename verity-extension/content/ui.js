@@ -206,7 +206,6 @@ window.Verity.ui = {
   _hasRubricSignals(signals) {
     if (!signals || typeof signals !== "object") return false;
     const required = [
-      'retrieval_integrity_score',
       'source_credibility_score',
       'claim_support_score',
       'decision_confidence_score',
@@ -429,7 +428,6 @@ window.Verity.ui = {
     rubric.className = "verity-rubric";
 
     const axes = [
-      { label: "Source access", value: signals.retrieval_integrity_score },
       { label: "Credibility", value: signals.source_credibility_score },
       { label: "Claim support", value: signals.claim_support_score },
       { label: "Confidence", value: signals.decision_confidence_score },
