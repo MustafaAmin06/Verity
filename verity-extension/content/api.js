@@ -1,22 +1,32 @@
 window.Verity = window.Verity || {};
 
+var VERITY_SHARED = globalThis.VerityShared;
 const CONTEXT_DEAD_MSG = "Extension was reloaded — please refresh the page.";
 const RESPONSE_CACHE_TTL_MS = 30 * 60 * 1000;
 const responseCache = new Map();
 const pendingRequests = new Map();
-
-let _progressCallback = null;
+const progressListeners = new Map();
 
 chrome.runtime.onMessage.addListener((message) => {
-  if (message.type === "SCRAPE_PROGRESS" && _progressCallback) {
-    _progressCallback(message);
+  if (
+    message.type !== VERITY_SHARED.MESSAGE_TYPES.SCRAPE_PROGRESS ||
+    !message.requestKey
+  ) {
+    return;
+  }
+
+  const listeners = progressListeners.get(message.requestKey);
+  if (!listeners) return;
+
+  for (const listener of listeners) {
+    try {
+      listener(message);
+    } catch (error) {
+      console.warn("Verity: progress listener failed", error);
+    }
   }
 });
 
-/**
- * Returns true when the extension context is still alive
- * (i.e. the service worker hasn't been replaced by a newer version).
- */
 function isContextAlive() {
   try {
     return !!chrome.runtime?.id;
@@ -34,16 +44,44 @@ function hashString(value) {
   return Math.abs(hash).toString(36);
 }
 
+function subscribeToProgress(requestKey, callback) {
+  if (!requestKey || typeof callback !== "function") {
+    return () => {};
+  }
+
+  if (!progressListeners.has(requestKey)) {
+    progressListeners.set(requestKey, new Set());
+  }
+
+  const listeners = progressListeners.get(requestKey);
+  listeners.add(callback);
+
+  return () => {
+    const current = progressListeners.get(requestKey);
+    if (!current) return;
+    current.delete(callback);
+    if (current.size === 0) {
+      progressListeners.delete(requestKey);
+    }
+  };
+}
+
 window.Verity.api = {
-  /** Expose for other modules that need to guard chrome.runtime calls */
   isContextAlive,
 
-  onProgress(callback) {
-    _progressCallback = callback;
+  onProgress(requestKey, callback) {
+    if (typeof requestKey === "function") {
+      return subscribeToProgress("legacy", requestKey);
+    }
+    return subscribeToProgress(requestKey, callback);
   },
 
-  clearProgress() {
-    _progressCallback = null;
+  clearProgress(requestKey) {
+    if (requestKey) {
+      progressListeners.delete(requestKey);
+      return;
+    }
+    progressListeners.clear();
   },
 
   computeCacheKey(payload) {
@@ -56,10 +94,10 @@ window.Verity.api = {
           label: source.label || "",
           context: source.context || "",
         }))
-        .sort((a, b) => {
-          const left = `${a.url}\n${a.context}\n${a.label}`;
-          const right = `${b.url}\n${b.context}\n${b.label}`;
-          return left.localeCompare(right);
+        .sort((left, right) => {
+          const leftValue = `${left.url}\n${left.context}\n${left.label}`;
+          const rightValue = `${right.url}\n${right.context}\n${right.label}`;
+          return leftValue.localeCompare(rightValue);
         }),
     };
     return `verity_${hashString(JSON.stringify(normalized))}`;
@@ -67,7 +105,7 @@ window.Verity.api = {
 
   async fetchWithDedup(cacheKey, payload) {
     const cached = responseCache.get(cacheKey);
-    if (cached && (Date.now() - cached.timestamp) < RESPONSE_CACHE_TTL_MS) {
+    if (cached && Date.now() - cached.timestamp < RESPONSE_CACHE_TTL_MS) {
       return cached.data;
     }
 
@@ -75,7 +113,7 @@ window.Verity.api = {
       return pendingRequests.get(cacheKey);
     }
 
-    const promise = this.checkSources(payload);
+    const promise = this.checkSources(payload, cacheKey);
     pendingRequests.set(cacheKey, promise);
 
     try {
@@ -90,7 +128,7 @@ window.Verity.api = {
     }
   },
 
-  checkSources(payload) {
+  checkSources(payload, requestKey) {
     return new Promise((resolve, reject) => {
       if (!isContextAlive()) {
         reject(new Error(CONTEXT_DEAD_MSG));
@@ -99,32 +137,43 @@ window.Verity.api = {
 
       try {
         chrome.runtime.sendMessage(
-          { type: "EXTRACT_SOURCES", payload },
+          {
+            type: VERITY_SHARED.MESSAGE_TYPES.EXTRACT_SOURCES,
+            requestKey,
+            payload,
+          },
           (response) => {
             if (chrome.runtime.lastError) {
-              const msg = chrome.runtime.lastError.message || "";
-              if (msg.includes("context invalidated") || msg.includes("Extension context")) {
+              const message = chrome.runtime.lastError.message || "";
+              if (
+                message.includes("context invalidated") ||
+                message.includes("Extension context")
+              ) {
                 reject(new Error(CONTEXT_DEAD_MSG));
               } else {
-                reject(new Error(msg));
+                reject(new Error(message));
               }
               return;
             }
+
             if (!response || !response.ok) {
-              reject(new Error((response && response.error) || "Unknown error"));
+              reject(
+                new Error((response && response.error) || "Unknown error")
+              );
               return;
             }
+
             resolve(response.data);
           }
         );
-      } catch (err) {
+      } catch (error) {
         if (
-          err.message?.includes("context invalidated") ||
-          err.message?.includes("Extension context")
+          error.message?.includes("context invalidated") ||
+          error.message?.includes("Extension context")
         ) {
           reject(new Error(CONTEXT_DEAD_MSG));
         } else {
-          reject(err);
+          reject(error);
         }
       }
     });

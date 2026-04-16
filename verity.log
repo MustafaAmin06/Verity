@@ -1061,3 +1061,331 @@ Exception: Connection closed while reading from the driver
 20:34:31 [INFO] Scoring done (0ms total)
 20:34:31 [INFO] ────────────────────────────────────────────────────────────
 20:34:31 [INFO] GitHub Models 429 on attempt 1/4, retrying in 1s
+21:00:16 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+21:00:16 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+21:00:16 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+21:00:16 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+21:40:40 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+21:40:40 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+21:40:40 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+21:40:40 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+21:40:50 [INFO] ────────────────────────────────────────────────────────────
+21:40:50 [INFO] Extract-stream request: 6 source(s)  |  LLM: on
+21:40:50 [INFO] Prompt: [63 chars]
+21:40:50 [INFO]   [1] https://hms.harvard.edu/news-events/publications-archive/brain/love-brain  |  label: Harvard Medical School
+21:40:50 [INFO]   [2] https://psychiatryadvisor.com/home/topics/mood-disorders/the-positive-effects-of-love-on-mental-health  |  label: Psychiatry Advisor
+21:40:50 [INFO]   [3] https://healthcare.utah.edu/healthfeed/2023/02/seven-reasons-why-loving-relationships-are-good-you  |  label: University of Utah Healthcare
+21:40:50 [INFO]   [4] https://en.wikipedia.org/wiki/Self-esteem  |  label: Wikipedia
+21:40:50 [INFO]   [5] https://growingself.com/how-men-feel-loved  |  label: Growing Self Counseling & Coaching
+21:40:50 [INFO]   [6] https://vox.com/even-better/458700/single-men-mental-health-romance-friendship-relationships-masculinity  |  label: Vox
+21:40:50 [INFO] HTTP Request: GET https://psychiatryadvisor.com/home/topics/mood-disorders/the-positive-effects-of-love-on-mental-health "HTTP/2 301 Moved Permanently"
+21:40:50 [INFO] HTTP Request: GET https://vox.com/even-better/458700/single-men-mental-health-romance-friendship-relationships-masculinity "HTTP/2 301 Moved Permanently"
+21:40:50 [INFO] HTTP Request: GET https://en.wikipedia.org/wiki/Self-esteem "HTTP/2 200 OK"
+21:40:50 [INFO] HTTP Request: GET https://hms.harvard.edu/news-events/publications-archive/brain/love-brain "HTTP/2 200 OK"
+21:40:50 [INFO]   SCRAPED OK   hms.harvard.edu                           status=200  words=0  stage=http  strategy=none  confidence=0  note=ok
+21:40:50 [INFO]   PLAYWRIGHT   hms.harvard.edu                           stage=metadata_only  confidence=0 → trying browser render
+21:40:50 [INFO]   SCRAPED OK   en.wikipedia.org                          status=200  words=1235  stage=http  strategy=heuristic_dom  confidence=40  note=paywall_detected
+21:40:50 [INFO]   PLAYWRIGHT   en.wikipedia.org                          stage=http  confidence=40 → trying browser render
+21:40:50 [INFO] HTTP Request: GET https://www.psychiatryadvisor.com/home/topics/mood-disorders/the-positive-effects-of-love-on-mental-health "HTTP/2 302 Found"
+21:40:50 [INFO] HTTP Request: GET https://growingself.com/how-men-feel-loved "HTTP/2 301 Moved Permanently"
+21:40:50 [INFO] HTTP Request: GET https://www.vox.com/even-better/458700/single-men-mental-health-romance-friendship-relationships-masculinity "HTTP/2 200 OK"
+21:40:51 [INFO]   SCRAPED OK   vox.com                                   status=200  words=1342  stage=http  strategy=heuristic_dom  confidence=79  note=ok
+21:40:51 [INFO] HTTP Request: GET https://healthcare.utah.edu/healthfeed/2023/02/seven-reasons-why-loving-relationships-are-good-you "HTTP/2 200 OK"
+21:40:51 [INFO]   SCRAPED OK   healthcare.utah.edu                       status=200  words=1199  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+21:40:51 [INFO] HTTP Request: GET https://accounts.haymarketmedia.com/authcheck?gn=101&retUrl=https%3A%2F%2Fwww.psychiatryadvisor.com%2Fhome%2Ftopics%2Fmood-disorders%2Fthe-positive-effects-of-love-on-mental-health&NoCheck=true "HTTP/2 302 Found"
+21:40:51 [INFO] HTTP Request: GET https://www.growingself.com/how-men-feel-loved/ "HTTP/2 200 OK"
+21:40:51 [INFO]   SCRAPED OK   growingself.com                           status=200  words=1397  stage=http  strategy=heuristic_dom  confidence=79  note=ok
+21:40:51 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=doi%3A10.1371%2Fjournal.pone.0013309&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cids%2Cprimary_location%2Cbest_oa_location%2Cauthorships%2Ctopics%2Cprimary_topic%2Copen_access "HTTP/2 200 OK"
+21:40:51 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=doi%3A10.1177%2F19485506241287960&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cids%2Cprimary_location%2Cbest_oa_location%2Cauthorships%2Ctopics%2Cprimary_topic%2Copen_access "HTTP/2 200 OK"
+21:40:51 [INFO] HTTP Request: GET https://api.openalex.org/authors/A5093882565?select=id%2Cdisplay_name%2Csummary_stats%2Clast_known_institutions "HTTP/2 200 OK"
+21:40:51 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:40:51 [INFO] HTTP Request: GET https://api.openalex.org/authors/A5103875521?select=id%2Cdisplay_name%2Csummary_stats%2Clast_known_institutions "HTTP/2 200 OK"
+21:40:51 [INFO] GitHub Models 429 on attempt 1/3, retrying in 1s
+21:40:51 [INFO] HTTP Request: GET https://api.openalex.org/sources/S202381698?select=id%2Cdisplay_name%2Ctype%2Cissn_l%2Cissn%2Chost_organization_name%2Cis_oa%2Csummary_stats "HTTP/2 200 OK"
+21:40:51 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=doi%3A10.1371%2Fjournal.pone.0269429&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cids%2Cprimary_location%2Cbest_oa_location%2Cauthorships%2Ctopics%2Cprimary_topic%2Copen_access "HTTP/2 200 OK"
+21:40:51 [INFO] HTTP Request: GET https://api.openalex.org/sources/S138235560?select=id%2Cdisplay_name%2Ctype%2Cissn_l%2Cissn%2Chost_organization_name%2Cis_oa%2Csummary_stats "HTTP/2 200 OK"
+21:40:51 [INFO] HTTP Request: GET https://api.openalex.org/authors/A5024502420?select=id%2Cdisplay_name%2Csummary_stats%2Clast_known_institutions "HTTP/2 200 OK"
+21:40:51 [INFO] HTTP Request: GET https://www.psychiatryadvisor.com/home/topics/mood-disorders/the-positive-effects-of-love-on-mental-health "HTTP/2 301 Moved Permanently"
+21:40:52 [INFO]   CONSENT_DOM  removed 1 consent element(s) via JS
+21:40:53 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:40:53 [INFO] GitHub Models 429 on attempt 2/3, retrying in 2s
+21:40:53 [INFO] HTTP Request: GET https://www.psychiatryadvisor.com/home/topics/mood-disorders/the-positive-effects-of-love-on-mental-health/ "HTTP/2 200 OK"
+21:40:53 [INFO]   SCRAPED OK   psychiatryadvisor.com                     status=200  words=768  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+21:40:53 [INFO] HTTP Request: GET https://api.ror.org/v2/organizations?query=Psychiatry+Advisor&page=1&affiliation=false "HTTP/2 200 OK"
+21:40:53 [INFO] HTTP Request: GET https://api.ror.org/v2/organizations?query=Harvard+Medical+School&page=1&affiliation=false "HTTP/2 200 OK"
+21:40:53 [INFO] HTTP Request: GET https://www.wikidata.org/w/api.php?action=wbsearchentities&search=Psychiatry+Advisor&language=en&limit=5&format=json&origin=%2A "HTTP/2 200 OK"
+21:40:53 [INFO] HTTP Request: GET https://www.wikidata.org/w/api.php?action=wbsearchentities&search=Harvard+Medical+School&language=en&limit=5&format=json&origin=%2A "HTTP/2 200 OK"
+21:40:53 [INFO] HTTP Request: GET https://www.wikidata.org/w/api.php?action=wbgetentities&ids=Q49121%7CQ28402048%7CQ30576685%7CQ5676493%7CQ59297505&props=claims%7Clabels%7Cdescriptions&languages=en&format=json&origin=%2A "HTTP/2 200 OK"
+21:40:55 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:40:55 [WARNING] GitHub Models call failed after 3 attempts: HTTP 429
+21:40:55 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:40:55 [INFO] GitHub Models 429 on attempt 1/3, retrying in 1s
+21:40:56 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:40:56 [INFO] GitHub Models 429 on attempt 2/3, retrying in 2s
+21:40:58 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:40:58 [WARNING] GitHub Models call failed after 3 attempts: HTTP 429
+21:40:58 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:40:58 [INFO] GitHub Models 429 on attempt 1/3, retrying in 1s
+21:40:59 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:40:59 [INFO] GitHub Models 429 on attempt 2/3, retrying in 2s
+21:41:01 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:01 [WARNING] GitHub Models call failed after 3 attempts: HTTP 429
+21:41:01 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:01 [INFO] GitHub Models 429 on attempt 1/3, retrying in 1s
+21:41:02 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:02 [INFO] GitHub Models 429 on attempt 2/3, retrying in 2s
+21:41:04 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:04 [WARNING] GitHub Models call failed after 3 attempts: HTTP 429
+21:41:04 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:04 [INFO] GitHub Models 429 on attempt 1/3, retrying in 1s
+21:41:05 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:05 [INFO] GitHub Models 429 on attempt 2/3, retrying in 2s
+21:41:07 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:07 [WARNING] GitHub Models call failed after 3 attempts: HTTP 429
+21:41:07 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:07 [INFO] GitHub Models 429 on attempt 1/3, retrying in 1s
+21:41:08 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:08 [INFO] GitHub Models 429 on attempt 2/3, retrying in 2s
+21:41:10 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:10 [WARNING] GitHub Models call failed after 3 attempts: HTTP 429
+21:41:10 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:10 [INFO] GitHub Models 429 on attempt 1/3, retrying in 1s
+21:41:11 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:11 [INFO] GitHub Models 429 on attempt 2/3, retrying in 2s
+21:41:13 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:13 [WARNING] GitHub Models call failed after 3 attempts: HTTP 429
+21:41:14 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:14 [INFO] GitHub Models 429 on attempt 1/3, retrying in 1s
+21:41:15 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:15 [INFO] GitHub Models 429 on attempt 2/3, retrying in 2s
+21:41:17 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:17 [WARNING] GitHub Models call failed after 3 attempts: HTTP 429
+21:41:17 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:17 [INFO] GitHub Models 429 on attempt 1/3, retrying in 1s
+21:41:18 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:18 [INFO] GitHub Models 429 on attempt 2/3, retrying in 2s
+21:41:20 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:20 [WARNING] GitHub Models call failed after 3 attempts: HTTP 429
+21:41:20 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:20 [INFO] GitHub Models 429 on attempt 1/3, retrying in 1s
+21:41:21 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:21 [INFO] GitHub Models 429 on attempt 2/3, retrying in 2s
+21:41:23 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:23 [WARNING] GitHub Models call failed after 3 attempts: HTTP 429
+21:41:23 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:23 [INFO] GitHub Models 429 on attempt 1/3, retrying in 1s
+21:41:24 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:24 [INFO] GitHub Models 429 on attempt 2/3, retrying in 2s
+21:41:26 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:26 [WARNING] GitHub Models call failed after 3 attempts: HTTP 429
+21:41:26 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:26 [INFO] GitHub Models 429 on attempt 1/3, retrying in 1s
+21:41:27 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:27 [INFO] GitHub Models 429 on attempt 2/3, retrying in 2s
+21:41:29 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+21:41:29 [WARNING] GitHub Models call failed after 3 attempts: HTTP 429
+21:41:29 [INFO] Scrape+Score done (39430ms): 6 live, 0 dead
+21:41:29 [INFO] Scoring done (39433ms total)
+21:41:29 [INFO] ────────────────────────────────────────────────────────────
+21:53:51 [ERROR] Future exception was never retrieved
+future: <Future finished exception=Exception('Connection closed while reading from the driver')>
+Exception: Connection closed while reading from the driver
+21:54:12 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+21:54:12 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+21:54:12 [INFO] ScimagoJR loaded: 48124 ISSNs, 29539 titles
+21:54:12 [WARNING] VERITY_EXTENSION_ID not set — CORS allows any Chrome extension
+21:54:40 [INFO] ────────────────────────────────────────────────────────────
+21:54:40 [INFO] Extract-stream request: 6 source(s)  |  LLM: on
+21:54:40 [INFO] Prompt: [63 chars]
+21:54:40 [INFO]   [1] https://hms.harvard.edu/news-events/publications-archive/brain/love-brain  |  label: Harvard Medical School
+21:54:40 [INFO]   [2] https://psychiatryadvisor.com/home/topics/mood-disorders/the-positive-effects-of-love-on-mental-health  |  label: Psychiatry Advisor
+21:54:40 [INFO]   [3] https://healthcare.utah.edu/healthfeed/2023/02/seven-reasons-why-loving-relationships-are-good-you  |  label: University of Utah Healthcare
+21:54:40 [INFO]   [4] https://en.wikipedia.org/wiki/Self-esteem  |  label: Wikipedia
+21:54:40 [INFO]   [5] https://growingself.com/how-men-feel-loved  |  label: Growing Self Counseling & Coaching
+21:54:40 [INFO]   [6] https://vox.com/even-better/458700/single-men-mental-health-romance-friendship-relationships-masculinity  |  label: Vox
+21:54:40 [INFO] HTTP Request: GET https://psychiatryadvisor.com/home/topics/mood-disorders/the-positive-effects-of-love-on-mental-health "HTTP/2 301 Moved Permanently"
+21:54:40 [INFO] HTTP Request: GET https://vox.com/even-better/458700/single-men-mental-health-romance-friendship-relationships-masculinity "HTTP/2 301 Moved Permanently"
+21:54:40 [INFO] HTTP Request: GET https://hms.harvard.edu/news-events/publications-archive/brain/love-brain "HTTP/2 200 OK"
+21:54:40 [INFO]   SCRAPED OK   hms.harvard.edu                           status=200  words=111  stage=http  strategy=heuristic_dom  confidence=26  note=ok
+21:54:40 [INFO]   PLAYWRIGHT   hms.harvard.edu                           stage=http  confidence=26 → trying browser render
+21:54:40 [INFO] HTTP Request: GET https://en.wikipedia.org/wiki/Self-esteem "HTTP/2 200 OK"
+21:54:40 [INFO] HTTP Request: GET https://www.vox.com/even-better/458700/single-men-mental-health-romance-friendship-relationships-masculinity "HTTP/2 200 OK"
+21:54:40 [INFO] HTTP Request: GET https://www.psychiatryadvisor.com/home/topics/mood-disorders/the-positive-effects-of-love-on-mental-health "HTTP/2 302 Found"
+21:54:40 [INFO]   SCRAPED OK   vox.com                                   status=200  words=1342  stage=http  strategy=heuristic_dom  confidence=79  note=ok
+21:54:40 [INFO] HTTP Request: GET https://growingself.com/how-men-feel-loved "HTTP/2 301 Moved Permanently"
+21:54:40 [INFO]   SCRAPED OK   en.wikipedia.org                          status=200  words=1235  stage=http  strategy=heuristic_dom  confidence=40  note=paywall_detected
+21:54:40 [INFO]   PLAYWRIGHT   en.wikipedia.org                          stage=http  confidence=40 → trying browser render
+21:54:40 [INFO] HTTP Request: GET https://healthcare.utah.edu/healthfeed/2023/02/seven-reasons-why-loving-relationships-are-good-you "HTTP/2 200 OK"
+21:54:40 [INFO]   SCRAPED OK   healthcare.utah.edu                       status=200  words=1199  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+21:54:40 [INFO] HTTP Request: GET https://accounts.haymarketmedia.com/authcheck?gn=101&retUrl=https%3A%2F%2Fwww.psychiatryadvisor.com%2Fhome%2Ftopics%2Fmood-disorders%2Fthe-positive-effects-of-love-on-mental-health&NoCheck=true "HTTP/2 302 Found"
+21:54:41 [INFO] HTTP Request: GET https://www.growingself.com/how-men-feel-loved/ "HTTP/2 200 OK"
+21:54:41 [INFO]   SCRAPED OK   growingself.com                           status=200  words=1397  stage=http  strategy=heuristic_dom  confidence=79  note=ok
+21:54:41 [INFO] HTTP Request: GET https://www.psychiatryadvisor.com/home/topics/mood-disorders/the-positive-effects-of-love-on-mental-health "HTTP/2 301 Moved Permanently"
+21:54:41 [INFO] HTTP Request: GET https://www.psychiatryadvisor.com/home/topics/mood-disorders/the-positive-effects-of-love-on-mental-health/ "HTTP/2 200 OK"
+21:54:41 [INFO]   SCRAPED OK   psychiatryadvisor.com                     status=200  words=768  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+21:54:42 [INFO]   CONSENT_DOM  removed 1 consent element(s) via JS
+21:54:44 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:54:46 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:54:51 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:54:53 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:54:55 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:54:58 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:55:00 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:55:02 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:55:05 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:55:08 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:55:10 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:55:12 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:55:12 [INFO] Scrape+Score done (32833ms): 6 live, 0 dead
+21:55:12 [INFO] Scoring done (32835ms total)
+21:55:12 [INFO] ────────────────────────────────────────────────────────────
+21:58:33 [INFO] ────────────────────────────────────────────────────────────
+21:58:33 [INFO] Extract-stream request: 6 source(s)  |  LLM: on
+21:58:33 [INFO] Prompt: [63 chars]
+21:58:33 [INFO]   [1] https://hms.harvard.edu/news-events/publications-archive/brain/love-brain  |  label: Harvard Medical School
+21:58:33 [INFO]   [2] https://psychiatryadvisor.com/home/topics/mood-disorders/the-positive-effects-of-love-on-mental-health  |  label: Psychiatry Advisor
+21:58:33 [INFO]   [3] https://healthcare.utah.edu/healthfeed/2023/02/seven-reasons-why-loving-relationships-are-good-you  |  label: University of Utah Healthcare
+21:58:33 [INFO]   [4] https://en.wikipedia.org/wiki/Self-esteem  |  label: Wikipedia
+21:58:33 [INFO]   [5] https://growingself.com/how-men-feel-loved  |  label: Growing Self Counseling & Coaching
+21:58:33 [INFO]   [6] https://vox.com/even-better/458700/single-men-mental-health-romance-friendship-relationships-masculinity  |  label: Vox
+21:58:33 [INFO]   CACHE HIT    hms.harvard.edu                         
+21:58:33 [INFO]   CACHE HIT    psychiatryadvisor.com                   
+21:58:33 [INFO]   CACHE HIT    healthcare.utah.edu                     
+21:58:33 [INFO]   CACHE HIT    en.wikipedia.org                        
+21:58:33 [INFO]   CACHE HIT    growingself.com                         
+21:58:33 [INFO]   CACHE HIT    vox.com                                 
+21:58:36 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:58:38 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:58:41 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:58:42 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:58:45 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:58:47 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:58:51 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:58:52 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:58:56 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:58:57 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:59:00 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:59:02 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+21:59:02 [INFO] Scrape+Score done (28903ms): 6 live, 0 dead
+21:59:02 [INFO] Scoring done (28905ms total)
+21:59:02 [INFO] ────────────────────────────────────────────────────────────
+22:00:21 [INFO] ────────────────────────────────────────────────────────────
+22:00:21 [INFO] Extract-stream request: 7 source(s)  |  LLM: on
+22:00:21 [INFO] Prompt: [25 chars]
+22:00:21 [INFO]   [1] https://electrochem.org/why-your-battery-doesnt-last-forever  |  label: ECS
++1
+22:00:21 [INFO]   [2] https://mdpi.com/2313-0105/10/7/220  |  label: MDPI
++1
+22:00:21 [INFO]   [3] https://midtronics.com/blog/the-science-behind-ev-battery-degradation-and-how-to-mitigate-it  |  label: Midtronics
+22:00:21 [INFO]   [4] https://icomamerica.com/blog/lithium-ion-battery-degradation-prevention  |  label: Icom America.
+22:00:21 [INFO]   [5] https://airqualitynews.com/fuels/why-do-lithium-ion-batteries-degrade-over-time  |  label: AirQualityNews
+22:00:21 [INFO]   [6] https://pubs.rsc.org/en/content/articlehtml/2021/cp/d1cp00359c  |  label: RSC Publishing
+22:00:21 [INFO]   [7] https://zitara.com/resources/lithium-ion-battery-degradation  |  label: Zitara
+22:00:22 [INFO] HTTP Request: GET https://electrochem.org/why-your-battery-doesnt-last-forever "HTTP/2 301 Moved Permanently"
+22:00:22 [INFO] HTTP Request: GET https://mdpi.com/2313-0105/10/7/220 "HTTP/2 301 Moved Permanently"
+22:00:22 [INFO] HTTP Request: GET https://midtronics.com/blog/the-science-behind-ev-battery-degradation-and-how-to-mitigate-it "HTTP/2 301 Moved Permanently"
+22:00:22 [INFO] HTTP Request: GET https://zitara.com/resources/lithium-ion-battery-degradation "HTTP/2 301 Moved Permanently"
+22:00:22 [INFO] HTTP Request: GET https://icomamerica.com/blog/lithium-ion-battery-degradation-prevention "HTTP/1.1 301 Moved Permanently"
+22:00:22 [INFO] HTTP Request: GET https://www.mdpi.com/2313-0105/10/7/220 "HTTP/2 200 OK"
+22:00:22 [INFO] HTTP Request: GET https://icomamerica.com/blog/lithium-ion-battery-degradation-prevention/ "HTTP/1.1 200 OK"
+22:00:22 [INFO]   SCRAPED OK   mdpi.com                                  status=200  words=1121  stage=http  strategy=scholarly_adapter  confidence=72  note=abstract_only
+22:00:22 [INFO] HTTP Request: GET https://pubs.rsc.org/en/content/articlehtml/2021/cp/d1cp00359c "HTTP/1.1 503 Service Unavailable"
+22:00:22 [INFO] HTTP Request: GET https://airqualitynews.com/fuels/why-do-lithium-ion-batteries-degrade-over-time "HTTP/2 301 Moved Permanently"
+22:00:22 [INFO] HTTP Request: GET https://www.electrochem.org/why-your-battery-doesnt-last-forever "HTTP/2 200 OK"
+22:00:22 [WARNING]   SCRAPE FAIL  pubs.rsc.org                              status=503   reason=url_dead
+22:00:22 [INFO]   SCRAPED OK   electrochem.org                           status=200  words=1  stage=http  strategy=heuristic_dom  confidence=0  note=partial_content
+22:00:22 [INFO]   PLAYWRIGHT   electrochem.org                           stage=http  confidence=0 → trying browser render
+22:00:23 [INFO] HTTP Request: GET https://www.zitara.com/resources/lithium-ion-battery-degradation "HTTP/2 200 OK"
+22:00:23 [INFO]   SCRAPED OK   zitara.com                                status=200  words=20  stage=http  strategy=heuristic_dom  confidence=0  note=partial_content
+22:00:23 [INFO]   PLAYWRIGHT   zitara.com                                stage=http  confidence=0 → trying browser render
+22:00:23 [INFO] HTTP Request: GET https://api.openalex.org/works?filter=doi%3A10.3390%2Fbatteries10070220&per_page=1&select=id%2Cdoi%2Ctitle%2Cpublication_year%2Ccited_by_count%2Ctype%2Cids%2Cprimary_location%2Cbest_oa_location%2Cauthorships%2Ctopics%2Cprimary_topic%2Copen_access "HTTP/2 200 OK"
+22:00:23 [INFO] HTTP Request: GET https://api.openalex.org/authors/A5019832620?select=id%2Cdisplay_name%2Csummary_stats%2Clast_known_institutions "HTTP/2 200 OK"
+22:00:23 [INFO] HTTP Request: GET https://api.openalex.org/sources/S2737090608?select=id%2Cdisplay_name%2Ctype%2Cissn_l%2Cissn%2Chost_organization_name%2Cis_oa%2Csummary_stats "HTTP/2 200 OK"
+22:00:23 [INFO]   SCRAPED OK   icomamerica.com                           status=200  words=758  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+22:00:23 [INFO] HTTP Request: GET https://airqualitynews.com/fuels/why-do-lithium-ion-batteries-degrade-over-time/ "HTTP/2 200 OK"
+22:00:23 [INFO]   SCRAPED OK   airqualitynews.com                        status=200  words=968  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+22:00:24 [INFO] HTTP Request: GET https://www.midtronics.com/blog/the-science-behind-ev-battery-degradation-and-how-to-mitigate-it "HTTP/2 301 Moved Permanently"
+22:00:24 [WARNING] ROR error: 
+22:00:25 [INFO] HTTP Request: GET https://api.ror.org/v2/organizations?query=AirQualityNews&page=1&affiliation=false "HTTP/2 200 OK"
+22:00:25 [INFO] HTTP Request: GET https://www.midtronics.com/blog/the-science-behind-ev-battery-degradation-and-how-to-mitigate-it/ "HTTP/2 200 OK"
+22:00:25 [INFO]   SCRAPED OK   midtronics.com                            status=200  words=1038  stage=http  strategy=heuristic_dom  confidence=72  note=ok
+22:00:25 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:00:26 [INFO] HTTP Request: GET https://api.ror.org/v2/organizations?query=Midtronics&page=1&affiliation=false "HTTP/2 200 OK"
+22:00:26 [INFO] HTTP Request: GET https://www.wikidata.org/w/api.php?action=wbsearchentities&search=Midtronics&language=en&limit=5&format=json&origin=%2A "HTTP/2 200 OK"
+22:00:26 [INFO] HTTP Request: GET https://www.wikidata.org/w/api.php?action=wbgetentities&ids=Q134664778%7CQ134664779&props=claims%7Clabels%7Cdescriptions&languages=en&format=json&origin=%2A "HTTP/2 200 OK"
+22:00:26 [INFO]   CONSENT_DOM  removed 1 consent element(s) via JS
+22:00:26 [INFO]   CONSENT_DOM  removed 7 consent element(s) via JS
+22:00:26 [INFO] HTTP Request: GET https://api.ror.org/v2/organizations?query=Lithium-Ion+Battery+Degradation+Rate+%28%2BWhat+You+Need+to+Know%29&page=1&affiliation=false "HTTP/2 200 OK"
+22:00:26 [INFO] HTTP Request: GET https://api.ror.org/v2/organizations?query=ECS&page=1&affiliation=false "HTTP/2 200 OK"
+22:00:26 [INFO] HTTP Request: GET https://www.wikidata.org/w/api.php?action=wbsearchentities&search=Lithium-Ion+Battery+Degradation+Rate+%28%2BWhat+You+Need+to+Know%29&language=en&limit=5&format=json&origin=%2A "HTTP/2 200 OK"
+22:00:27 [INFO] HTTP Request: GET https://www.wikidata.org/w/api.php?action=wbsearchentities&search=ECS&language=en&limit=5&format=json&origin=%2A "HTTP/2 200 OK"
+22:00:27 [INFO] HTTP Request: GET https://www.wikidata.org/w/api.php?action=wbgetentities&ids=Q368952%7CQ69488%7CQ2701209%7CQ3721278%7CQ534403&props=claims%7Clabels%7Cdescriptions&languages=en&format=json&origin=%2A "HTTP/2 200 OK"
+22:00:28 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:00:32 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:00:33 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 200 OK"
+22:00:34 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:00:34 [INFO] GitHub Models 429 on attempt 1/3, retrying in 1s
+22:00:35 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:00:35 [INFO] GitHub Models 429 on attempt 2/3, retrying in 2s
+22:00:37 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:00:37 [WARNING] GitHub Models call failed after 3 attempts: HTTP 429
+22:00:37 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:00:37 [INFO] GitHub Models 429 on attempt 1/3, retrying in 1s
+22:00:38 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:00:38 [INFO] GitHub Models 429 on attempt 2/3, retrying in 2s
+22:00:40 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:00:40 [WARNING] GitHub Models call failed after 3 attempts: HTTP 429
+22:00:40 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:00:40 [INFO] GitHub Models 429 on attempt 1/3, retrying in 1s
+22:00:41 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:00:41 [INFO] GitHub Models 429 on attempt 2/3, retrying in 2s
+22:00:43 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:00:43 [WARNING] GitHub Models call failed after 3 attempts: HTTP 429
+22:00:43 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:00:43 [INFO] GitHub Models 429 on attempt 1/3, retrying in 1s
+22:00:44 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:00:44 [INFO] GitHub Models 429 on attempt 2/3, retrying in 2s
+22:00:46 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:00:46 [WARNING] GitHub Models call failed after 3 attempts: HTTP 429
+22:00:46 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:00:46 [INFO] GitHub Models 429 on attempt 1/3, retrying in 1s
+22:00:47 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:00:47 [INFO] GitHub Models 429 on attempt 2/3, retrying in 2s
+22:00:49 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:00:49 [WARNING] GitHub Models call failed after 3 attempts: HTTP 429
+22:00:49 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:00:49 [INFO] GitHub Models 429 on attempt 1/3, retrying in 1s
+22:00:50 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:00:50 [INFO] GitHub Models 429 on attempt 2/3, retrying in 2s
+22:00:52 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:00:52 [WARNING] GitHub Models call failed after 3 attempts: HTTP 429
+22:00:52 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:00:52 [INFO] GitHub Models 429 on attempt 1/3, retrying in 1s
+22:00:53 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:00:53 [INFO] GitHub Models 429 on attempt 2/3, retrying in 2s
+22:00:55 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:00:55 [WARNING] GitHub Models call failed after 3 attempts: HTTP 429
+22:00:55 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:00:55 [INFO] GitHub Models 429 on attempt 1/3, retrying in 1s
+22:00:56 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:00:56 [INFO] GitHub Models 429 on attempt 2/3, retrying in 2s
+22:00:58 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:00:58 [WARNING] GitHub Models call failed after 3 attempts: HTTP 429
+22:00:58 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:00:58 [INFO] GitHub Models 429 on attempt 1/3, retrying in 1s
+22:00:59 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:00:59 [INFO] GitHub Models 429 on attempt 2/3, retrying in 2s
+22:01:01 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:01:01 [WARNING] GitHub Models call failed after 3 attempts: HTTP 429
+22:01:01 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:01:01 [INFO] GitHub Models 429 on attempt 1/3, retrying in 1s
+22:01:02 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:01:02 [INFO] GitHub Models 429 on attempt 2/3, retrying in 2s
+22:01:04 [INFO] HTTP Request: POST https://models.inference.ai.azure.com/chat/completions "HTTP/2 429 Too Many Requests"
+22:01:04 [WARNING] GitHub Models call failed after 3 attempts: HTTP 429
+22:01:04 [INFO] Scrape+Score done (43448ms): 6 live, 1 dead
+22:01:04 [INFO] Scoring done (43450ms total)
+22:01:04 [INFO] ────────────────────────────────────────────────────────────
+22:01:41 [ERROR] Future exception was never retrieved
+future: <Future finished exception=Exception('Connection closed while reading from the driver')>
+Exception: Connection closed while reading from the driver

@@ -1,0 +1,16 @@
+{
+  "name": "verity-inline-ui",
+  "private": true,
+  "scripts": {
+    "build": "vite build",
+    "build:inline-ui": "vite build"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "vite": "^5.4.10"
+  }
+}

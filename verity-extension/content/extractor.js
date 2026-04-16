@@ -1,12 +1,18 @@
 window.Verity = window.Verity || {};
 
+var VERITY_SHARED = globalThis.VerityShared || {
+  CUSTOM_EVENTS: {
+    GENERATION_START: "verity-generation-start",
+    CITATIONS: "verity-citations",
+  },
+};
 const MAX_INTERCEPTED_SESSIONS = 8;
 const TRACKING_PARAMS = new Set(["fbclid", "gclid", "mc_cid", "mc_eid", "ref", "ref_src"]);
 
 // --- Session-aware intercepted citation cache (filled by MAIN-world interceptor.js) ---
 window.Verity._interceptedSessions = window.Verity._interceptedSessions || [];
 
-document.addEventListener("verity-generation-start", (e) => {
+document.addEventListener(VERITY_SHARED.CUSTOM_EVENTS.GENERATION_START, (e) => {
   const detail = e.detail || {};
   if (detail.sessionId == null) return;
   if (window.Verity.extractor) {
@@ -14,7 +20,7 @@ document.addEventListener("verity-generation-start", (e) => {
   }
 });
 
-document.addEventListener("verity-citations", (e) => {
+document.addEventListener(VERITY_SHARED.CUSTOM_EVENTS.CITATIONS, (e) => {
   const detail = e.detail || {};
   if (!Array.isArray(detail.citations) || detail.sessionId == null) return;
   if (window.Verity.extractor) {

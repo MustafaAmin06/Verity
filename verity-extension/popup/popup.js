@@ -1,24 +1,10 @@
-// Replace this with the final App Platform hostname after the first DigitalOcean deploy.
-const PRODUCTION_EXTRACTOR_URL =
-  "https://verity-api.thankfulsmoke-1985157b.eastus.azurecontainerapps.io";
-const LOCAL_EXTRACTOR_URL = "http://localhost:8001";
-const LEGACY_RAILWAY_URL = "https://verity-production-e8f2.up.railway.app";
-
-const DEFAULTS = {
-  enabled: true,
-  autoCheck: false,
-  devMode: false,
-  extractorUrl: PRODUCTION_EXTRACTOR_URL,
-  apiKey: "",
-  minUrlsToShowButton: 1,
-};
-
-const FIELD_KEYS = ["enabled", "autoCheck", "devMode", "extractorUrl", "apiKey", "minUrlsToShowButton"];
+const VERITY_SHARED = globalThis.VerityShared;
 const manifest = chrome.runtime.getManifest();
 
 const els = Object.fromEntries(
-  FIELD_KEYS.map((id) => [id, document.getElementById(id)])
+  VERITY_SHARED.STORAGE_KEYS.map((id) => [id, document.getElementById(id)])
 );
+
 const advancedPanel = document.getElementById("advancedPanel");
 const backendTitle = document.getElementById("backendTitle");
 const backendUrlLabel = document.getElementById("backendUrlLabel");
@@ -33,7 +19,6 @@ const versionLabel = document.getElementById("versionLabel");
 
 let saveTimer = null;
 let savedTimer = null;
-let currentSettings = { ...DEFAULTS };
 
 if (versionLabel) {
   versionLabel.textContent = `v${manifest.version}`;
@@ -43,32 +28,8 @@ if (projectLink && manifest.homepage_url) {
   projectLink.href = manifest.homepage_url;
 }
 
-function normalizeUrl(value) {
-  return String(value || "").trim().replace(/\/+$/, "");
-}
-
-function normalizeSettings(settings) {
-  const next = { ...DEFAULTS, ...settings };
-  next.devMode = Boolean(
-    settings.devMode !== undefined ? settings.devMode : settings.advancedSettingsVisible
-  );
-  next.extractorUrl = normalizeUrl(next.extractorUrl) || PRODUCTION_EXTRACTOR_URL;
-  next.apiKey = String(next.apiKey || "");
-  next.minUrlsToShowButton = Math.min(
-    10,
-    Math.max(1, Number.parseInt(next.minUrlsToShowButton, 10) || DEFAULTS.minUrlsToShowButton)
-  );
-
-  if (!next.devMode && next.extractorUrl === LEGACY_RAILWAY_URL) {
-    next.extractorUrl = PRODUCTION_EXTRACTOR_URL;
-  }
-
-  return next;
-}
-
 function populateForm(settings) {
-  currentSettings = { ...settings };
-  for (const key of FIELD_KEYS) {
+  for (const key of VERITY_SHARED.STORAGE_KEYS) {
     const el = els[key];
     if (!el) continue;
     if (el.type === "checkbox") {
@@ -77,29 +38,30 @@ function populateForm(settings) {
       el.value = settings[key];
     }
   }
+
   setAdvancedVisibility(Boolean(settings.devMode));
   updateBackendCopy(settings.extractorUrl);
 }
 
-function persistSettings(partial) {
-  chrome.storage.local.get(DEFAULTS, (stored) => {
-    const next = normalizeSettings({ ...stored, ...partial });
+function writeSettings(partial) {
+  chrome.storage.local.get(VERITY_SHARED.DEFAULT_SETTINGS, (stored) => {
+    const next = VERITY_SHARED.normalizeSettings({
+      ...stored,
+      ...partial,
+    });
+
     chrome.storage.local.set(next, () => {
       populateForm(next);
       flashSaved();
-      checkServer(next.extractorUrl);
+      scheduleHealthCheck(next.extractorUrl);
     });
   });
 }
 
 function updateBackendCopy(url) {
-  const normalized = normalizeUrl(url);
-  const isLocal = normalized.startsWith("http://localhost") || normalized.startsWith("http://127.0.0.1");
-
-  backendTitle.textContent = isLocal ? "Local backend" : "Production API";
-  backendUrlLabel.textContent = isLocal
-    ? "Developer override active"
-    : "Production backend active";
+  const presentation = VERITY_SHARED.getBackendPresentation(url);
+  backendTitle.textContent = presentation.title;
+  backendUrlLabel.textContent = presentation.summaryLabel;
 }
 
 function setAdvancedVisibility(visible) {
@@ -119,51 +81,62 @@ function collectFormValues() {
   return {
     enabled: els.enabled.checked,
     autoCheck: els.autoCheck.checked,
-    extractorUrl: normalizeUrl(els.extractorUrl.value),
+    extractorUrl: VERITY_SHARED.normalizeUrl(els.extractorUrl.value),
     apiKey: String(els.apiKey.value || ""),
-    minUrlsToShowButton: Math.min(
-      10,
-      Math.max(1, Number.parseInt(els.minUrlsToShowButton.value, 10) || DEFAULTS.minUrlsToShowButton)
+    minUrlsToShowButton: VERITY_SHARED.clampMinUrlsToShowButton(
+      els.minUrlsToShowButton.value
     ),
     devMode: els.devMode.checked,
   };
 }
 
+function scheduleHealthCheck(url) {
+  if (document.activeElement === els.extractorUrl) {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => checkServer(url), 500);
+    return;
+  }
+  checkServer(url);
+}
+
 function save() {
-  const next = normalizeSettings(collectFormValues());
-  chrome.storage.local.set(next, () => {
-    populateForm(next);
-    flashSaved();
-    if (document.activeElement === els.extractorUrl) {
-      clearTimeout(saveTimer);
-      saveTimer = setTimeout(() => checkServer(next.extractorUrl), 500);
-    } else {
-      checkServer(next.extractorUrl);
-    }
-  });
+  writeSettings(collectFormValues());
 }
 
 async function checkServer(url) {
-  const normalized = normalizeUrl(url);
+  const normalized = VERITY_SHARED.normalizeUrl(url);
   updateBackendCopy(normalized);
   serverStatus.className = "verity-status-dot verity-status-checking";
   serverStatus.title = "Checking";
   serverSummary.textContent = `Checking ${normalized || "backend"}…`;
 
   try {
-    const res = await fetch(`${normalized}/health`, {
-      method: "GET",
-      signal: AbortSignal.timeout(3000),
-    });
-    if (!res.ok) {
+    const response = await fetch(
+      VERITY_SHARED.createBackendUrl(
+        normalized,
+        VERITY_SHARED.BACKEND_ENDPOINTS.HEALTH
+      ),
+      {
+        method: "GET",
+        signal: AbortSignal.timeout(
+          VERITY_SHARED.REQUEST_TIMEOUTS_MS.popupHealth
+        ),
+      }
+    );
+
+    if (!response.ok) {
       serverStatus.className = "verity-status-dot verity-status-dead";
-      serverStatus.title = `HTTP ${res.status}`;
-      serverSummary.textContent = `Backend reachable, but /health returned HTTP ${res.status}.`;
+      serverStatus.title = `HTTP ${response.status}`;
+      serverSummary.textContent =
+        `Backend reachable, but /health returned HTTP ${response.status}.`;
       return;
     }
 
-    const payload = await res.json().catch(() => ({}));
-    const llmLabel = payload.llm_enabled ? payload.llm_model || "LLM ready" : "Extraction only";
+    const payload = await response.json().catch(() => ({}));
+    const llmLabel = payload.llm_enabled
+      ? payload.llm_model || "LLM ready"
+      : "Extraction only";
+
     serverStatus.className = "verity-status-dot verity-status-live";
     serverStatus.title = "Connected";
     serverSummary.textContent = `Connected. ${llmLabel}.`;
@@ -174,39 +147,57 @@ async function checkServer(url) {
   }
 }
 
-for (const key of FIELD_KEYS) {
+for (const key of VERITY_SHARED.STORAGE_KEYS) {
   const el = els[key];
   if (!el) continue;
   el.addEventListener("change", save);
 }
 
 resetDefaults?.addEventListener("click", () => {
-  persistSettings({
-    enabled: DEFAULTS.enabled,
-    autoCheck: DEFAULTS.autoCheck,
-    devMode: DEFAULTS.devMode,
-    extractorUrl: PRODUCTION_EXTRACTOR_URL,
-    apiKey: "",
-    minUrlsToShowButton: DEFAULTS.minUrlsToShowButton,
-  });
+  writeSettings(VERITY_SHARED.DEFAULT_SETTINGS);
 });
 
 useProductionPreset?.addEventListener("click", () => {
-  persistSettings({ extractorUrl: PRODUCTION_EXTRACTOR_URL, apiKey: "" });
+  writeSettings({
+    extractorUrl: VERITY_SHARED.PRODUCTION_EXTRACTOR_URL,
+    apiKey: "",
+  });
 });
 
 useLocalPreset?.addEventListener("click", () => {
-  persistSettings({ extractorUrl: LOCAL_EXTRACTOR_URL });
+  writeSettings({
+    extractorUrl: VERITY_SHARED.LOCAL_EXTRACTOR_URL,
+  });
 });
 
-chrome.storage.local.get(DEFAULTS, (stored) => {
-  const normalized = normalizeSettings(stored);
-  populateForm(normalized);
+chrome.storage.local.get(
+  {
+    ...VERITY_SHARED.DEFAULT_SETTINGS,
+    advancedSettingsVisible: false,
+  },
+  (stored) => {
+    const normalized = VERITY_SHARED.normalizeSettings(stored);
+    populateForm(normalized);
 
-  const changed = JSON.stringify(normalized) !== JSON.stringify({ ...DEFAULTS, ...stored });
-  if (changed) {
-    chrome.storage.local.set(normalized);
+    const needsRewrite =
+      stored.advancedSettingsVisible !== undefined ||
+      Boolean(
+        stored.devMode !== undefined
+          ? stored.devMode
+          : stored.advancedSettingsVisible
+      ) !== normalized.devMode ||
+      VERITY_SHARED.normalizeUrl(stored.extractorUrl) !== normalized.extractorUrl ||
+      String(stored.apiKey || "") !== normalized.apiKey ||
+      Boolean(stored.enabled) !== normalized.enabled ||
+      Boolean(stored.autoCheck) !== normalized.autoCheck ||
+      VERITY_SHARED.clampMinUrlsToShowButton(
+        stored.minUrlsToShowButton
+      ) !== normalized.minUrlsToShowButton;
+
+    if (needsRewrite) {
+      chrome.storage.local.set(normalized);
+    }
+
+    checkServer(normalized.extractorUrl);
   }
-
-  checkServer(normalized.extractorUrl);
-});
+);

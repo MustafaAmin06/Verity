@@ -18,6 +18,8 @@
 (function () {
   "use strict";
 
+  const VERITY_SHARED = globalThis.VerityShared;
+
   if (window.__VERITY_FETCH_PATCHED__) {
     return;
   }
@@ -82,7 +84,7 @@
     currentSessionId += 1;
     resetSession();
     document.dispatchEvent(
-      new CustomEvent("verity-generation-start", {
+      new CustomEvent(VERITY_SHARED.CUSTOM_EVENTS.GENERATION_START, {
         detail: {
           sessionId: currentSessionId,
           timestamp: Date.now(),
@@ -246,7 +248,7 @@
     sessionTimer = setTimeout(() => {
       if (sessionCitations.length > 0) {
         document.dispatchEvent(
-          new CustomEvent("verity-citations", {
+          new CustomEvent(VERITY_SHARED.CUSTOM_EVENTS.CITATIONS, {
             detail: {
               sessionId,
               citations: [...sessionCitations],

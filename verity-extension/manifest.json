@@ -30,7 +30,7 @@
         "https://chat.openai.com/*",
         "https://chatgpt.com/*"
       ],
-      "js": ["content/interceptor.js"],
+      "js": ["shared/contracts.js", "content/interceptor.js"],
       "run_at": "document_start",
       "world": "MAIN"
     },
@@ -40,22 +40,22 @@
         "https://chatgpt.com/*"
       ],
       "js": [
+        "shared/contracts.js",
         "content/settings.js",
+        "content/runtime.js",
         "content/api.js",
         "content/extractor.js",
+        "content/render-model.js",
+        "generated/inline-ui.js",
         "content/ui.js",
         "content/observer.js",
         "content/content.js"
       ],
-      "css": ["styles/cards.css"],
+      "css": ["generated/inline-ui.css"],
       "run_at": "document_idle"
     }
   ],
   "background": {
     "service_worker": "background/service-worker.js"
-  },
-  "web_accessible_resources": [{
-    "resources": ["styles/cards.css"],
-    "matches": ["https://chat.openai.com/*", "https://chatgpt.com/*"]
-  }]
+  }
 }

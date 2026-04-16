@@ -1,68 +1,55 @@
 // Verity settings — loaded from chrome.storage.local, kept live-updated.
-// This script MUST be listed first in manifest.json content_scripts.
+// This script MUST be listed before any content modules that read VERITY_CONFIG.
 
 window.Verity = window.Verity || {};
 
-// Replace this with the final App Platform hostname after the first DigitalOcean deploy.
-const VERITY_PRODUCTION_EXTRACTOR_URL =
-  "https://verity-api.thankfulsmoke-1985157b.eastus.azurecontainerapps.io";
-const VERITY_LOCAL_EXTRACTOR_URL = "http://localhost:8001";
+var VERITY_SHARED = globalThis.VerityShared;
+var VERITY_CONFIG = VERITY_SHARED.buildContentConfig();
 
-var VERITY_CONFIG = {
-  enabled: true,
-  autoCheck: false,
-  extractorUrl: VERITY_PRODUCTION_EXTRACTOR_URL,
-  maxBodyTextChars: 8000,
-  minContextChars: 30,
-  maxContextChars: 400,
-  minUrlsToShowButton: 1,
-  previewCardSelectors: [
-    '[data-testid*="link-preview"]',
-    '[data-testid*="preview"]',
-    '[class*="LinkPreview"]',
-    '[class*="link-preview"]',
-    '[class*="linkPreview"]',
-  ],
-  previewSearchTimeoutMs: 800,
-};
-
-// Freeze the default keys so we know what belongs in config
-const _VERITY_DEFAULTS = Object.assign({}, VERITY_CONFIG);
-
-// Resolves once chrome.storage values have been merged into VERITY_CONFIG
 window.Verity.settingsReady = new Promise((resolve) => {
   try {
-    chrome.storage.local.get(_VERITY_DEFAULTS, (stored) => {
-      Object.assign(VERITY_CONFIG, stored);
+    chrome.storage.local.get(VERITY_SHARED.DEFAULT_SETTINGS, (stored) => {
+      Object.assign(VERITY_CONFIG, VERITY_SHARED.buildContentConfig(stored));
       resolve();
     });
   } catch {
-    // Extension context dead — use defaults
     resolve();
   }
 });
 
-// Live-update VERITY_CONFIG when popup (or anything) writes to storage
 try {
   chrome.storage.onChanged.addListener((changes, area) => {
     if (area !== "local") return;
+
+    const nextSettings = {};
+    let hasRelevantChange = false;
+
     for (const [key, { newValue }] of Object.entries(changes)) {
-      if (key in VERITY_CONFIG) {
-        VERITY_CONFIG[key] = newValue;
+      if (!VERITY_SHARED.STORAGE_KEYS.includes(key) && key !== "advancedSettingsVisible") {
+        continue;
       }
+      nextSettings[key] = newValue;
+      hasRelevantChange = true;
     }
 
-    // Handle live enable/disable toggle
-    if ("enabled" in changes) {
-      if (changes.enabled.newValue === false) {
-        if (typeof window.Verity.cleanup === "function") {
-          window.Verity.cleanup();
-        }
-      } else {
-        if (typeof window.Verity.reinit === "function") {
-          window.Verity.reinit();
-        }
+    if (!hasRelevantChange) return;
+
+    Object.assign(VERITY_CONFIG, VERITY_SHARED.buildContentConfig({
+      ...VERITY_CONFIG,
+      ...nextSettings,
+    }));
+
+    if (!Object.prototype.hasOwnProperty.call(changes, "enabled")) return;
+
+    if (changes.enabled.newValue === false) {
+      if (typeof window.Verity.cleanup === "function") {
+        window.Verity.cleanup();
       }
+      return;
+    }
+
+    if (typeof window.Verity.reinit === "function") {
+      window.Verity.reinit();
     }
   });
 } catch {
