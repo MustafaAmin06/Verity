@@ -4,6 +4,7 @@ Verity Scrape Bench — developer testing & debugging tool for the scraping pipe
 Usage:
     python -m devtools.verity_bench scrape <url> [url2 ...] [options]
     python -m devtools.verity_bench test   [options]
+    python -m devtools.verity_bench llm-sweep [options]
     python -m devtools.verity_bench compare <label1> <label2> [options]
     python -m devtools.verity_bench failures [options]
     python -m devtools.verity_bench history [options]
@@ -29,6 +30,7 @@ from verity_extractor import (  # noqa: E402
     _SCRAPE_PIPELINE,
     ScrapedSource,
     SourceInput,
+    _bootstrap_authority_profile,
     _detect_topic,
     _call_llm,
     _build_score_prompt,
@@ -37,8 +39,13 @@ from verity_extractor import (  # noqa: E402
     _SCORE_SYSTEM_PROMPT,
     _SCRAPE_CACHE,
     build_scored_source,
+    classify_source_authority,
     enrich_with_openalex,
+    get_llm_metrics,
+    reset_llm_metrics,
     scrape_source,
+    score_source_with_llm,
+    set_llm_concurrency_limit,
 )
 from devtools.triage_catalog import (  # noqa: E402
     classify_failure,
@@ -170,6 +177,34 @@ def _get_db() -> sqlite3.Connection:
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _load_sources_and_prompt(args: argparse.Namespace) -> tuple[list[SourceInput], str, str]:
+    if getattr(args, "urls_file", None):
+        with open(args.urls_file) as f:
+            data = json.load(f)
+        sources_raw = data["sources"]
+        prompt = args.prompt or data.get("original_prompt", "")
+        response = args.response or data.get("full_ai_response", "")
+    else:
+        if not getattr(args, "urls", None):
+            raise ValueError("provide URLs as arguments or use --urls-file")
+        prompt = args.prompt or ""
+        response = args.response or ""
+        sources_raw = [
+            {"url": u, "label": u, "context": args.context or "N/A"}
+            for u in args.urls
+        ]
+
+    sources = [
+        SourceInput(
+            url=s["url"],
+            label=s.get("label", s["url"]),
+            context=s.get("context", "N/A"),
+        )
+        for s in sources_raw
+    ]
+    return sources, prompt, response
 
 
 _ACTIONABILITY = {
@@ -535,20 +570,11 @@ async def cmd_scrape(args: argparse.Namespace) -> None:
 
 async def cmd_test(args: argparse.Namespace) -> None:
     """Full pipeline test: scrape + LLM score + OpenAlex + composite."""
-    # Load sources
-    if args.urls_file:
-        with open(args.urls_file) as f:
-            data = json.load(f)
-        sources_raw = data["sources"]
-        prompt = args.prompt or data.get("original_prompt", "")
-        response = args.response or data.get("full_ai_response", "")
-    else:
-        if not args.urls:
-            print(_c("Error: provide URLs as arguments or use --urls-file", "red"))
-            return
-        prompt = args.prompt or ""
-        response = args.response or ""
-        sources_raw = [{"url": u, "label": u, "context": args.context or "N/A"} for u in args.urls]
+    try:
+        sources, prompt, response = _load_sources_and_prompt(args)
+    except ValueError as exc:
+        print(_c(f"Error: {exc}", "red"))
+        return
 
     if not prompt:
         print(_c("Error: --prompt is required (or set original_prompt in urls file)", "red"))
@@ -567,7 +593,6 @@ async def cmd_test(args: argparse.Namespace) -> None:
         sys_prompt, score_tmpl = row["system_prompt"], row["score_prompt"]
         print(f"Using prompt variant: {_c(variant_name, 'cyan')}")
 
-    sources = [SourceInput(url=s["url"], label=s.get("label", s["url"]), context=s.get("context", "N/A")) for s in sources_raw]
     topic = _detect_topic((response or "") + " " + prompt)
 
     run_id = str(uuid.uuid4())[:8]
@@ -632,6 +657,130 @@ async def cmd_test(args: argparse.Namespace) -> None:
     _save_run(db, run_id, label, prompt, response, variant_name, len(sources), total_ms)
 
     print(f"\n{_c('Run saved:', 'bold')} {label} ({run_id}) — {len(sources)} sources in {total_ms}ms")
+
+
+async def cmd_llm_sweep(args: argparse.Namespace) -> None:
+    """Benchmark LLM-stage concurrency separately from scraping."""
+    try:
+        sources, prompt, response = _load_sources_and_prompt(args)
+    except ValueError as exc:
+        print(_c(f"Error: {exc}", "red"))
+        return
+
+    if not prompt:
+        print(_c("Error: --prompt is required (or set original_prompt in urls file)", "red"))
+        return
+
+    mode = args.mode
+    topic = _detect_topic((response or "") + " " + prompt)
+
+    scrape_sem = asyncio.Semaphore(args.scrape_concurrency)
+
+    async def _scrape_one(source: SourceInput) -> ScrapedSource:
+        async with scrape_sem:
+            diag = await instrumented_scrape(source, use_playwright=not args.no_playwright)
+            return diag["result"]
+
+    print(_header("Preparing scraped sources"))
+    scraped_sources = await asyncio.gather(*(_scrape_one(source) for source in sources))
+    usable_sources = [scraped for scraped in scraped_sources if scraped.live and scraped.scrape_success]
+    if not usable_sources:
+        print(_c("No usable scraped sources available for LLM sweep.", "red"))
+        return
+
+    values = []
+    for raw in str(args.concurrency_values).split(","):
+        raw = raw.strip()
+        if not raw:
+            continue
+        try:
+            values.append(max(1, int(raw)))
+        except ValueError:
+            print(_c(f"Invalid concurrency value: {raw}", "red"))
+            return
+    if not values:
+        print(_c("Error: provide at least one concurrency value", "red"))
+        return
+
+    async def _run_one(scraped: ScrapedSource):
+        if mode == "score":
+            return await score_source_with_llm(scraped, prompt)
+        if mode == "authority":
+            bootstrap = _bootstrap_authority_profile(scraped)
+            return await classify_source_authority(
+                scraped,
+                prompt,
+                topic=topic,
+                authority_profile=bootstrap,
+            )
+        bootstrap = _bootstrap_authority_profile(scraped)
+        return await asyncio.gather(
+            score_source_with_llm(scraped, prompt),
+            classify_source_authority(
+                scraped,
+                prompt,
+                topic=topic,
+                authority_profile=bootstrap,
+            ),
+        )
+
+    total_units = len(usable_sources) * args.repeats
+    print(
+        f"Using {len(usable_sources)} scraped source(s), mode={_c(mode, 'cyan')}, "
+        f"repeats={args.repeats}, total units={total_units}"
+    )
+    print()
+
+    results = []
+    for limit in values:
+        set_llm_concurrency_limit(limit)
+        reset_llm_metrics()
+
+        started = time.perf_counter()
+        tasks = [
+            asyncio.create_task(_run_one(scraped))
+            for _ in range(args.repeats)
+            for scraped in usable_sources
+        ]
+        await asyncio.gather(*tasks)
+        duration_ms = int((time.perf_counter() - started) * 1000)
+        metrics = get_llm_metrics()
+        effective_calls = metrics["calls"] or 1
+        results.append(
+            {
+                "limit": limit,
+                "duration_ms": duration_ms,
+                "calls": metrics["calls"],
+                "successes": metrics["successes"],
+                "fallbacks": metrics["fallbacks"],
+                "rate_limit_hits": metrics["rate_limit_hits"],
+                "avg_ms_per_call": round(duration_ms / effective_calls, 1),
+            }
+        )
+
+    print(_header("LLM Sweep Results"))
+    hdr = (
+        f"{'limit':>5} | {'time(ms)':>8} | {'calls':>5} | "
+        f"{'429s':>4} | {'fallbacks':>9} | {'avg/call':>8}"
+    )
+    print(hdr)
+    print("─" * len(hdr))
+    for row in results:
+        color = "green" if row["fallbacks"] == 0 else ("amber" if row["fallbacks"] <= max(1, args.repeats // 2) else "red")
+        print(
+            _c(
+                f"{row['limit']:>5} | {row['duration_ms']:>8} | {row['calls']:>5} | "
+                f"{row['rate_limit_hits']:>4} | {row['fallbacks']:>9} | {row['avg_ms_per_call']:>8}",
+                color,
+            )
+        )
+
+    best = sorted(results, key=lambda row: (row["fallbacks"], row["rate_limit_hits"], row["duration_ms"]))[0]
+    print()
+    print(
+        f"Suggested limit: {_c(str(best['limit']), 'bold')} "
+        f"(fallbacks={best['fallbacks']}, 429s={best['rate_limit_hits']}, total={best['duration_ms']}ms)"
+    )
 
 
 async def cmd_triage(args: argparse.Namespace) -> None:
@@ -1097,6 +1246,19 @@ def build_parser() -> argparse.ArgumentParser:
     p_test.add_argument("--verbose", action="store_true", help="Show body text preview")
     p_test.add_argument("--concurrency", type=int, default=5, help="Max concurrent operations")
 
+    # llm-sweep
+    p_llm = sub.add_parser("llm-sweep", help="Benchmark the LLM stage separately from scraping")
+    p_llm.add_argument("urls", nargs="*", help="URLs to test")
+    p_llm.add_argument("--urls-file", help="JSON file with URLs and prompt")
+    p_llm.add_argument("--prompt", help="Original user prompt")
+    p_llm.add_argument("--response", default="", help="Full AI response text")
+    p_llm.add_argument("--context", help="Claim context (used if no urls-file)")
+    p_llm.add_argument("--mode", choices=["score", "authority", "both"], default="both", help="Which LLM task(s) to benchmark")
+    p_llm.add_argument("--repeats", type=int, default=2, help="How many times to repeat each scraped source")
+    p_llm.add_argument("--concurrency-values", default="1,2,3,4", help="Comma-separated LLM concurrency limits to test")
+    p_llm.add_argument("--scrape-concurrency", type=int, default=3, help="Concurrency to use during the one-time scrape prep")
+    p_llm.add_argument("--no-playwright", action="store_true", help="Skip Playwright fallback during scrape prep")
+
     # compare
     p_compare = sub.add_parser("compare", help="Compare two test runs")
     p_compare.add_argument("label_a", help="First run label or run_id")
@@ -1146,6 +1308,7 @@ def main() -> None:
     cmd_map = {
         "scrape": cmd_scrape,
         "test": cmd_test,
+        "llm-sweep": cmd_llm_sweep,
         "compare": cmd_compare,
         "failures": cmd_failures,
         "history": cmd_history,

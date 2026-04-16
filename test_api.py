@@ -368,6 +368,7 @@ class VerityLlmPayloadTests(unittest.TestCase):
         fake_client = FakeClient()
         original_token = ve.GITHUB_TOKEN
         original_retries = ve.LLM_429_MAX_RETRIES
+        original_concurrency = ve.LLM_MAX_CONCURRENT_REQUESTS
         with patch.object(ve, "_get_llm_client", return_value=fake_client), patch(
             "verity_extractor.asyncio.sleep",
             AsyncMock(),
@@ -375,14 +376,22 @@ class VerityLlmPayloadTests(unittest.TestCase):
             try:
                 ve.GITHUB_TOKEN = "test-token"
                 ve.LLM_429_MAX_RETRIES = 3
+                ve.set_llm_concurrency_limit(1)
+                ve.reset_llm_metrics()
                 result = asyncio.run(ve._call_llm("hello"))
+                metrics = ve.get_llm_metrics()
             finally:
                 ve.GITHUB_TOKEN = original_token
                 ve.LLM_429_MAX_RETRIES = original_retries
+                ve.set_llm_concurrency_limit(original_concurrency)
 
         self.assertEqual(result, '{"ok": true}')
         self.assertEqual(fake_client.calls, 2)
         sleep_mock.assert_awaited_once()
+        self.assertEqual(metrics["calls"], 1)
+        self.assertEqual(metrics["successes"], 1)
+        self.assertEqual(metrics["fallbacks"], 0)
+        self.assertEqual(metrics["rate_limit_hits"], 1)
 
 
 if __name__ == "__main__":

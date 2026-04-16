@@ -85,7 +85,7 @@ LLM_MAX_PROMPT_CHARS = _env_int("LLM_MAX_PROMPT_CHARS", "2000", lo=100, hi=20_00
 LLM_MAX_BODY_CHARS = _env_int("LLM_MAX_BODY_CHARS", str(min(MAX_BODY_TEXT_CHARS, 8000)), lo=500, hi=500_000)
 LLM_MAX_OUTPUT_TOKENS = _env_int("LLM_MAX_OUTPUT_TOKENS", "400", lo=64, hi=8192)
 LLM_MAX_CONCURRENT_REQUESTS = _env_int("LLM_MAX_CONCURRENT_REQUESTS", "1", lo=1, hi=16)
-LLM_429_MAX_RETRIES = _env_int("LLM_429_MAX_RETRIES", "3", lo=0, hi=10)
+LLM_429_MAX_RETRIES = _env_int("LLM_429_MAX_RETRIES", "2", lo=0, hi=10)
 LLM_429_BACKOFF_SECONDS = _env_int("LLM_429_BACKOFF_SECONDS", "1", lo=1, hi=30)
 VERITY_RELOAD = os.getenv("VERITY_RELOAD", "false").lower() == "true"
 ENABLE_PLAYWRIGHT_FALLBACK = (
@@ -1516,6 +1516,27 @@ Respond with ONLY valid JSON:
 
 _llm_client: httpx.AsyncClient | None = None
 _llm_semaphore = asyncio.Semaphore(LLM_MAX_CONCURRENT_REQUESTS)
+_llm_metrics = {
+    "calls": 0,
+    "successes": 0,
+    "fallbacks": 0,
+    "rate_limit_hits": 0,
+}
+
+
+def set_llm_concurrency_limit(limit: int) -> None:
+    global _llm_semaphore, LLM_MAX_CONCURRENT_REQUESTS
+    LLM_MAX_CONCURRENT_REQUESTS = max(1, int(limit))
+    _llm_semaphore = asyncio.Semaphore(LLM_MAX_CONCURRENT_REQUESTS)
+
+
+def reset_llm_metrics() -> None:
+    for key in _llm_metrics:
+        _llm_metrics[key] = 0
+
+
+def get_llm_metrics() -> dict[str, int]:
+    return dict(_llm_metrics)
 
 
 def _get_llm_client() -> httpx.AsyncClient:
@@ -1584,6 +1605,7 @@ async def _call_llm(prompt: str, system: str | None = None) -> str | None:
 
     client = _get_llm_client()
     async with _llm_semaphore:
+        _llm_metrics["calls"] += 1
         for attempt in range(LLM_429_MAX_RETRIES + 1):
             try:
                 response = await client.post(
@@ -1591,6 +1613,7 @@ async def _call_llm(prompt: str, system: str | None = None) -> str | None:
                     json=_build_llm_payload(messages),
                 )
                 if response.status_code == 429:
+                    _llm_metrics["rate_limit_hits"] += 1
                     if attempt < LLM_429_MAX_RETRIES:
                         wait_seconds = LLM_429_BACKOFF_SECONDS * (2**attempt)
                         logging.info(
@@ -1602,6 +1625,7 @@ async def _call_llm(prompt: str, system: str | None = None) -> str | None:
                         await asyncio.sleep(wait_seconds)
                         continue
                     logging.warning("GitHub Models call failed after %d attempts: HTTP 429", attempt + 1)
+                    _llm_metrics["fallbacks"] += 1
                     return None
                 response.raise_for_status()
                 payload = response.json()
@@ -1612,9 +1636,11 @@ async def _call_llm(prompt: str, system: str | None = None) -> str | None:
                         "GitHub Models response truncated by output limit (finish_reason=length, max_output_tokens=%s)",
                         LLM_MAX_OUTPUT_TOKENS,
                     )
+                _llm_metrics["successes"] += 1
                 return choice["message"]["content"]
             except Exception as exc:
                 if "429" in str(exc) and attempt < LLM_429_MAX_RETRIES:
+                    _llm_metrics["rate_limit_hits"] += 1
                     wait_seconds = LLM_429_BACKOFF_SECONDS * (2**attempt)
                     logging.info(
                         "GitHub Models 429-style exception on attempt %d/%d, retrying in %ss",
@@ -1625,6 +1651,7 @@ async def _call_llm(prompt: str, system: str | None = None) -> str | None:
                     await asyncio.sleep(wait_seconds)
                     continue
                 logging.warning("GitHub Models call failed: %s", str(exc)[:120])
+                _llm_metrics["fallbacks"] += 1
                 return None
     return None
 
